@@ -1972,7 +1972,12 @@ select option{background:var(--surface2);color:var(--text)}
         Sıfırlamak için butona <b style="color:#ff4d6d">art arda 5 kez</b> basın. Tüm kartlar, rutinler ve veriler silinir.
       </p>
     </div>
-    <button class="btn btn-ghost" style="margin-top:16px" onclick="App.closeBackupModal()"><i class="fa-solid fa-xmark"></i> Kapat</button>
+      <hr style="border:none;border-top:1px solid var(--border);margin:8px 0"/>
+      <button class="btn" onclick="App.openLoginModal()"
+        style="background:transparent;border:1.5px solid var(--primary);color:var(--primary)">
+        <i class="fa-solid fa-right-to-bracket"></i> Hesap Oluştur / Giriş Yap
+      </button>
+    <button class="btn btn-ghost" style="margin-top:8px" onclick="App.closeBackupModal()"><i class="fa-solid fa-xmark"></i> Kapat</button>
   </div>
 </div>
 
@@ -1982,15 +1987,53 @@ select option{background:var(--surface2);color:var(--text)}
 <div id="onboard-overlay" class="onboard-overlay" style="display:none">
   <div class="onboard-box">
     <div style="font-size:2.5rem;margin-bottom:12px">👋</div>
-    <h2>YKS Asistan'a Hoş Geldin!</h2>
-    <p>Sosyal özellikler için bir kullanıcı adı belirle. Arkadaşların seni bu isimle görecek.</p>
-    <div class="form-group" style="text-align:left;margin-bottom:16px">
-      <label><i class="fa-solid fa-user"></i> Kullanıcı Adın</label>
-      <input type="text" id="onboard-username" class="form-input" placeholder="örn. ahmet42" maxlength="20" style="text-align:center;font-size:1.1rem;letter-spacing:1px"/>
+    <h2>YKS Asistan</h2>
+    <p style="margin-bottom:16px">Sosyal özellikler için hesap oluştur veya giriş yap.</p>
+
+    <!-- Sekmeler -->
+    <div style="display:flex;gap:8px;margin-bottom:20px">
+      <button id="tab-signup-btn" onclick="App.onboardTab('signup')"
+        style="flex:1;padding:8px;border-radius:10px;border:none;background:var(--primary);color:#fff;font-weight:700;cursor:pointer;font-size:.9rem">
+        Hesap Oluştur
+      </button>
+      <button id="tab-login-btn" onclick="App.onboardTab('login')"
+        style="flex:1;padding:8px;border-radius:10px;border:1.5px solid var(--border2);background:transparent;color:var(--text2);font-weight:700;cursor:pointer;font-size:.9rem">
+        Giriş Yap
+      </button>
     </div>
-    <button class="btn btn-primary" style="width:100%" onclick="App.completeOnboard()">
-      <i class="fa-solid fa-rocket"></i> Başla!
-    </button>
+
+    <!-- Hesap Oluştur Formu -->
+    <div id="onboard-signup-form">
+      <div class="form-group" style="text-align:left;margin-bottom:12px">
+        <label><i class="fa-solid fa-user"></i> Kullanıcı Adı</label>
+        <input type="text" id="onboard-username" class="form-input" placeholder="örn. ahmet42" maxlength="20" style="text-align:center;font-size:1rem"/>
+      </div>
+      <div class="form-group" style="text-align:left;margin-bottom:16px">
+        <label><i class="fa-solid fa-lock"></i> Şifre</label>
+        <input type="password" id="onboard-password" class="form-input" placeholder="En az 4 karakter" maxlength="30" style="text-align:center;font-size:1rem"/>
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="App.completeOnboard()">
+        <i class="fa-solid fa-rocket"></i> Hesap Oluştur
+      </button>
+    </div>
+
+    <!-- Giriş Yap Formu -->
+    <div id="onboard-login-form" style="display:none">
+      <div class="form-group" style="text-align:left;margin-bottom:12px">
+        <label><i class="fa-solid fa-key"></i> Kullanıcı Kodun</label>
+        <input type="text" id="login-code" class="form-input" placeholder="örn. rotuyy9b5ifo" maxlength="20" style="text-align:center;font-size:1rem;letter-spacing:1px"/>
+      </div>
+      <div class="form-group" style="text-align:left;margin-bottom:4px">
+        <label><i class="fa-solid fa-lock"></i> Şifre</label>
+        <input type="password" id="login-password" class="form-input" placeholder="Şifren" maxlength="30" style="text-align:center;font-size:1rem"/>
+      </div>
+      <p style="font-size:.75rem;color:var(--text3);margin-bottom:16px;line-height:1.4">
+        Kodunu profilinden kopyalayabilirsin. Yeni cihazda giriş için kod + şifre gerekli.
+      </p>
+      <button class="btn btn-primary" style="width:100%" onclick="App.loginAccount()">
+        <i class="fa-solid fa-right-to-bracket"></i> Giriş Yap
+      </button>
+    </div>
   </div>
 </div>
 
@@ -4872,6 +4915,9 @@ STRİKT KURALLAR:
     deleteChatMessage: (id) => Social.deleteChatMessage(id),
     removeFriend: (code) => Social.removeFriend(code),
     completeOnboard: () => Social.completeOnboard(),
+    loginAccount: () => Social.loginAccount(),
+    onboardTab: (t) => Social.onboardTab(t),
+    openLoginModal: () => Social.openLoginModal(),
     copyFriendCode: () => Social.copyFriendCode(),
     editUsername: () => Social.editUsername(),
     changeMyPhoto: (e) => Social.changeMyPhoto(e),
@@ -4989,31 +5035,81 @@ const Social = (() => {
     }
   }
 
+  function onboardTab(tab) {
+    const isSignup = tab === 'signup';
+    document.getElementById('onboard-signup-form').style.display = isSignup ? '' : 'none';
+    document.getElementById('onboard-login-form').style.display  = isSignup ? 'none' : '';
+    document.getElementById('tab-signup-btn').style.cssText = isSignup
+      ? 'flex:1;padding:8px;border-radius:10px;border:none;background:var(--primary);color:#fff;font-weight:700;cursor:pointer;font-size:.9rem'
+      : 'flex:1;padding:8px;border-radius:10px;border:1.5px solid var(--border2);background:transparent;color:var(--text2);font-weight:700;cursor:pointer;font-size:.9rem';
+    document.getElementById('tab-login-btn').style.cssText = isSignup
+      ? 'flex:1;padding:8px;border-radius:10px;border:1.5px solid var(--border2);background:transparent;color:var(--text2);font-weight:700;cursor:pointer;font-size:.9rem'
+      : 'flex:1;padding:8px;border-radius:10px;border:none;background:var(--primary);color:#fff;font-weight:700;cursor:pointer;font-size:.9rem';
+  }
+
+  function openLoginModal() {
+    closeBackupModal();
+    document.getElementById('onboard-overlay').style.display = 'flex';
+  }
+
   async function completeOnboard() {
-    const inp = document.getElementById('onboard-username');
-    const name = inp.value.trim();
+    const name = document.getElementById('onboard-username').value.trim();
+    const pass = document.getElementById('onboard-password').value.trim();
     if (!name || name.length < 2) { toast('En az 2 karakter gir!', 'err'); return; }
+    if (!pass || pass.length < 4) { toast('Şifre en az 4 karakter olmalı!', 'err'); return; }
 
     _myCode = _genCode();
     _myName = name;
     localStorage.setItem('social_code', _myCode);
     localStorage.setItem('social_name', _myName);
 
-    // Save to Firestore
     const { db, doc, setDoc } = _fb;
     try {
       await setDoc(doc(db, 'users', _myCode), {
         name: _myName,
         code: _myCode,
+        password: btoa(pass),
         createdAt: Date.now()
       });
       document.getElementById('onboard-overlay').style.display = 'none';
       _updateProfileUI();
-      toast('Profil oluşturuldu! 🎉', 'ok');
+      toast('Hesap oluşturuldu! 🎉 Kodunu profilinden kopyala, unutma!', 'ok');
       if (window._saveFcmToken && window._pendingFcmToken) {
         window._saveFcmToken(_myCode).catch(()=>{});
         window._pendingFcmToken = null;
       }
+      renderFriends().then(() => renderGroups().then(() => _startBackgroundListeners())).catch(()=>{});
+    } catch(e) {
+      toast('Bağlantı hatası: ' + e.message, 'err');
+    }
+  }
+
+  async function loginAccount() {
+    const code = document.getElementById('login-code').value.trim().toLowerCase();
+    const pass = document.getElementById('login-password').value.trim();
+    if (!code) { toast('Kullanıcı kodunu gir!', 'err'); return; }
+    if (!pass) { toast('Şifreni gir!', 'err'); return; }
+
+    const { db, doc, getDoc } = _fb;
+    try {
+      toast('Giriş yapılıyor...', 'ok');
+      const snap = await getDoc(doc(db, 'users', code));
+      if (!snap.exists()) { toast('❌ Kullanıcı bulunamadı!', 'err'); return; }
+      const data = snap.data();
+      if (!data.password || data.password !== btoa(pass)) { toast('❌ Şifre yanlış!', 'err'); return; }
+
+      _myCode = code;
+      _myName = data.name;
+      _myPhoto = data.photo || null;
+      localStorage.setItem('social_code', _myCode);
+      localStorage.setItem('social_name', _myName);
+      if (_myPhoto) localStorage.setItem('social_photo', _myPhoto);
+
+      document.getElementById('onboard-overlay').style.display = 'none';
+      _updateProfileUI();
+      toast('Hoş geldin ' + _myName + '! 👋', 'ok');
+      if (window._saveFcmToken) window._saveFcmToken(_myCode).catch(()=>{});
+      renderFriends().then(() => renderGroups().then(() => _startBackgroundListeners())).catch(()=>{});
     } catch(e) {
       toast('Bağlantı hatası: ' + e.message, 'err');
     }
@@ -6442,7 +6538,8 @@ const Social = (() => {
   }
 
   return {
-    init, completeOnboard, copyFriendCode, editUsername, changeMyPhoto,
+    init, completeOnboard, loginAccount, onboardTab, openLoginModal,
+    copyFriendCode, editUsername, changeMyPhoto,
     addFriend, renderFriends, removeFriend,
     openChat, openGroupChat, closeChatWindow,
     sendChatMessage, sendChatPhoto,
