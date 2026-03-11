@@ -5587,7 +5587,47 @@ const Social = (() => {
         type: 'text', text,
         createdAt: serverTimestamp()
       });
+      // Push bildirimi gönder
+      _sendPushToRecipient(text);
     } catch(e) { toast('Gönderilemedi: ' + e.message, 'err'); }
+  }
+
+  // ── Push Bildirimi Gönder ──
+  async function _sendPushToRecipient(text) {
+    try {
+      const { db, doc, getDoc } = _fb;
+      // Alıcı kim?
+      let recipientCode = null;
+      if (_chatMode === 'direct' && _chatPartner) {
+        recipientCode = _chatPartner.code;
+      } else if (_chatMode === 'group' && _groupId) {
+        // Grup: tüm üyelere gönder (kendisi hariç)
+        const groupDoc = await getDoc(doc(db, 'groups', _groupId));
+        if (!groupDoc.exists()) return;
+        const members = groupDoc.data().members || [];
+        for (const m of members) {
+          if (m !== _myCode) await _pushToUser(m, text, true);
+        }
+        return;
+      }
+      if (recipientCode) await _pushToUser(recipientCode, text, false);
+    } catch(e) { console.log('Push err:', e); }
+  }
+
+  async function _pushToUser(userCode, text, isGroup) {
+    try {
+      const { db, doc, getDoc } = _fb;
+      const tokenDoc = await getDoc(doc(db, 'push_tokens', userCode));
+      if (!tokenDoc.exists()) return;
+      const token = tokenDoc.data().token;
+      if (!token) return;
+      const title = isGroup ? `${_myName} (Grup)` : _myName;
+      await fetch('https://stately-monstera-a18819.netlify.app/.netlify/functions/send-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, title, body: text, senderCode: _myCode })
+      });
+    } catch(e) { console.log('Push user err:', e); }
   }
 
   // ── Share Cards ──
