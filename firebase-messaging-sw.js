@@ -12,33 +12,30 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage(payload => {
-  console.log('[SW] Arka plan mesajı:', payload);
-  const { title, body, icon } = payload.notification || {};
+  const { title, body } = payload.notification || {};
+
   self.registration.showNotification(title || 'YKS Asistan', {
-    body: body || 'Yeni bir bildirim var',
-    icon: icon || '/icon-192.png',
-    badge: '/icon-192.png',
+    body: body || 'Yeni mesajın var',
+    icon: 'https://deligom.github.io/yks-asistan/icon-192.png',
+    badge: 'https://deligom.github.io/yks-asistan/icon-192.png',
     vibrate: [200, 100, 200],
-    data: payload.data || {},
-    actions: [
-      { action: 'open', title: 'Aç' },
-      { action: 'close', title: 'Kapat' }
-    ]
+    tag: 'yks-msg',
+    renotify: true,
+    data: payload.data || {}
   });
 });
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  if (event.action === 'close') return;
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
       for (const client of clientList) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
+        if (client.url.includes('deligom.github.io') && 'focus' in client) {
           return client.focus();
         }
       }
       if (clients.openWindow) {
-        return clients.openWindow('/');
+        return clients.openWindow('https://deligom.github.io/yks-asistan/');
       }
     })
   );
