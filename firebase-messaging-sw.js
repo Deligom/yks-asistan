@@ -11,9 +11,15 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// FCM notification alanı varsa kendisi gösterir — biz müdahale etmiyoruz
-// onBackgroundMessage tanımlamıyoruz, çünkü o tanımlanınca FCM "sen halledersin"
-// deyip çekiliyor ama biz showNotification çağırmazsak boşlukta kalıyor.
+messaging.onBackgroundMessage(payload => {
+  const title = payload.notification?.title || payload.data?.title || 'YKS Asistan';
+  const body  = payload.notification?.body  || payload.data?.body  || '';
+  self.registration.showNotification(title, {
+    body,
+    icon:  '/yks-asistan/icon-192.png',
+    badge: '/yks-asistan/icon-192.png'
+  });
+});
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
