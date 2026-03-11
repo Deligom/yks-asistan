@@ -5626,7 +5626,7 @@ const Social = (() => {
       const token = tokenDoc.data().token;
       if (!token) return;
       const title = isGroup ? `${_myName} (Grup)` : _myName;
-      await fetch('https://yks-asistan1.vercel.app/api/send-push', {
+      await fetch('https://yks-asistan.vercel.app/api/send-push', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, title, body: text, senderCode: _myCode })
