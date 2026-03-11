@@ -46,18 +46,13 @@ exports.handler = async (event) => {
     const message = {
       message: {
         token,
-        notification: { title, body },
-        data: { senderCode: senderCode || '' },
-        android: { priority: 'high' },
+        data: {
+          title: title || '',
+          body: body || '',
+          senderCode: senderCode || ''
+        },
         webpush: {
-          headers: { Urgency: 'high' },
-          notification: {
-            title,
-            body,
-            icon: 'https://deligom.github.io/yks-asistan/icon-192.png',
-            badge: 'https://deligom.github.io/yks-asistan/icon-192.png',
-            vibrate: [200, 100, 200]
-          }
+          headers: { Urgency: 'high' }
         }
       }
     };
@@ -85,4 +80,3 @@ exports.handler = async (event) => {
     return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
   }
 };
-
