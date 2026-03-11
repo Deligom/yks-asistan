@@ -12,16 +12,17 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage(payload => {
-  const { title, body } = payload.notification || {};
+  // notification alanı yok, sadece data var — tek bildirim biz gösteriyoruz
+  const title = payload.data?.title || 'YKS Asistan';
+  const body = payload.data?.body || 'Yeni mesajın var';
 
-  self.registration.showNotification(title || 'YKS Asistan', {
-    body: body || 'Yeni mesajın var',
+  self.registration.showNotification(title, {
+    body,
     icon: 'https://deligom.github.io/yks-asistan/icon-192.png',
     badge: 'https://deligom.github.io/yks-asistan/icon-192.png',
     vibrate: [200, 100, 200],
     tag: 'yks-msg',
-    renotify: true,
-    data: payload.data || {}
+    renotify: true
   });
 });
 
