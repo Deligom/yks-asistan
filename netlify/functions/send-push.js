@@ -10,6 +10,7 @@ const SERVICE_ACCOUNT = {
 };
 
 exports.handler = async (event) => {
+  // CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -31,6 +32,7 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers, body: 'Missing required fields' };
     }
 
+    // Google OAuth2 token al
     const auth = new GoogleAuth({
       credentials: SERVICE_ACCOUNT,
       scopes: ['https://www.googleapis.com/auth/firebase.messaging']
@@ -38,6 +40,7 @@ exports.handler = async (event) => {
     const client = await auth.getClient();
     const accessToken = await client.getAccessToken();
 
+    // FCM v1 API ile bildirim gönder
     const fcmUrl = `https://fcm.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/messages:send`;
 
     const message = {
