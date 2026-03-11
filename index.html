@@ -93,8 +93,7 @@
   #view-ai.active { display:flex; }
   #ai-chat-inner {
     position: fixed;
-    inset: 0;
-    bottom: 70px;
+    inset: env(safe-area-inset-top, 0px) 0 calc(var(--nav-h) + env(safe-area-inset-bottom, 0px)) 0;
     z-index: 100;
     background: var(--bg);
     display: flex;
@@ -144,8 +143,7 @@
   /* Chat aktifken tüm view fixed + chat tam ekran */
   #chat-active {
     position: fixed;
-    inset: 0;
-    bottom: 70px;
+    inset: env(safe-area-inset-top, 0px) 0 calc(var(--nav-h) + env(safe-area-inset-bottom, 0px)) 0;
     z-index: 100;
     background: var(--bg);
     display: flex;
