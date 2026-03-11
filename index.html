@@ -6554,6 +6554,7 @@ const Social = (() => {
           platform: 'web'
         });
         console.log('[PWA] Token Firestore\'a kaydedildi');
+        if (window.toast) toast('🔔 Bildirimler aktif!', 'ok');
       }
     }
 
@@ -6565,6 +6566,7 @@ const Social = (() => {
 
   } catch(err) {
     console.error('[PWA] Bildirim sistemi hatası:', err);
+    if (window.toast) toast('⚠️ Bildirim hatası: ' + err.message, 'err');
   }
 })();
 </script>
