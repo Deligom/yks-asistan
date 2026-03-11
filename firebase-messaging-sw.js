@@ -11,19 +11,9 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-messaging.onBackgroundMessage(payload => {
-  const d = payload.data || {};
-  const title = d.title || 'YKS Asistan';
-  const body  = d.body  || '';
-
-  self.registration.showNotification(title, {
-    body,
-    icon:  '/yks-asistan/icon-192.png',
-    badge: '/yks-asistan/icon-192.png',
-    tag:   'yks-msg-' + Date.now(),   // ← çift bildirim engeli
-    data:  d
-  });
-});
+// FCM notification alanı varsa kendisi gösterir — biz müdahale etmiyoruz
+// onBackgroundMessage tanımlamıyoruz, çünkü o tanımlanınca FCM "sen halledersin"
+// deyip çekiliyor ama biz showNotification çağırmazsak boşlukta kalıyor.
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
