@@ -33,12 +33,16 @@ export default async function handler(req, res) {
     const message = {
       message: {
         token,
-        data: {
-          title:      String(title),
-          body:       String(body),
-          senderCode: String(senderCode || '')
-        },
-        webpush: { headers: { Urgency: 'high' } }
+        data: { senderCode: senderCode || '' },
+        webpush: {
+          headers: { Urgency: 'high' },
+          notification: {
+            title,
+            body,
+            icon:  'https://deligom.github.io/yks-asistan/icon-192.png',
+            badge: 'https://deligom.github.io/yks-asistan/icon-192.png'
+          }
+        }
       }
     };
 
