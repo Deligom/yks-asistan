@@ -11,12 +11,16 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// FCM zaten notification alanı varsa otomatik gösteriyor.
-// onBackgroundMessage sadece data-only mesajlar için gerekli.
-// Biz notification gönderdiğimiz için bu fonksiyon çalışmaz,
-// FCM tek bildirimi kendisi gösterir.
 messaging.onBackgroundMessage(payload => {
-  // Intentionally empty - FCM handles notification display automatically
+  const title = payload.notification?.title || payload.data?.title || 'YKS Asistan';
+  const body  = payload.notification?.body  || payload.data?.body  || '';
+
+  self.registration.showNotification(title, {
+    body,
+    icon:  '/yks-asistan/icon-192.png',
+    badge: '/yks-asistan/icon-192.png',
+    data:  payload.data || {}
+  });
 });
 
 self.addEventListener('notificationclick', event => {
