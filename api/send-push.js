@@ -18,11 +18,8 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { token, title, body, senderCode } = req.body;
-
-    if (!token || !title || !body) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
+    const { token, title, body, senderCode, senderPhoto } = req.body;
+    if (!token || !title || !body) return res.status(400).json({ error: 'Missing fields' });
 
     const auth = new GoogleAuth({
       credentials: SERVICE_ACCOUNT,
@@ -31,41 +28,37 @@ export default async function handler(req, res) {
     const client = await auth.getClient();
     const accessToken = await client.getAccessToken();
 
-    const fcmUrl = `https://fcm.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/messages:send`;
-
     const message = {
       message: {
         token,
-        notification: { title, body },
-        data: { senderCode: senderCode || '' },
-        webpush: {
-          headers: { Urgency: 'high' },
-          notification: {
-            title,
-            body,
-            icon: 'https://deligom.github.io/yks-asistan/icon-192.png',
-            badge: 'https://deligom.github.io/yks-asistan/icon-192.png'
-          }
-        }
+        // notification alanı YOK — service worker tek bildirim gösterecek
+        data: {
+          title: title || '',
+          body: body || '',
+          senderCode: senderCode || '',
+          senderPhoto: senderPhoto || ''
+        },
+        webpush: { headers: { Urgency: 'high' } }
       }
     };
 
-    const response = await fetch(fcmUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken.token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(message)
-    });
+    const response = await fetch(
+      `https://fcm.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/messages:send`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken.token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(message)
+      }
+    );
 
     const result = await response.json();
     if (!response.ok) return res.status(500).json(result);
-
     return res.status(200).json({ success: true });
 
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
 }
-
