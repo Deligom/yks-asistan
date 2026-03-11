@@ -6503,8 +6503,12 @@ const Social = (() => {
   if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
 
   try {
-    // Service Worker'ı kaydet
-    const reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
+    // Service Worker'ı kaydet (GitHub Pages için path düzeltmesi)
+    const swPath = location.pathname.includes('/yks-asistan/') 
+      ? '/yks-asistan/firebase-messaging-sw.js' 
+      : '/firebase-messaging-sw.js';
+    const swScope = location.pathname.includes('/yks-asistan/') ? '/yks-asistan/' : '/';
+    const reg = await navigator.serviceWorker.register(swPath, { scope: swScope });
     console.log('[PWA] Service Worker kayıtlı:', reg.scope);
 
     // Firebase Messaging modülünü yükle
