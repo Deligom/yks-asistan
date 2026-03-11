@@ -6724,6 +6724,10 @@ const Social = (() => {
 
   if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
 
+  // content://, file:// veya null protokollerinde SW hiç deneme — sessizce atla
+  const proto = location.protocol;
+  if (proto !== 'https:' && proto !== 'http:') return;
+
   try {
     // Service Worker'ı kaydet (GitHub Pages için path düzeltmesi)
     const swPath = location.pathname.includes('/yks-asistan/') 
@@ -6795,7 +6799,8 @@ const Social = (() => {
 
   } catch(err) {
     console.error('[PWA] Bildirim sistemi hatası:', err);
-    if (window.toast) toast('⚠️ Bildirim hatası: ' + err.message, 'err');
+    // Sadece gerçek HTTPS ortamında toast göster; local/content://file:// açılışlarda tamamen sessiz kal
+    if (window.toast && location.protocol === 'https:') window.toast('⚠️ Bildirim hatası: ' + err.message, 'err');
   }
 })();
 </script>
