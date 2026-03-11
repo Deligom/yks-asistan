@@ -36,15 +36,14 @@ export default async function handler(req, res) {
     const message = {
       message: {
         token,
-        // ← notification alanı YOK (çift bildirim bunu yapıyordu)
-        data: {
-          title:      String(title),
-          body:       String(body),
-          senderCode: String(senderCode || '')
-        },
+        notification: { title, body },   // ← bu TEK bildirimi sağlar
+        data: { senderCode: senderCode || '' },
         webpush: {
-          headers: { Urgency: 'high' }
-          // ← webpush.notification da YOK, SW halleder
+          headers: { Urgency: 'high' },
+          notification: {               // ← sadece icon/badge, title/body yok
+            icon: 'https://deligom.github.io/yks-asistan/icon-192.png',
+            badge: 'https://deligom.github.io/yks-asistan/icon-192.png'
+          }
         }
       }
     };
