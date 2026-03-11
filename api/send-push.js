@@ -39,8 +39,7 @@ export default async function handler(req, res) {
           notification: {
             title,
             body,
-            icon:  'https://deligom.github.io/yks-asistan/icon-192.png',
-            badge: 'https://deligom.github.io/yks-asistan/icon-192.png'
+            icon: 'https://deligom.github.io/yks-asistan/icon-192.png'
           }
         }
       }
