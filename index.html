@@ -5629,7 +5629,7 @@ const Social = (() => {
       await fetch('https://yks-asistan.vercel.app/api/send-push', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, title, body: text, senderCode: _myCode, senderPhoto: _myPhoto || '' })
+        body: JSON.stringify({ token, title, body: text, senderCode: _myCode })
       });
     } catch(e) { console.log('Push user err:', e); }
   }
