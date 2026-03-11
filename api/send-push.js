@@ -19,10 +19,7 @@ export default async function handler(req, res) {
 
   try {
     const { token, title, body, senderCode } = req.body;
-
-    if (!token || !title || !body) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
+    if (!token || !title || !body) return res.status(400).json({ error: 'Missing required fields' });
 
     const auth = new GoogleAuth({
       credentials: SERVICE_ACCOUNT,
@@ -36,17 +33,12 @@ export default async function handler(req, res) {
     const message = {
       message: {
         token,
-        // ← top-level notification YOK
-        data: { senderCode: senderCode || '' },
-        webpush: {
-          headers: { Urgency: 'high' },
-          notification: {
-            title,   // ← tek yer burada
-            body,
-            icon:  'https://deligom.github.io/yks-asistan/icon-192.png',
-            badge: 'https://deligom.github.io/yks-asistan/icon-192.png'
-          }
-        }
+        data: {
+          title:      String(title),
+          body:       String(body),
+          senderCode: String(senderCode || '')
+        },
+        webpush: { headers: { Urgency: 'high' } }
       }
     };
 
@@ -61,7 +53,6 @@ export default async function handler(req, res) {
 
     const result = await response.json();
     if (!response.ok) return res.status(500).json(result);
-
     return res.status(200).json({ success: true });
 
   } catch (err) {
