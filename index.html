@@ -5010,6 +5010,10 @@ const Social = (() => {
       document.getElementById('onboard-overlay').style.display = 'none';
       _updateProfileUI();
       toast('Profil oluşturuldu! 🎉', 'ok');
+      if (window._saveFcmToken && window._pendingFcmToken) {
+        window._saveFcmToken(_myCode).catch(()=>{});
+        window._pendingFcmToken = null;
+      }
     } catch(e) {
       toast('Bağlantı hatası: ' + e.message, 'err');
     }
@@ -6540,21 +6544,28 @@ const Social = (() => {
     const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
 
     if (token) {
-      console.log('[PWA] FCM Token:', token);
-      // Token'ı Firestore'a kaydet (bu sayede diğer kullanıcılar sana bildirim gönderebilir)
-      const myCode = localStorage.getItem('social_code');
-      if (myCode) {
+      localStorage.setItem('fcm_token', token);
+
+      const saveFcmToken = async (code) => {
+        if (!code) return;
         const { getFirestore, doc, setDoc } = await import(
           'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js'
         );
         const db = getFirestore(getApp());
-        await setDoc(doc(db, 'push_tokens', myCode), {
+        await setDoc(doc(db, 'push_tokens', code), {
           token,
           updatedAt: new Date().toISOString(),
           platform: 'web'
         });
-        console.log('[PWA] Token Firestore\'a kaydedildi');
         if (window.toast) toast('🔔 Bildirimler aktif!', 'ok');
+      };
+
+      const myCode = localStorage.getItem('social_code');
+      if (myCode) {
+        await saveFcmToken(myCode);
+      } else {
+        window._pendingFcmToken = token;
+        window._saveFcmToken = saveFcmToken;
       }
     }
 
