@@ -12,31 +12,22 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage(payload => {
-  const data = payload.data || {};
-  const title = data.title || 'YKS Asistan';
-  const body = data.body || 'Yeni mesajın var';
-  const icon = 'https://deligom.github.io/yks-asistan/icon-192.png';
+  const d = payload.data || {};
+  const title = d.title || 'YKS Asistan';
+  const body  = d.body  || '';
 
-  const options = {
+  self.registration.showNotification(title, {
     body,
-    icon,
-    badge: icon,
-    vibrate: [200, 100, 200],
-    tag: 'yks-msg-' + (data.senderCode || 'unknown'),
-    renotify: true,
-    data
-  };
-
-  // Profil fotoğrafı varsa göster (base64 veya URL)
-  if (data.senderPhoto && data.senderPhoto.length > 0) {
-    options.image = data.senderPhoto;
-  }
-
-  self.registration.showNotification(title, options);
+    icon:  '/yks-asistan/icon-192.png',
+    badge: '/yks-asistan/icon-192.png',
+    tag:   'yks-msg-' + Date.now(),   // ← çift bildirim engeli
+    data:  d
+  });
 });
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
+  if (event.action === 'close') return;
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
       for (const client of clientList) {
