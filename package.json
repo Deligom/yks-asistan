@@ -2,6 +2,9 @@
   "name": "yks-asistan",
   "version": "1.0.0",
   "dependencies": {
+    "@capacitor/android": "^8.2.0",
+    "@capacitor/cli": "^8.2.0",
+    "@capacitor/core": "^8.2.0",
     "google-auth-library": "^9.0.0"
   }
 }

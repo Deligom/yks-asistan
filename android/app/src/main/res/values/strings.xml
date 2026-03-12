@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">YKS Asistan</string>
+    <string name="title_activity_main">YKS Asistan</string>
+    <string name="package_name">com.deligom.yksasistan</string>
+    <string name="custom_url_scheme">com.deligom.yksasistan</string>
+</resources>
