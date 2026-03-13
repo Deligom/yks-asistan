@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-<meta name="monetag" content="29d7972e2de573d3f0db561b66aa8a2c">
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
 <meta name="mobile-web-app-capable" content="yes"/>
@@ -1336,6 +1335,13 @@ select option{background:var(--surface2);color:var(--text)}
   };
   window.dispatchEvent(new Event('fb-ready'));
 </script>
+
+<!-- ══ Monetag Onclick (Popunder) — pasif gelir ══ -->
+<script>(function(s){s.dataset.zone='10723370',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+
+<!-- ══ Monetag Vignette — "Reklam İzle" butonu için ══ -->
+<script id="monetag-vignette-tag" data-zone="10723376" src="https://gizokraijaw.net/vignette.min.js" async></script>
+
 </head>
 <body>
 
@@ -7819,8 +7825,26 @@ ANSWER FORMATI - ZORUNLU:
     <div style="width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px"></div>
     <div style="font-family:'Syne','Segoe UI',Arial,sans-serif;font-size:1.2rem;font-weight:800;margin-bottom:6px">🪙 Ekstra Token Al</div>
     <div style="font-size:.82rem;color:var(--text3);margin-bottom:20px">Her 1.000 token = <strong style="color:var(--primary)">$0.01</strong></div>
+
+    <!-- REKLAM İZLE BUTONU -->
+    <div style="background:linear-gradient(135deg,rgba(255,180,0,.12),rgba(255,120,0,.08));border:1.5px solid #f59e0b;border-radius:14px;padding:16px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div>
+          <div style="font-weight:800;font-size:.95rem;color:#f59e0b">🎬 Reklam İzle</div>
+          <div style="font-size:.75rem;color:var(--text3);margin-top:2px">30 saniyelik video izle, token kazan</div>
+        </div>
+        <div style="background:#f59e0b;border-radius:10px;padding:4px 10px;font-size:.8rem;font-weight:800;color:#000">+5.000</div>
+      </div>
+      <div id="ad-cooldown-info" style="font-size:.72rem;color:var(--text3);margin-bottom:10px;display:none"></div>
+      <button id="watch-ad-btn" onclick="SubPlan.watchAd()" style="width:100%;background:#f59e0b;border:none;border-radius:10px;padding:11px;color:#000;font-size:.88rem;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+        <span>▶</span> Reklamı İzle ve 5.000 Token Kazan
+      </button>
+      <div style="font-size:.68rem;color:var(--text3);text-align:center;margin-top:8px">Günlük en fazla 5 reklam izlenebilir</div>
+    </div>
+
+    <!-- ÖDEME İLE SATIN AL -->
     <div class="form-group" style="margin-bottom:8px">
-      <label style="font-size:.8rem">Kaç token almak istiyorsun?</label>
+      <label style="font-size:.8rem">💳 Ödemeyle Token Al</label>
       <input id="token-amount-input" type="number" min="10000" step="10000" value="100000" oninput="SubPlan.calcTokenPrice()"
         style="background:var(--bg2);border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text1);font-size:1rem;width:100%;box-sizing:border-box;outline:none"/>
     </div>
@@ -7829,6 +7853,25 @@ ANSWER FORMATI - ZORUNLU:
       💳 Ödeme sistemi yakında aktif olacak. Şimdilik <b style="color:var(--primary)">iletişim</b> üzerinden token satın alabilirsin.
     </div>
     <button onclick="SubPlan.closeTokenShop()" class="btn" style="width:100%;background:var(--surface2);color:var(--text2)">Kapat</button>
+  </div>
+</div>
+
+<!-- ══ REWARDED AD OVERLAY ══ -->
+<div id="rewarded-ad-overlay" style="display:none;position:fixed;inset:0;background:#000;z-index:99999;flex-direction:column;align-items:center;justify-content:center">
+  <div style="position:absolute;top:16px;right:16px;display:flex;align-items:center;gap:10px">
+    <span id="ad-timer-text" style="color:#fff;font-size:.9rem;font-weight:700;opacity:.8"></span>
+    <button id="ad-skip-btn" onclick="SubPlan.skipAd()" style="display:none;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 14px;color:#fff;font-size:.82rem;cursor:pointer;font-weight:700">Atla ›</button>
+  </div>
+  <!-- Monetag ad container -->
+  <div id="monetag-ad-container" style="width:100%;max-width:640px;aspect-ratio:16/9;background:#111;display:flex;align-items:center;justify-content:center">
+    <div style="text-align:center;color:rgba(255,255,255,.4)">
+      <div style="font-size:3rem;margin-bottom:12px">📺</div>
+      <div style="font-size:.9rem">Reklam yükleniyor…</div>
+    </div>
+  </div>
+  <div style="margin-top:20px;text-align:center">
+    <div style="color:rgba(255,255,255,.7);font-size:.85rem">Reklamı izleyerek uygulamayı destekliyorsun 🙏</div>
+    <div style="margin-top:8px;background:rgba(255,180,0,.15);border:1px solid #f59e0b;border-radius:20px;padding:6px 18px;color:#f59e0b;font-size:.82rem;font-weight:700;display:inline-block">+5.000 Token kazanacaksın</div>
   </div>
 </div>
 
@@ -7847,9 +7890,9 @@ window.SubPlan = (() => {
     pro:  { name:'Pro',  icon:'👑', tokenLimit:1_000_000, modelLimit:['lite','flash','pro'] },
   };
   const MODEL_IDS = {
-    lite:  'gemini-3.1-flash-lite-preview',
-    flash: 'gemini-3-flash-preview',
-    pro:   'gemini-3.1-pro-preview',
+    lite:  'gemini-2.0-flash-lite',
+    flash: 'gemini-2.0-flash',
+    pro:   'gemini-2.5-pro-preview-05-06',
   };
   const FREE_FLASH_DAILY = 3, FREE_PRO_WEEKLY = 3, PLUS_PRO_DAILY = 5;
 
@@ -8050,8 +8093,121 @@ window.SubPlan = (() => {
     const url = plan === 'pro' ? LS_PRO_URL : LS_PLUS_URL;
     window.open(url, '_blank');
   }
-  function openTokenShop()     { const m=document.getElementById('token-shop-modal'); if(m){m.style.display='flex';calcTokenPrice();} }
+  function openTokenShop()     { const m=document.getElementById('token-shop-modal'); if(m){m.style.display='flex'; _updateAdBtn(); calcTokenPrice();} }
   function closeTokenShop()    { const m=document.getElementById('token-shop-modal'); if(m) m.style.display='none'; }
+
+  // ─── Rewarded Ad ────────────────────────────────────────────────────────
+  // Monetag Zone ID — Hesabını açınca buraya yapıştır:
+  const MONETAG_ZONE_ID = 'YOUR_MONETAG_ZONE_ID';
+  const AD_TOKEN_REWARD  = 5000;
+  const AD_DAILY_LIMIT   = 5;
+  const AD_DURATION_SEC  = 30;
+  const AD_SKIP_AFTER    = 5; // kaç saniye sonra "Atla" çıksın
+
+  let _adTimer = null, _adSecondsLeft = 0, _adCompleted = false;
+
+  function _getTodayAdCount() {
+    const key = 'ad_count_' + new Date().toISOString().slice(0,10);
+    return parseInt(localStorage.getItem(key)||'0', 10);
+  }
+  function _incTodayAdCount() {
+    const key = 'ad_count_' + new Date().toISOString().slice(0,10);
+    localStorage.setItem(key, String(_getTodayAdCount()+1));
+  }
+
+  function _updateAdBtn() {
+    const btn = document.getElementById('watch-ad-btn');
+    const info = document.getElementById('ad-cooldown-info');
+    if (!btn) return;
+    const count = _getTodayAdCount();
+    if (count >= AD_DAILY_LIMIT) {
+      btn.disabled = true;
+      btn.style.opacity = '.5';
+      btn.style.cursor = 'default';
+      btn.textContent = `✅ Günlük limit doldu (${AD_DAILY_LIMIT}/${AD_DAILY_LIMIT})`;
+      if (info) { info.textContent = 'Yarın tekrar reklam izleyebilirsin.'; info.style.display=''; }
+    } else {
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.style.cursor = 'pointer';
+      btn.innerHTML = `<span>▶</span> Reklamı İzle ve ${AD_TOKEN_REWARD.toLocaleString()} Token Kazan`;
+      if (info) { info.textContent = `Bugün ${count}/${AD_DAILY_LIMIT} reklam izledin`; info.style.display = count>0?'':'none'; }
+    }
+  }
+
+  function watchAd() {
+    if (_getTodayAdCount() >= AD_DAILY_LIMIT) {
+      if (window.toast) toast('Günlük reklam limitine ulaştın. Yarın tekrar gel!','err'); return;
+    }
+    closeTokenShop();
+    _adCompleted = false;
+    _adSecondsLeft = AD_DURATION_SEC;
+    const overlay = document.getElementById('rewarded-ad-overlay');
+    const timerEl = document.getElementById('ad-timer-text');
+    const skipBtn = document.getElementById('ad-skip-btn');
+    if (!overlay) return;
+    overlay.style.display = 'flex';
+
+    // Monetag Vignette tetikle
+    try {
+      if (typeof window.show_10723376 === 'function') {
+        window.show_10723376();
+      }
+    } catch(e) { console.warn('Monetag vignette:', e); }
+
+    // Geri sayım
+    if (skipBtn) skipBtn.style.display = 'none';
+    if (timerEl) timerEl.textContent = `${_adSecondsLeft}s`;
+    clearInterval(_adTimer);
+    _adTimer = setInterval(() => {
+      _adSecondsLeft--;
+      if (timerEl) timerEl.textContent = `${_adSecondsLeft}s`;
+      if (_adSecondsLeft <= AD_DURATION_SEC - AD_SKIP_AFTER && skipBtn) skipBtn.style.display = '';
+      if (_adSecondsLeft <= 0) {
+        clearInterval(_adTimer);
+        _adCompleted = true;
+        _finishAd(true);
+      }
+    }, 1000);
+  }
+
+  function skipAd() {
+    clearInterval(_adTimer);
+    _finishAd(false);
+  }
+
+  function _finishAd(completed) {
+    const overlay = document.getElementById('rewarded-ad-overlay');
+    if (overlay) overlay.style.display = 'none';
+    if (completed) {
+      _incTodayAdCount();
+      _addAdTokens(AD_TOKEN_REWARD);
+    } else {
+      if (window.toast) toast('Reklam tamamlanmadan atlandı. Token kazanılmadı.','err');
+      openTokenShop();
+    }
+  }
+
+  async function _addAdTokens(amount) {
+    const uid = await _getUid();
+    if (!uid) { if (window.toast) toast('Token eklemek için giriş yap!','err'); return; }
+    try {
+      const fb = await _fb();
+      const ref = fb.doc(fb.db,'tokenBalance', uid);
+      const snap = await fb.getDoc(ref);
+      const current = snap.exists() ? (snap.data().extra||0) : 0;
+      await fb.setDoc(ref, { extra: current + amount }, { merge: true });
+      _extraTokens = current + amount;
+      renderUsageBar();
+      _updateAdBtn();
+      openTokenShop();
+      if (window.toast) toast(`🎉 ${amount.toLocaleString()} token hesabına eklendi!`,'ok');
+    } catch(e) {
+      console.error('addAdTokens:', e);
+      if (window.toast) toast('Token eklenirken hata oluştu.','err');
+    }
+  }
+  // ────────────────────────────────────────────────────────────────────────
   function calcTokenPrice() {
     const inp=document.getElementById('token-amount-input'), disp=document.getElementById('token-price-display');
     if (!inp||!disp) return;
@@ -8065,7 +8221,8 @@ window.SubPlan = (() => {
 
   return { onEnter, loadPlan, recordTokens, recordModelUse, canUseModel,
            getActiveModelId, getActiveModelKey, selectModel,
-           openUpgradeModal, closeUpgradeModal, buyPlan, openTokenShop, closeTokenShop, calcTokenPrice };
+           openUpgradeModal, closeUpgradeModal, buyPlan, openTokenShop, closeTokenShop, calcTokenPrice,
+           watchAd, skipAd };
 })();
 </script>
 </body>
