@@ -1336,22 +1336,7 @@ select option{background:var(--surface2);color:var(--text)}
   window.dispatchEvent(new Event('fb-ready'));
 </script>
 
-<!-- ══ Monetag Onclick (Popunder) — 2 dakikada bir max ══ -->
-<script>
-(function() {
-  var COOLDOWN_MS = 2 * 60 * 1000; // 2 dakika
-  var lastShown = 0;
-  document.addEventListener('click', function(e) {
-    var now = Date.now();
-    if (now - lastShown < COOLDOWN_MS) return;
-    lastShown = now;
-    var s = document.createElement('script');
-    s.dataset.zone = '10723370';
-    s.src = 'https://al5sm.com/tag.min.js';
-    document.body.appendChild(s);
-  }, { once: false, passive: true });
-})();
-</script>
+<!-- Monetag Onclick kaldırıldı — zararlı reklam içeriği nedeniyle -->
 
 <!-- ══ Monetag Vignette — "Reklam İzle" butonu için ══ -->
 <script id="monetag-vignette-tag" data-zone="10723376" src="https://gizokraijaw.net/vignette.min.js" async></script>
@@ -7845,15 +7830,15 @@ ANSWER FORMATI - ZORUNLU:
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <div>
           <div style="font-weight:800;font-size:.95rem;color:#f59e0b">🎬 Reklam İzle</div>
-          <div style="font-size:.75rem;color:var(--text3);margin-top:2px">30 saniyelik video izle, token kazan</div>
+          <div style="font-size:.75rem;color:var(--text3);margin-top:2px">Kısa reklam izle, token kazan</div>
         </div>
-        <div style="background:#f59e0b;border-radius:10px;padding:4px 10px;font-size:.8rem;font-weight:800;color:#000">+5.000</div>
+        <div style="background:#f59e0b;border-radius:10px;padding:4px 10px;font-size:.8rem;font-weight:800;color:#000">+2.000</div>
       </div>
       <div id="ad-cooldown-info" style="font-size:.72rem;color:var(--text3);margin-bottom:10px;display:none"></div>
       <button id="watch-ad-btn" onclick="SubPlan.watchAd()" style="width:100%;background:#f59e0b;border:none;border-radius:10px;padding:11px;color:#000;font-size:.88rem;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
-        <span>▶</span> Reklamı İzle ve 5.000 Token Kazan
+        <span>▶</span> Reklamı İzle ve 2.000 Token Kazan
       </button>
-      <div style="font-size:.68rem;color:var(--text3);text-align:center;margin-top:8px">Günlük en fazla 5 reklam izlenebilir</div>
+      <div style="font-size:.68rem;color:var(--text3);text-align:center;margin-top:8px">Günlük en fazla 20 reklam izlenebilir</div>
     </div>
 
     <!-- ÖDEME İLE SATIN AL -->
@@ -7880,20 +7865,15 @@ ANSWER FORMATI - ZORUNLU:
         <span id="ad-timer-text" style="color:#f59e0b;font-size:1.6rem;font-weight:900"></span>
       </div>
     </div>
-    <div style="color:#fff;font-size:.95rem;font-weight:700;margin-bottom:4px">Reklam yeni sekmede açıldı</div>
-    <div style="color:rgba(255,255,255,.5);font-size:.78rem">Geri sayım bitince token hesabına eklenecek</div>
+    <div style="color:#fff;font-size:.95rem;font-weight:700;margin-bottom:4px">Reklam gösterildi, token yükleniyor…</div>
+    <div style="color:rgba(255,255,255,.5);font-size:.78rem">Birkaç saniye bekle</div>
   </div>
 
-  <!-- Uyarı kutusu -->
-  <div style="background:rgba(245,158,11,.1);border:1.5px solid #f59e0b;border-radius:14px;padding:14px 20px;text-align:center;margin-bottom:24px;max-width:320px">
-    <div style="font-size:1.4rem;margin-bottom:6px">📱</div>
-    <div style="color:#f59e0b;font-size:.82rem;font-weight:700;margin-bottom:4px">Açılan sekmeyi kapat ve buraya dön</div>
-    <div style="color:rgba(255,255,255,.5);font-size:.72rem;line-height:1.5">Reklam diğer sekmede gösteriliyor.<br>Bu ekranı kapatma — sayaç burada çalışıyor.</div>
-  </div>
+  <!-- boş -->
 
   <!-- Token ödülü -->
   <div style="background:rgba(255,180,0,.12);border:1px solid #f59e0b;border-radius:20px;padding:8px 24px;color:#f59e0b;font-size:.88rem;font-weight:800;margin-bottom:24px">
-    🎁 +5.000 Token kazanacaksın
+    🎁 +2.000 Token kazanacaksın
   </div>
 
   <!-- Atla butonu — sadece süre dolunca çıkar -->
@@ -8127,10 +8107,9 @@ window.SubPlan = (() => {
   // ─── Rewarded Ad ────────────────────────────────────────────────────────
   // Monetag Zone ID — Hesabını açınca buraya yapıştır:
   const MONETAG_ZONE_ID = 'YOUR_MONETAG_ZONE_ID';
-  const AD_TOKEN_REWARD  = 5000;
-  const AD_DAILY_LIMIT   = 5;
-  const AD_DURATION_SEC  = 30;
-  const AD_SKIP_AFTER    = 5; // kaç saniye sonra "Atla" çıksın
+  const AD_TOKEN_REWARD  = 2000;
+  const AD_DAILY_LIMIT   = 20;
+  const AD_DURATION_SEC  = 5;
 
   let _adTimer = null, _adSecondsLeft = 0, _adCompleted = false;
 
