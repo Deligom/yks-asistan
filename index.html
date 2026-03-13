@@ -1336,8 +1336,22 @@ select option{background:var(--surface2);color:var(--text)}
   window.dispatchEvent(new Event('fb-ready'));
 </script>
 
-<!-- ══ Monetag Onclick (Popunder) — pasif gelir ══ -->
-<script>(function(s){s.dataset.zone='10723370',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+<!-- ══ Monetag Onclick (Popunder) — 2 dakikada bir max ══ -->
+<script>
+(function() {
+  var COOLDOWN_MS = 2 * 60 * 1000; // 2 dakika
+  var lastShown = 0;
+  document.addEventListener('click', function(e) {
+    var now = Date.now();
+    if (now - lastShown < COOLDOWN_MS) return;
+    lastShown = now;
+    var s = document.createElement('script');
+    s.dataset.zone = '10723370';
+    s.src = 'https://al5sm.com/tag.min.js';
+    document.body.appendChild(s);
+  }, { once: false, passive: true });
+})();
+</script>
 
 <!-- ══ Monetag Vignette — "Reklam İzle" butonu için ══ -->
 <script id="monetag-vignette-tag" data-zone="10723376" src="https://gizokraijaw.net/vignette.min.js" async></script>
@@ -7862,11 +7876,12 @@ ANSWER FORMATI - ZORUNLU:
     <span id="ad-timer-text" style="color:#fff;font-size:.9rem;font-weight:700;opacity:.8"></span>
     <button id="ad-skip-btn" onclick="SubPlan.skipAd()" style="display:none;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 14px;color:#fff;font-size:.82rem;cursor:pointer;font-weight:700">Atla ›</button>
   </div>
-  <!-- Monetag ad container -->
+  <!-- Vignette reklam ayrı sekmede açılır, bu overlay geri sayım gösterir -->
   <div id="monetag-ad-container" style="width:100%;max-width:640px;aspect-ratio:16/9;background:#111;display:flex;align-items:center;justify-content:center">
-    <div style="text-align:center;color:rgba(255,255,255,.4)">
+    <div style="text-align:center;color:rgba(255,255,255,.6)">
       <div style="font-size:3rem;margin-bottom:12px">📺</div>
-      <div style="font-size:.9rem">Reklam yükleniyor…</div>
+      <div style="font-size:1rem;font-weight:700;margin-bottom:6px">Reklam açıldı</div>
+      <div style="font-size:.8rem;opacity:.7">Lütfen geri sayım tamamlanana kadar bekle</div>
     </div>
   </div>
   <div style="margin-top:20px;text-align:center">
