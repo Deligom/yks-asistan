@@ -1690,17 +1690,17 @@ select option{background:var(--surface2);color:var(--text)}
         <div style="font-size:.65rem;color:var(--text3);margin-top:2px">200K token</div>
         <div style="font-size:.7rem;font-weight:700;color:var(--teal);margin-top:4px">Ücretsiz</div>
       </div>
-      <div id="plan-card-plus" onclick="SubPlan.openUpgradeModal()" style="border-radius:10px;padding:10px 8px;text-align:center;border:1.5px solid var(--border);background:var(--surface2);cursor:pointer">
+      <div id="plan-card-plus" onclick="SubPlan.buyPlan('plus')" style="border-radius:10px;padding:10px 8px;text-align:center;border:1.5px solid var(--border);background:var(--surface2);cursor:pointer">
         <div style="font-size:1.1rem">⭐</div>
         <div style="font-size:.75rem;font-weight:700;color:var(--text2);margin-top:3px">Plus</div>
         <div style="font-size:.65rem;color:var(--text3);margin-top:2px">500K token</div>
-        <div style="font-size:.7rem;font-weight:700;color:var(--primary);margin-top:4px">Yakında</div>
+        <div style="font-size:.7rem;font-weight:700;color:var(--primary);margin-top:4px">Al →</div>
       </div>
-      <div id="plan-card-pro" onclick="SubPlan.openUpgradeModal()" style="border-radius:10px;padding:10px 8px;text-align:center;border:1.5px solid var(--border);background:var(--surface2);cursor:pointer">
+      <div id="plan-card-pro" onclick="SubPlan.buyPlan('pro')" style="border-radius:10px;padding:10px 8px;text-align:center;border:1.5px solid var(--border);background:var(--surface2);cursor:pointer">
         <div style="font-size:1.1rem">👑</div>
         <div style="font-size:.75rem;font-weight:700;color:var(--text2);margin-top:3px">Pro</div>
         <div style="font-size:.65rem;color:var(--text3);margin-top:2px">1M token</div>
-        <div style="font-size:.7rem;font-weight:700;color:var(--accent);margin-top:4px">Yakında</div>
+        <div style="font-size:.7rem;font-weight:700;color:var(--accent);margin-top:4px">Al →</div>
       </div>
     </div>
   </div>
@@ -7792,9 +7792,10 @@ ANSWER FORMATI - ZORUNLU:
           <span style="font-size:1.3rem">⭐</span>
           <div><div style="font-weight:700;font-size:.92rem">Plus</div><div style="font-size:.72rem;color:var(--primary)">Popüler</div></div>
         </div>
-        <div style="font-weight:800;font-size:1rem;color:var(--primary)">Yakında</div>
+        <div style="font-weight:800;font-size:1rem;color:var(--primary)">₺XX/ay</div>
       </div>
-      <div style="font-size:.75rem;color:var(--text3);line-height:1.7">✅ 3.1 Lite — sınırsız<br>✅ 3.0 Flash — sınırsız<br>🔒 3.1 Pro — günlük 5 hak<br>📊 500K token/ay</div>
+      <div style="font-size:.75rem;color:var(--text3);line-height:1.7;margin-bottom:12px">✅ 3.1 Lite — sınırsız<br>✅ 3.0 Flash — sınırsız<br>🔒 3.1 Pro — günlük 5 hak<br>📊 500K token/ay</div>
+      <button onclick="SubPlan.buyPlan('plus')" style="width:100%;background:var(--primary);border:none;border-radius:10px;padding:10px;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer">⭐ Plus'a Geç</button>
     </div>
     <div style="border:2px solid var(--accent);border-radius:14px;padding:16px;margin-bottom:20px;background:rgba(255,101,132,.05)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -7802,9 +7803,10 @@ ANSWER FORMATI - ZORUNLU:
           <span style="font-size:1.3rem">👑</span>
           <div><div style="font-weight:700;font-size:.92rem">Pro</div><div style="font-size:.72rem;color:var(--accent)">Her şey dahil</div></div>
         </div>
-        <div style="font-weight:800;font-size:1rem;color:var(--accent)">Yakında</div>
+        <div style="font-weight:800;font-size:1rem;color:var(--accent)">₺XX/ay</div>
       </div>
-      <div style="font-size:.75rem;color:var(--text3);line-height:1.7">✅ 3.1 Lite — sınırsız<br>✅ 3.0 Flash — sınırsız<br>✅ 3.1 Pro — sınırsız<br>📊 1M token/ay</div>
+      <div style="font-size:.75rem;color:var(--text3);line-height:1.7;margin-bottom:12px">✅ 3.1 Lite — sınırsız<br>✅ 3.0 Flash — sınırsız<br>✅ 3.1 Pro — sınırsız<br>📊 1M token/ay</div>
+      <button onclick="SubPlan.buyPlan('pro')" style="width:100%;background:var(--accent);border:none;border-radius:10px;padding:10px;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer">👑 Pro'ya Geç</button>
     </div>
     <button onclick="SubPlan.closeUpgradeModal()" class="btn" style="width:100%;background:var(--surface2);color:var(--text2)">Kapat</button>
   </div>
@@ -7832,9 +7834,15 @@ ANSWER FORMATI - ZORUNLU:
 <!-- ══════ SUBPLAN MODULE ══════ -->
 <script>
 window.SubPlan = (() => {
+  // ─── Lemon Squeezy ödeme linkleri ───────────────────────────────────────
+  // Hesabını açınca aşağıdaki URL'leri güncelle, başka bir şeye dokunma.
+  const LS_PLUS_URL = 'https://YOUR_STORE.lemonsqueezy.com/buy/PLUS_PRODUCT_ID';
+  const LS_PRO_URL  = 'https://YOUR_STORE.lemonsqueezy.com/buy/PRO_PRODUCT_ID';
+  // ────────────────────────────────────────────────────────────────────────
+
   const PLANS = {
-    free: { name:'Free', icon:'🆓', tokenLimit:200_000, modelLimit:['lite'] },
-    plus: { name:'Plus', icon:'⭐', tokenLimit:500_000, modelLimit:['lite','flash'] },
+    free: { name:'Free', icon:'🆓', tokenLimit:200_000, modelLimit:['lite','flash','pro'] },
+    plus: { name:'Plus', icon:'⭐', tokenLimit:500_000, modelLimit:['lite','flash','pro'] },
     pro:  { name:'Pro',  icon:'👑', tokenLimit:1_000_000, modelLimit:['lite','flash','pro'] },
   };
   const MODEL_IDS = {
@@ -7961,16 +7969,18 @@ window.SubPlan = (() => {
   function getActiveModelKey() { return _selectedModel || 'lite'; }
 
   function selectModel(key) {
-    const allowed = PLANS[_plan]?.modelLimit || ['lite'];
-    if (!allowed.includes(key)) {
-      if (window.toast) toast(`Bu model ${key==='pro'?'Pro':'Plus'} aboneliği gerektiriyor.`,'err');
-      openUpgradeModal(); return;
-    }
     _selectedModel = key;
     localStorage.setItem('sub_selected_model', key);
     renderModelBtns();
     const names = {lite:'3.1 Lite ⚡', flash:'3.0 Flash 🚀', pro:'3.1 Pro 👑'};
-    if (window.toast) toast(`${names[key]} seçildi`,'ok');
+    // Kota bilgisini göster (seçim yapılır, kota bitince AI kullanımında uyarır)
+    const quotaInfo = {
+      lite: '',
+      flash: _plan==='free' ? `Günlük ${FREE_FLASH_DAILY} hak` : _plan==='plus' ? 'Sınırsız' : 'Sınırsız',
+      pro:   _plan==='free' ? `Haftalık ${FREE_PRO_WEEKLY} hak` : _plan==='plus' ? `Günlük ${PLUS_PRO_DAILY} hak` : 'Sınırsız',
+    };
+    const hint = quotaInfo[key] ? ` (${quotaInfo[key]})` : '';
+    if (window.toast) toast(`${names[key]} seçildi${hint}`, 'ok');
   }
 
   function renderSettings() {
@@ -8001,15 +8011,16 @@ window.SubPlan = (() => {
   }
 
   function renderModelBtns() {
-    const allowed=PLANS[_plan]?.modelLimit||['lite'];
     ['lite','flash','pro'].forEach(key => {
       const btn=document.getElementById('model-btn-'+key), lock=document.getElementById(key+'-lock');
       if (!btn) return;
-      const isActive=_selectedModel===key, isAllowed=allowed.includes(key);
+      const isActive = _selectedModel===key;
+      const check = canUseModel(key);
+      const quotaFull = !check.ok && !check.reason?.includes('token kotanı');
       btn.style.borderColor = isActive?'var(--primary)':'var(--border)';
       btn.style.background  = isActive?'rgba(108,99,255,.12)':'var(--surface2)';
-      btn.style.opacity     = isAllowed?'1':'.55';
-      if (lock) lock.style.display=isAllowed?'none':'';
+      btn.style.opacity     = quotaFull?'.55':'1';
+      if (lock) lock.style.display=quotaFull?'':'none';
     });
     const info=document.getElementById('model-info-bar');
     if (info) { const n={lite:'3.1 Flash Lite — hızlı ve ücretsiz',flash:'3.0 Flash — daha güçlü',pro:'3.1 Pro — en zeki model'}; info.textContent=n[_selectedModel]||''; }
@@ -8033,6 +8044,11 @@ window.SubPlan = (() => {
 
   function openUpgradeModal()  { const m=document.getElementById('upgrade-modal');    if(m) m.style.display='flex'; }
   function closeUpgradeModal() { const m=document.getElementById('upgrade-modal');    if(m) m.style.display='none'; }
+
+  function buyPlan(plan) {
+    const url = plan === 'pro' ? LS_PRO_URL : LS_PLUS_URL;
+    window.open(url, '_blank');
+  }
   function openTokenShop()     { const m=document.getElementById('token-shop-modal'); if(m){m.style.display='flex';calcTokenPrice();} }
   function closeTokenShop()    { const m=document.getElementById('token-shop-modal'); if(m) m.style.display='none'; }
   function calcTokenPrice() {
@@ -8048,7 +8064,7 @@ window.SubPlan = (() => {
 
   return { onEnter, loadPlan, recordTokens, recordModelUse, canUseModel,
            getActiveModelId, getActiveModelKey, selectModel,
-           openUpgradeModal, closeUpgradeModal, openTokenShop, closeTokenShop, calcTokenPrice };
+           openUpgradeModal, closeUpgradeModal, buyPlan, openTokenShop, closeTokenShop, calcTokenPrice };
 })();
 </script>
 </body>
