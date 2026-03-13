@@ -1416,6 +1416,23 @@ select option{background:var(--surface2);color:var(--text)}
     <p>Hap bilgi veya yanlış soru ekle</p>
   </div>
 
+  <!-- Manuel / Otomatik Switcher -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
+    <div id="add-mode-manuel" onclick="App.setAddMode('manuel')"
+      style="background:var(--primary);border:2px solid var(--primary);border-radius:14px;padding:14px 12px;text-align:center;cursor:pointer;transition:all .2s">
+      <div style="font-size:1.3rem;margin-bottom:4px">✏️</div>
+      <div style="font-size:.88rem;font-weight:700;color:#fff">Manuel</div>
+      <div style="font-size:.7rem;color:rgba(255,255,255,.8);margin-top:2px">Kendim yazarak ekle</div>
+    </div>
+    <div id="add-mode-otomatik" onclick="App.setAddMode('otomatik')"
+      style="background:var(--surface2);border:2px solid var(--border);border-radius:14px;padding:14px 12px;text-align:center;cursor:pointer;transition:all .2s">
+      <div style="font-size:1.3rem;margin-bottom:4px">🤖</div>
+      <div style="font-size:.88rem;font-weight:700;color:var(--text1)">Otomatik</div>
+      <div style="font-size:.7rem;color:var(--text2);margin-top:2px">AI JSON ile içe aktar</div>
+    </div>
+  </div>
+
+  <div id="add-panel-manuel">
   <div class="add-type-wrap">
     <div class="add-type-btn type-hap" id="atb-hap" onclick="App.setAddType('hap')">
       <div class="atb-icon">⚡</div>
@@ -1580,7 +1597,7 @@ select option{background:var(--surface2);color:var(--text)}
           <button class="btn btn-primary" style="font-size:.82rem;padding:10px 16px;margin-bottom:10px" onclick="App.copyPromptBilgi()">
             <i class="fa-solid fa-copy"></i> Promptu Kopyala
           </button>
-          <div class="prompt-text" id="prompt-text-bilgi" style="white-space:pre-wrap"></div>
+          <div class="prompt-text" id="prompt-text-bilgi" style="white-space:pre-wrap;font-size:.72rem;color:var(--text2);line-height:1.7;background:var(--bg);border-radius:8px;padding:12px;border:1px solid var(--border);font-family:monospace;max-height:220px;overflow-y:auto;word-break:break-word"></div>
         </div>
       </div>
     </div>
@@ -1626,7 +1643,7 @@ select option{background:var(--surface2);color:var(--text)}
           <button class="btn btn-accent" style="font-size:.82rem;padding:10px 16px;margin-bottom:10px" onclick="App.copyPromptSoru()">
             <i class="fa-solid fa-copy"></i> Promptu Kopyala
           </button>
-          <div class="prompt-text" id="prompt-text-soru" style="white-space:pre-wrap"></div>
+          <div class="prompt-text" id="prompt-text-soru" style="white-space:pre-wrap;font-size:.72rem;color:var(--text2);line-height:1.7;background:var(--bg);border-radius:8px;padding:12px;border:1px solid var(--border);font-family:monospace;max-height:220px;overflow-y:auto;word-break:break-word"></div>
         </div>
       </div>
     </div>
@@ -3969,6 +3986,12 @@ const App = (() => {
     body.style.display      = isOpen ? 'none' : 'block';
     chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
     if (label) label.textContent = isOpen ? "AI Prompt'unu Göster" : "AI Prompt'unu Gizle";
+    if (!isOpen) {
+      const txtEl = document.getElementById('prompt-text-' + tab);
+      if (txtEl && !txtEl.textContent.trim()) {
+        txtEl.textContent = tab === 'bilgi' ? _buildBilgiPrompt() : _buildSoruPrompt();
+      }
+    }
   }
 
   function switchImportTab(tab) {
@@ -3997,18 +4020,17 @@ const App = (() => {
     const panelM = document.getElementById('add-panel-manuel');
     const panelO = document.getElementById('add-panel-otomatik');
     if (!btnM) return;
-    const active = 'var(--primary)'; const inactive = 'var(--surface2)';
-    if (mode === 'otomatik') {
-      btnM.style.background = inactive; btnM.style.borderColor = 'var(--border)';
-      btnO.style.background = active;   btnO.style.borderColor = active;
-      if (panelM) panelM.style.display = 'none';
-      if (panelO) panelO.style.display = '';
-    } else {
-      btnO.style.background = inactive; btnO.style.borderColor = 'var(--border)';
-      btnM.style.background = active;   btnM.style.borderColor = active;
-      if (panelM) panelM.style.display = '';
-      if (panelO) panelO.style.display = 'none';
-    }
+    const isManuel = mode === 'manuel';
+    btnM.style.background  = isManuel ? 'var(--primary)' : 'var(--surface2)';
+    btnM.style.borderColor = isManuel ? 'var(--primary)' : 'var(--border)';
+    btnO.style.background  = isManuel ? 'var(--surface2)' : 'var(--primary)';
+    btnO.style.borderColor = isManuel ? 'var(--border)'   : 'var(--primary)';
+    const lblM = btnM.querySelector('div:nth-child(2)');
+    const lblO = btnO.querySelector('div:nth-child(2)');
+    if (lblM) lblM.style.color = isManuel ? '#fff' : 'var(--text1)';
+    if (lblO) lblO.style.color = isManuel ? 'var(--text1)' : '#fff';
+    if (panelM) panelM.style.display = isManuel ? '' : 'none';
+    if (panelO) panelO.style.display = isManuel ? 'none' : '';
   }
 
   function _buildBilgiPrompt() {
