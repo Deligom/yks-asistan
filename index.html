@@ -7871,23 +7871,36 @@ ANSWER FORMATI - ZORUNLU:
 </div>
 
 <!-- ══ REWARDED AD OVERLAY ══ -->
-<div id="rewarded-ad-overlay" style="display:none;position:fixed;inset:0;background:#000;z-index:99999;flex-direction:column;align-items:center;justify-content:center">
-  <div style="position:absolute;top:16px;right:16px;display:flex;align-items:center;gap:10px">
-    <span id="ad-timer-text" style="color:#fff;font-size:.9rem;font-weight:700;opacity:.8"></span>
-    <button id="ad-skip-btn" onclick="SubPlan.skipAd()" style="display:none;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 14px;color:#fff;font-size:.82rem;cursor:pointer;font-weight:700">Atla ›</button>
-  </div>
-  <!-- Vignette reklam ayrı sekmede açılır, bu overlay geri sayım gösterir -->
-  <div id="monetag-ad-container" style="width:100%;max-width:640px;aspect-ratio:16/9;background:#111;display:flex;align-items:center;justify-content:center">
-    <div style="text-align:center;color:rgba(255,255,255,.6)">
-      <div style="font-size:3rem;margin-bottom:12px">📺</div>
-      <div style="font-size:1rem;font-weight:700;margin-bottom:6px">Reklam açıldı</div>
-      <div style="font-size:.8rem;opacity:.7">Lütfen geri sayım tamamlanana kadar bekle</div>
+<div id="rewarded-ad-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.97);z-index:99999;flex-direction:column;align-items:center;justify-content:center;padding:24px">
+
+  <!-- Geri sayım + token göstergesi üstte -->
+  <div style="text-align:center;margin-bottom:32px">
+    <div id="ad-timer-ring" style="width:90px;height:90px;border-radius:50%;background:conic-gradient(#f59e0b 0deg,rgba(255,255,255,.1) 0deg);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;transition:background .9s linear">
+      <div style="width:70px;height:70px;border-radius:50%;background:#000;display:flex;align-items:center;justify-content:center">
+        <span id="ad-timer-text" style="color:#f59e0b;font-size:1.6rem;font-weight:900"></span>
+      </div>
     </div>
+    <div style="color:#fff;font-size:.95rem;font-weight:700;margin-bottom:4px">Reklam yeni sekmede açıldı</div>
+    <div style="color:rgba(255,255,255,.5);font-size:.78rem">Geri sayım bitince token hesabına eklenecek</div>
   </div>
-  <div style="margin-top:20px;text-align:center">
-    <div style="color:rgba(255,255,255,.7);font-size:.85rem">Reklamı izleyerek uygulamayı destekliyorsun 🙏</div>
-    <div style="margin-top:8px;background:rgba(255,180,0,.15);border:1px solid #f59e0b;border-radius:20px;padding:6px 18px;color:#f59e0b;font-size:.82rem;font-weight:700;display:inline-block">+5.000 Token kazanacaksın</div>
+
+  <!-- Uyarı kutusu -->
+  <div style="background:rgba(245,158,11,.1);border:1.5px solid #f59e0b;border-radius:14px;padding:14px 20px;text-align:center;margin-bottom:24px;max-width:320px">
+    <div style="font-size:1.4rem;margin-bottom:6px">📱</div>
+    <div style="color:#f59e0b;font-size:.82rem;font-weight:700;margin-bottom:4px">Açılan sekmeyi kapat ve buraya dön</div>
+    <div style="color:rgba(255,255,255,.5);font-size:.72rem;line-height:1.5">Reklam diğer sekmede gösteriliyor.<br>Bu ekranı kapatma — sayaç burada çalışıyor.</div>
   </div>
+
+  <!-- Token ödülü -->
+  <div style="background:rgba(255,180,0,.12);border:1px solid #f59e0b;border-radius:20px;padding:8px 24px;color:#f59e0b;font-size:.88rem;font-weight:800;margin-bottom:24px">
+    🎁 +5.000 Token kazanacaksın
+  </div>
+
+  <!-- Atla butonu — sadece süre dolunca çıkar -->
+  <button id="ad-skip-btn" onclick="SubPlan.skipAd()" style="display:none;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:10px;padding:10px 28px;color:#fff;font-size:.88rem;cursor:pointer;font-weight:700">
+    ✅ Tamamlandı — Tokeni Al
+  </button>
+
 </div>
 
 <!-- ══════ SUBPLAN MODULE ══════ -->
@@ -8177,11 +8190,19 @@ window.SubPlan = (() => {
     _adTimer = setInterval(() => {
       _adSecondsLeft--;
       if (timerEl) timerEl.textContent = `${_adSecondsLeft}s`;
-      if (_adSecondsLeft <= AD_DURATION_SEC - AD_SKIP_AFTER && skipBtn) skipBtn.style.display = '';
+      // Halka animasyonu
+      const ring = document.getElementById('ad-timer-ring');
+      if (ring) {
+        const pct = ((AD_DURATION_SEC - _adSecondsLeft) / AD_DURATION_SEC) * 360;
+        ring.style.background = `conic-gradient(#f59e0b ${pct}deg, rgba(255,255,255,.1) ${pct}deg)`;
+      }
       if (_adSecondsLeft <= 0) {
         clearInterval(_adTimer);
         _adCompleted = true;
-        _finishAd(true);
+        // Süre dolunca "Tamamlandı" butonu çık
+        if (skipBtn) skipBtn.style.display = '';
+        if (timerEl) timerEl.textContent = '✓';
+        setTimeout(() => _finishAd(true), 800);
       }
     }, 1000);
   }
