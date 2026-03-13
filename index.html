@@ -5394,6 +5394,8 @@ const Social = (() => {
       renderFriends().then(() => {
         renderGroups().then(() => _startBackgroundListeners());
       }).catch(() => {});
+      // Token kullanımını yükle
+      if (window.SubPlan) SubPlan.loadPlan();
     }
   }
 
@@ -5463,6 +5465,7 @@ const Social = (() => {
       _updateProfileUI();
       _updateAuthStatusInfo();
       toast('Profil oluşturuldu! 🎉', 'ok');
+      if (window.SubPlan) SubPlan.loadPlan();
       if (window._saveFcmToken && window._pendingFcmToken) {
         window._saveFcmToken(_myCode).catch(()=>{});
         window._pendingFcmToken = null;
@@ -5582,6 +5585,7 @@ const Social = (() => {
       _updateProfileUI();
       _updateAuthStatusInfo();
       renderFriends().then(() => renderGroups().then(() => _startBackgroundListeners())).catch(()=>{});
+      if (window.SubPlan) SubPlan.loadPlan();
       toast('Giriş yapıldı! 🎉', 'ok');
     } catch(e) {
       _showErr('Bağlantı hatası: ' + e.message);
@@ -7459,8 +7463,9 @@ const GeminiAI = (() => {
       saveHistory();
       // Token + model kullanım kaydı
       if (window.SubPlan) {
-        const tokens = data?.usageMetadata?.totalTokenCount || 0;
-        if (tokens > 0) SubPlan.recordTokens(tokens);
+        const meta = data?.usageMetadata;
+        const tokens = meta?.totalTokenCount || (meta?.promptTokenCount||0) + (meta?.candidatesTokenCount||0) || 50;
+        SubPlan.recordTokens(tokens);
         SubPlan.recordModelUse(modelKey);
       }
     } catch (e) {
@@ -7530,8 +7535,9 @@ const GeminiAI = (() => {
       if (!raw) throw new Error('Gemini boş yanıt döndürdü. Tekrar dene.');
       // Token kaydet
       if (window.SubPlan) {
-        const tokens = data?.usageMetadata?.totalTokenCount || 0;
-        if (tokens > 0) SubPlan.recordTokens(tokens);
+        const meta = data?.usageMetadata;
+        const tokens = meta?.totalTokenCount || (meta?.promptTokenCount||0) + (meta?.candidatesTokenCount||0) || 30;
+        SubPlan.recordTokens(tokens);
       }
       let cards = _safeParseJSON(raw);
       if (!Array.isArray(cards)) cards = [cards];
@@ -7681,8 +7687,9 @@ ANSWER FORMATI - ZORUNLU:
       if (!raw) throw new Error('Gemini boş yanıt döndürdü.');
       // Token kaydet
       if (window.SubPlan) {
-        const tokens = data?.usageMetadata?.totalTokenCount || 0;
-        if (tokens > 0) SubPlan.recordTokens(tokens);
+        const meta = data?.usageMetadata;
+        const tokens = meta?.totalTokenCount || (meta?.promptTokenCount||0) + (meta?.candidatesTokenCount||0) || 30;
+        SubPlan.recordTokens(tokens);
       }
       let cardData = _safeParseJSON(raw);
       if (Array.isArray(cardData)) cardData = cardData[0];
@@ -7734,6 +7741,7 @@ ANSWER FORMATI - ZORUNLU:
     loadHistory();
     checkSetup();
     renderMessages();
+    if (window.SubPlan) SubPlan.loadPlan();
   }
 
   return { onEnter, saveKey, showSettings, saveSettings, send, newChat, createCard, createSoruKarti, closeCardModal, confirmImport, onPhotoSelected, removePhoto };
@@ -7801,7 +7809,7 @@ ANSWER FORMATI - ZORUNLU:
 
 <!-- ══════ SUBPLAN MODULE ══════ -->
 <script>
-const SubPlan = (() => {
+window.SubPlan = (() => {
   const PLANS = {
     free: { name:'Free', icon:'🆓', tokenLimit:500_000, modelLimit:['lite'] },
     plus: { name:'Plus', icon:'⭐', tokenLimit:2_000_000, modelLimit:['lite','flash'] },
@@ -7870,8 +7878,9 @@ const SubPlan = (() => {
     try {
       const fb = await _fb();
       await fb.setDoc(fb.doc(fb.db,'usage',`${uid}_${month}`), {tokens:((_usageDoc?.tokens||0)+count)},{merge:true});
-      if (_usageDoc) _usageDoc.tokens = (_usageDoc.tokens||0)+count;
-    } catch(e) { console.warn('recordTokens:',e); }
+      if (!_usageDoc) _usageDoc = {tokens:0,flashDaily:{},proWeekly:{},proDaily:{}};
+      _usageDoc.tokens = (_usageDoc.tokens||0)+count;
+    } catch(e) { console.warn('recordTokens:',e); if(window.toast) toast('⚠️ Token kayıt hatası: '+e.message,'err'); }
     renderUsageBar();
   }
 
