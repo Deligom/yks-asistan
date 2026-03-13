@@ -1670,19 +1670,19 @@ select option{background:var(--surface2);color:var(--text)}
       <div id="plan-card-free" onclick="SubPlan.openUpgradeModal()" style="border-radius:10px;padding:10px 8px;text-align:center;border:1.5px solid var(--teal);background:rgba(0,200,150,.08);cursor:pointer">
         <div style="font-size:1.1rem">🆓</div>
         <div style="font-size:.75rem;font-weight:700;color:var(--text1);margin-top:3px">Free</div>
-        <div style="font-size:.65rem;color:var(--text3);margin-top:2px">500K token</div>
+        <div style="font-size:.65rem;color:var(--text3);margin-top:2px">200K token</div>
         <div style="font-size:.7rem;font-weight:700;color:var(--teal);margin-top:4px">Ücretsiz</div>
       </div>
       <div id="plan-card-plus" onclick="SubPlan.openUpgradeModal()" style="border-radius:10px;padding:10px 8px;text-align:center;border:1.5px solid var(--border);background:var(--surface2);cursor:pointer">
         <div style="font-size:1.1rem">⭐</div>
         <div style="font-size:.75rem;font-weight:700;color:var(--text2);margin-top:3px">Plus</div>
-        <div style="font-size:.65rem;color:var(--text3);margin-top:2px">2M token</div>
+        <div style="font-size:.65rem;color:var(--text3);margin-top:2px">500K token</div>
         <div style="font-size:.7rem;font-weight:700;color:var(--primary);margin-top:4px">Yakında</div>
       </div>
       <div id="plan-card-pro" onclick="SubPlan.openUpgradeModal()" style="border-radius:10px;padding:10px 8px;text-align:center;border:1.5px solid var(--border);background:var(--surface2);cursor:pointer">
         <div style="font-size:1.1rem">👑</div>
         <div style="font-size:.75rem;font-weight:700;color:var(--text2);margin-top:3px">Pro</div>
-        <div style="font-size:.65rem;color:var(--text3);margin-top:2px">5M token</div>
+        <div style="font-size:.65rem;color:var(--text3);margin-top:2px">1M token</div>
         <div style="font-size:.7rem;font-weight:700;color:var(--accent);margin-top:4px">Yakında</div>
       </div>
     </div>
@@ -7762,7 +7762,7 @@ ANSWER FORMATI - ZORUNLU:
         </div>
         <div style="font-weight:800;font-size:1rem;color:var(--teal)">₺0/ay</div>
       </div>
-      <div style="font-size:.75rem;color:var(--text3);line-height:1.7">✅ 3.1 Lite — sınırsız<br>🔒 3.0 Flash — günlük 3 hak<br>🔒 3.1 Pro — haftalık 3 deneme<br>📊 500K token/ay</div>
+      <div style="font-size:.75rem;color:var(--text3);line-height:1.7">✅ 3.1 Lite — sınırsız<br>🔒 3.0 Flash — günlük 3 hak<br>🔒 3.1 Pro — haftalık 3 deneme<br>📊 200K token/ay</div>
     </div>
     <div style="border:2px solid var(--primary);border-radius:14px;padding:16px;margin-bottom:12px;background:rgba(108,99,255,.05)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -7772,7 +7772,7 @@ ANSWER FORMATI - ZORUNLU:
         </div>
         <div style="font-weight:800;font-size:1rem;color:var(--primary)">Yakında</div>
       </div>
-      <div style="font-size:.75rem;color:var(--text3);line-height:1.7">✅ 3.1 Lite — sınırsız<br>✅ 3.0 Flash — sınırsız<br>🔒 3.1 Pro — günlük 5 hak<br>📊 2M token/ay</div>
+      <div style="font-size:.75rem;color:var(--text3);line-height:1.7">✅ 3.1 Lite — sınırsız<br>✅ 3.0 Flash — sınırsız<br>🔒 3.1 Pro — günlük 5 hak<br>📊 500K token/ay</div>
     </div>
     <div style="border:2px solid var(--accent);border-radius:14px;padding:16px;margin-bottom:20px;background:rgba(255,101,132,.05)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -7782,7 +7782,7 @@ ANSWER FORMATI - ZORUNLU:
         </div>
         <div style="font-weight:800;font-size:1rem;color:var(--accent)">Yakında</div>
       </div>
-      <div style="font-size:.75rem;color:var(--text3);line-height:1.7">✅ 3.1 Lite — sınırsız<br>✅ 3.0 Flash — sınırsız<br>✅ 3.1 Pro — sınırsız<br>📊 5M token/ay</div>
+      <div style="font-size:.75rem;color:var(--text3);line-height:1.7">✅ 3.1 Lite — sınırsız<br>✅ 3.0 Flash — sınırsız<br>✅ 3.1 Pro — sınırsız<br>📊 1M token/ay</div>
     </div>
     <button onclick="SubPlan.closeUpgradeModal()" class="btn" style="width:100%;background:var(--surface2);color:var(--text2)">Kapat</button>
   </div>
@@ -7811,9 +7811,9 @@ ANSWER FORMATI - ZORUNLU:
 <script>
 window.SubPlan = (() => {
   const PLANS = {
-    free: { name:'Free', icon:'🆓', tokenLimit:500_000, modelLimit:['lite'] },
-    plus: { name:'Plus', icon:'⭐', tokenLimit:2_000_000, modelLimit:['lite','flash'] },
-    pro:  { name:'Pro',  icon:'👑', tokenLimit:5_000_000, modelLimit:['lite','flash','pro'] },
+    free: { name:'Free', icon:'🆓', tokenLimit:200_000, modelLimit:['lite'] },
+    plus: { name:'Plus', icon:'⭐', tokenLimit:500_000, modelLimit:['lite','flash'] },
+    pro:  { name:'Pro',  icon:'👑', tokenLimit:1_000_000, modelLimit:['lite','flash','pro'] },
   };
   const MODEL_IDS = {
     lite:  'gemini-3.1-flash-lite-preview',
@@ -7930,7 +7930,7 @@ window.SubPlan = (() => {
         if (used>=PLUS_PRO_DAILY) return {ok:false, reason:`Bugünkü Pro hakkın bitti. Yarın yenilenir.`};
       }
     }
-    const limit = (PLANS[_plan]?.tokenLimit||500_000) + _extraTokens;
+    const limit = (PLANS[_plan]?.tokenLimit||200_000) + _extraTokens;
     if ((_usageDoc?.tokens||0) >= limit) return {ok:false, reason:`Aylık token kotanı doldurdun. Ekstra token satın al!`};
     return {ok:true};
   }
@@ -7967,7 +7967,7 @@ window.SubPlan = (() => {
   }
 
   function renderUsageBar() {
-    const limit=(PLANS[_plan]?.tokenLimit||500_000)+_extraTokens;
+    const limit=(PLANS[_plan]?.tokenLimit||200_000)+_extraTokens;
     const used=_usageDoc?.tokens||0, pct=Math.min(100,(used/limit)*100);
     const bar=document.getElementById('token-bar');
     const usedEl=document.getElementById('token-used-display'), limEl=document.getElementById('token-limit-display');
