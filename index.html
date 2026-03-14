@@ -2635,6 +2635,7 @@ select option{background:var(--surface2);color:var(--text)}
         <div class="chip selected-teal" data-cfg="order" data-val="random" onclick="App.cfgChip(this,'order')">🔀 Rastgele</div>
         <div class="chip" data-cfg="order" data-val="due" onclick="App.cfgChip(this,'order')">📅 Vadesi Gelenler</div>
         <div class="chip" data-cfg="order" data-val="sequential" onclick="App.cfgChip(this,'order')">📋 Sıralı</div>
+        <div class="chip" data-cfg="order" data-val="reverse" onclick="App.cfgChip(this,'order')">🔁 Ters Sıralı</div>
       </div>
     </div>
 
@@ -3261,6 +3262,8 @@ const App = (() => {
     } else if (studyCfg.order === 'due') {
       filtered = filtered.filter(c => c.nextReviewDate <= now);
       filtered.sort((a,b) => a.nextReviewDate - b.nextReviewDate);
+    } else if (studyCfg.order === 'reverse') {
+      filtered.sort((a,b) => b.createdAt - a.createdAt);
     } else {
       filtered.sort((a,b) => a.createdAt - b.createdAt);
     }
@@ -3341,6 +3344,7 @@ const App = (() => {
         ${questionHTML}
         <div id="fc-answer-section"></div>
       </div>
+      ${studyIdx > 0 ? `<button class="btn" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);margin-bottom:8px" onclick="App.studyGoBack()"><i class="fa-solid fa-arrow-left"></i> Geri</button>` : ''}
       <button class="btn btn-primary btn-lg" id="show-ans-btn" onclick="App.showAnswer()">
         <i class="fa-solid fa-eye"></i> Cevabı / Çözümü Göster
       </button>`;
@@ -3416,6 +3420,13 @@ const App = (() => {
     }
     studyIdx++;
     renderStudyCard();
+  }
+
+  function studyGoBack() {
+    if (studyIdx > 0) {
+      studyIdx--;
+      renderStudyCard();
+    }
   }
 
   let _recPage = 0;
@@ -5268,7 +5279,7 @@ STRİKT KURALLAR:
     go, setAddType, setHapSubType, updateSubjectsList, updateRoutineSubjects, onRoutineSubjectChange, updateEditSubjects,
     previewPhoto, removePhoto, saveCard,
     openConfig, closeConfig, cfgChip, toggleSubChip, startStudy, startDailyReview,
-    showAnswer, rate,
+    showAnswer, rate, studyGoBack,
     renderRecords, deleteCard, clearAll, toggleRecords, recGoPage, _updateRecTopicFilter,
     toggleSelMode, toggleCardSelect, onRecordCardClick, bulkDelete, bulkShare, selectAll,
     openEdit, closeEdit, saveEdit, updateEditSubjects,
@@ -7548,24 +7559,24 @@ const GeminiAI = (() => {
 
     const levelInstructions = {
       kolay: `SEVİYE: KOLAY
-- Daha fazla kart üret (6-10 kart), her biri kısa ve öz.
+- Kart sayısını konunun genişliğine göre sen belirle; geniş konularda daha çok, dar konularda daha az kart uygundur.
 - Sadece temel, sık sorulan bilgileri al. İnce ayrıntılara girme.
 - Niş veya teknik terimlerin yanına MUTLAKA parantezle Türkçe karşılığı yaz. Örn: "dormansisi (uykusu)", "endosperm (besin doku)", "mitoz (eşit bölünme)".
 - Cümleler kısa ve sade olsun.`,
 
       normal: `SEVİYE: NORMAL
-- Dengeli kart üret (4-7 kart).
-- Müfredatın tamamını kapsa, gerekli detaylara gir.
+- Kart sayısını konunun kapsamına göre sen belirle; müfredatın tamamını dengeli biçimde kapsa.
+- Gerekli detaylara gir.
 - Sadece gerçekten niş olan terimlerin yanına parantezle Türkçe karşılığı yaz, sıradan terimlere gerek yok.`,
 
       zor: `SEVİYE: ZOR
-- Daha az ama derin kart üret (3-5 kart).
+- Kart sayısını konunun derinliğine göre sen belirle; az ama derin kartlar tercih edilir.
 - İnce ayrıntıları, istisnaları, sık karıştırılan noktaları vurgula.
 - Terimler için Türkçe karşılık yazma, öğrenci zaten biliyor.
 - Her maddede mekanizma ve neden-sonuç ilişkisi kur.`,
 
       uzman: `SEVİYE: UZMAN
-- Az ama yoğun kart üret (2-4 kart).
+- Kart sayısını konunun özüne göre sen belirle; az ve bilgi yoğunluğu yüksek kartlar tercih edilir.
 - Derece öğrencisi gibi yaklaş. Bağlantılar, mekanizmalar, istisnalar, sınav tuzakları.
 - Terimler için Türkçe karşılık yazma.
 - Konular arası ilişkileri ve ince ayrımları vurgula. Bilgi yoğunluğu maksimum olsun.`
@@ -7590,6 +7601,7 @@ STRİKT KURALLAR:
    [f]formül[/f]  [r]hata/dikkat[/r]  [y]önemli[/y]  [g]doğru/sonuç[/g]  [c]tanım/kavram[/c]  [b]kalın[/b]
    Her maddede EN AZ BİR etiket kullan.
 10. Matematiksel semboller: π · ² ³ √ ≥ ≤ ≠ ≈ ∞ Δ α β θ
+11. Kart sayısı: Kesinlikle minimum veya maksimum zorunluluğu yoktur. Sohbetin kapsamına ve seçilen seviyenin ruhuna göre kaç kart gerekiyorsa o kadar üret — tek kart da olabilir, çok kart da.
 
 Örnek:
 [{"type":"hap","hapSubType":"note","category":"AYT","subject":"Biyoloji","topic":"Bitkiler","question":"Bilgi Notu","answer":"1. [c]Çift döllenme[/c] sadece [y]kapalı tohumlu bitkilere[/y] özgüdür.\\n2. [r]Dikkat:[/r] Endosperm [f]3n[/f], zigot [f]2n[/f]dir.\\n3. [g]Sonuç:[/g] Meyve, [c]yumurtalığın[/c] gelişmesiyle oluşur."}]`;
