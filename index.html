@@ -1336,10 +1336,6 @@ select option{background:var(--surface2);color:var(--text)}
   window.dispatchEvent(new Event('fb-ready'));
 </script>
 
-<!-- Monetag Onclick kaldırıldı — zararlı reklam içeriği nedeniyle -->
-
-<!-- ══ Monetag Vignette — "Reklam İzle" butonu için ══ -->
-<script id="monetag-vignette-tag" data-zone="10723370" src="https://gizokraijaw.net/vignette.min.js" async></script>
 
 </head>
 <body>
@@ -7841,8 +7837,8 @@ ANSWER FORMATI - ZORUNLU:
         <span id="ad-timer-text" style="color:#f59e0b;font-size:1.6rem;font-weight:900"></span>
       </div>
     </div>
-    <div style="color:#fff;font-size:.95rem;font-weight:700;margin-bottom:4px">Reklam gösterildi, token yükleniyor…</div>
-    <div style="color:rgba(255,255,255,.5);font-size:.78rem">Birkaç saniye bekle</div>
+    <div style="color:#fff;font-size:.95rem;font-weight:700;margin-bottom:4px">Reklam yükleniyor, lütfen bekle…</div>
+    <div style="color:rgba(255,255,255,.5);font-size:.78rem">Süre dolunca token hesabına eklenir</div>
   </div>
 
   <!-- boş -->
@@ -8081,11 +8077,9 @@ window.SubPlan = (() => {
   function closeTokenShop()    { const m=document.getElementById('token-shop-modal'); if(m) m.style.display='none'; }
 
   // ─── Rewarded Ad ────────────────────────────────────────────────────────
-  // Monetag Zone ID — Hesabını açınca buraya yapıştır:
-  const MONETAG_ZONE_ID = 'YOUR_MONETAG_ZONE_ID';
   const AD_TOKEN_REWARD  = 2000;
   const AD_DAILY_LIMIT   = 20;
-  const AD_DURATION_SEC  = 5;
+  const AD_DURATION_SEC  = 15;
 
   let _adTimer = null, _adSecondsLeft = 0, _adCompleted = false;
 
@@ -8118,6 +8112,24 @@ window.SubPlan = (() => {
     }
   }
 
+  function _triggerMonetag() {
+    // Önce yüklü show_ fonksiyonlarını dene
+    if (typeof window['show_10723376'] === 'function') {
+      try { window['show_10723376'](); return; } catch(e) {}
+    }
+    if (typeof window['show_10723370'] === 'function') {
+      try { window['show_10723370'](); return; } catch(e) {}
+    }
+    // Fallback: taze script inject et
+    const old = document.getElementById('_monetag_rewarded');
+    if (old) old.remove();
+    const s = document.createElement('script');
+    s.id = '_monetag_rewarded';
+    s.dataset.zone = '10723376';
+    s.src = 'https://gizokraijaw.net/vignette.min.js?' + Date.now();
+    document.body.appendChild(s);
+  }
+
   function watchAd() {
     if (_getTodayAdCount() >= AD_DAILY_LIMIT) {
       if (window.toast) toast('Günlük reklam limitine ulaştın. Yarın tekrar gel!','err'); return;
@@ -8128,15 +8140,15 @@ window.SubPlan = (() => {
     const overlay = document.getElementById('rewarded-ad-overlay');
     const timerEl = document.getElementById('ad-timer-text');
     const skipBtn = document.getElementById('ad-skip-btn');
+    const ring    = document.getElementById('ad-timer-ring');
     if (!overlay) return;
+
+    // Halka sıfırla
+    if (ring) ring.style.background = `conic-gradient(#f59e0b 0deg, rgba(255,255,255,.1) 0deg)`;
     overlay.style.display = 'flex';
 
-    // Monetag Vignette tetikle
-    try {
-      if (typeof window.show_10723370 === 'function') {
-        window.show_10723370();
-      }
-    } catch(e) { console.warn('Monetag vignette:', e); }
+    // Monetag reklamı tetikle
+    _triggerMonetag();
 
     // Geri sayım
     if (skipBtn) skipBtn.style.display = 'none';
@@ -8145,8 +8157,6 @@ window.SubPlan = (() => {
     _adTimer = setInterval(() => {
       _adSecondsLeft--;
       if (timerEl) timerEl.textContent = `${_adSecondsLeft}s`;
-      // Halka animasyonu
-      const ring = document.getElementById('ad-timer-ring');
       if (ring) {
         const pct = ((AD_DURATION_SEC - _adSecondsLeft) / AD_DURATION_SEC) * 360;
         ring.style.background = `conic-gradient(#f59e0b ${pct}deg, rgba(255,255,255,.1) ${pct}deg)`;
@@ -8154,7 +8164,6 @@ window.SubPlan = (() => {
       if (_adSecondsLeft <= 0) {
         clearInterval(_adTimer);
         _adCompleted = true;
-        // Süre dolunca "Tamamlandı" butonu çık
         if (skipBtn) skipBtn.style.display = '';
         if (timerEl) timerEl.textContent = '✓';
         setTimeout(() => _finishAd(true), 800);
@@ -8214,6 +8223,51 @@ window.SubPlan = (() => {
            getActiveModelId, getActiveModelKey, selectModel,
            openUpgradeModal, closeUpgradeModal, buyPlan, openTokenShop, closeTokenShop, calcTokenPrice,
            watchAd, skipAd };
+})();
+</script>
+
+<!-- ══ MONETAG ADS ══ -->
+<script>
+(function() {
+  var adReady = false;
+
+  function randomDelay() {
+    // 60000ms (1dk) ile 120000ms (2dk) arasında rastgele
+    return Math.floor(Math.random() * 60000) + 60000;
+  }
+
+  function loadOnClick() {
+    var s = document.createElement('script');
+    s.dataset.zone = '10723370';
+    s.src = 'https://al5sm.com/tag.min.js';
+    document.body.appendChild(s);
+  }
+
+  function loadVignette() {
+    var s = document.createElement('script');
+    s.dataset.zone = '10723376';
+    s.src = 'https://gizokraijaw.net/vignette.min.js';
+    document.body.appendChild(s);
+  }
+
+  function scheduleNext() {
+    var delay = randomDelay();
+    setTimeout(function() {
+      // Her seferinde ikisinden birini rastgele seç
+      if (Math.random() < 0.5) {
+        loadVignette();
+      } else {
+        loadOnClick();
+      }
+      scheduleNext();
+    }, delay);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', scheduleNext);
+  } else {
+    scheduleNext();
+  }
 })();
 </script>
 </body>
