@@ -2,7 +2,6 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8"/>
-<meta name='admaven-placement' content=BqjsGqTsH>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -5811,7 +5810,7 @@ const Social = (() => {
             f.photoB = ud.photo || null;
           }
         } catch(_) {}
-        _friendsCache.push(f);
+        if (!_friendsCache.some(x => x.userB === f.userB)) _friendsCache.push(f);
       }
       renderFriendsFromCache();
       // Arka plan bildirim listener'larını başlat
@@ -5855,42 +5854,6 @@ const Social = (() => {
     const searchBar = document.getElementById('friends-search');
     if (searchBar) searchBar.style.display = _friendsCache.length > 2 ? '' : 'none';
     renderChatFriendList();
-  }
-
-  // ── Render Friends ──
-  async function renderFriends() {
-    if (!_fb || !_myCode) return;
-    const { db, collection, query, where, getDocs, doc, getDoc, setDoc } = _fb;
-    const cont = document.getElementById('friends-list');
-    if (!cont) return;
-    cont.innerHTML = '<div style="color:var(--text3);font-size:.83rem;text-align:center;padding:16px 0"><i class="fa-solid fa-spinner fa-spin"></i> Yükleniyor...</div>';
-
-    try {
-      const q2 = query(collection(db, 'friends'), where('userA', '==', _myCode));
-      const snap2 = await getDocs(q2);
-      _friendsCache = [];
-      for (const d of snap2.docs) {
-        const f = d.data();
-        try {
-          const userSnap = await getDoc(doc(db, 'users', f.userB));
-          if (userSnap.exists()) {
-            const ud = userSnap.data();
-            if (ud.name && ud.name !== f.nameB) {
-              await setDoc(doc(db, 'friends', _myCode + '_' + f.userB), { ...f, nameB: ud.name });
-              await setDoc(doc(db, 'friends', f.userB + '_' + _myCode), { userA: f.userB, userB: _myCode, nameA: ud.name, nameB: _myName, createdAt: f.createdAt });
-              f.nameB = ud.name;
-            }
-            f.photoB = ud.photo || null;
-          }
-        } catch(_) {}
-        _friendsCache.push(f);
-      }
-      renderFriendsFromCache();
-      // Arka plan bildirim listener'larını başlat
-      _startBackgroundListeners();
-    } catch(e) {
-      cont.innerHTML = '<div style="color:var(--accent2);font-size:.8rem">Yükleme hatası</div>';
-    }
   }
 
   function renderChatFriendList() {
