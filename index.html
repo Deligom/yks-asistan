@@ -2557,6 +2557,11 @@ select option{background:var(--surface2);color:var(--text)}
       <button id="login-submit-btn" class="btn btn-primary" style="width:100%;padding:14px;font-size:.95rem;font-weight:700" onclick="App.loginWithCredentials()">
         <i class="fa-solid fa-right-to-bracket"></i> Giriş Yap
       </button>
+      <div style="text-align:center;margin-top:14px">
+        <button onclick="App.switchOnboardMode('legacy')" style="background:none;border:none;color:var(--text3);font-size:.78rem;cursor:pointer">
+          Eski hesabım var (e-posta yok) →
+        </button>
+      </div>
     </div>
 
     <!-- KAYIT PANELİ -->
@@ -2603,6 +2608,36 @@ select option{background:var(--surface2);color:var(--text)}
       </button>
       <button onclick="App.switchOnboardMode('login')" style="width:100%;background:none;border:none;color:var(--text3);font-size:.82rem;cursor:pointer;padding:8px">
         ← Giriş ekranına dön
+      </button>
+    </div>
+
+    <!-- ESKİ HESAP PANELİ -->
+    <div id="onboard-legacy-panel" style="display:none">
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-size:2rem;margin-bottom:8px">🔄</div>
+        <div style="font-weight:700;color:var(--text);margin-bottom:4px">Eski Hesapla Giriş</div>
+        <div style="font-size:.8rem;color:var(--text3);line-height:1.5">Kullanıcı adın ve eski şifrenle giriş yap, ardından e-posta ekle.</div>
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label style="font-size:.8rem;font-weight:600;color:var(--text2);margin-bottom:6px;display:block"><i class="fa-solid fa-user"></i> Kullanıcı Adı</label>
+        <input type="text" id="legacy-username" class="form-input" placeholder="Eski kullanıcı adın" maxlength="20"/>
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label style="font-size:.8rem;font-weight:600;color:var(--text2);margin-bottom:6px;display:block"><i class="fa-solid fa-lock"></i> Eski Şifre</label>
+        <div style="position:relative">
+          <input type="password" id="legacy-password" class="form-input" placeholder="Eski şifren" maxlength="50"/>
+          <button type="button" onclick="App.togglePwdVisibility('legacy-password',this)"
+            style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);cursor:pointer;font-size:.9rem;padding:4px">
+            <i class="fa-solid fa-eye"></i>
+          </button>
+        </div>
+      </div>
+      <div id="legacy-error-msg" style="display:none;background:rgba(255,77,109,0.12);border:1px solid rgba(255,77,109,0.4);border-radius:10px;padding:10px 14px;font-size:.82rem;color:#ff4d6d;text-align:left;margin-bottom:12px;line-height:1.5"></div>
+      <button id="legacy-submit-btn" class="btn btn-primary" style="width:100%;padding:14px;font-size:.95rem;font-weight:700;margin-bottom:10px" onclick="App.legacyLogin()">
+        <i class="fa-solid fa-right-to-bracket"></i> Giriş Yap
+      </button>
+      <button onclick="App.switchOnboardMode('login')" style="width:100%;background:none;border:none;color:var(--text3);font-size:.82rem;cursor:pointer;padding:8px">
+        ← Geri dön
       </button>
     </div>
 
@@ -5934,6 +5969,7 @@ STRİKT KURALLAR:
     togglePwdVisibility: (id, btn) => Social.togglePwdVisibility(id, btn),
     completeMigration: () => Social.completeMigration(),
     signInWithGoogle: () => Social.signInWithGoogle(),
+    legacyLogin: () => Social.legacyLogin(),
     copyFriendCode: () => Social.copyFriendCode(),
     editUsername: () => Social.editUsername(),
     changeMyPhoto: (e) => Social.changeMyPhoto(e),
@@ -6313,6 +6349,8 @@ const Social = (() => {
       _setLoading(false);
       return;
     }
+    const { db, doc, setDoc, collection, query, where, getDocs,
+            auth, createUserWithEmailAndPassword, updateProfile } = _fb;
     try {
       // Kullanıcı adı benzersizlik kontrolü
       const q = query(collection(db, 'users'), where('name', '==', name));
@@ -6486,13 +6524,80 @@ const Social = (() => {
     }
   }
 
+  // Eski sistemle giriş (kullanıcı adı + şifre hash kontrolü)
+  async function legacyLogin() {
+    const usernameEl = document.getElementById('legacy-username');
+    const passwordEl = document.getElementById('legacy-password');
+    const errEl      = document.getElementById('legacy-error-msg');
+    const btn        = document.getElementById('legacy-submit-btn');
+    const username   = usernameEl?.value.trim() || '';
+    const password   = passwordEl?.value.trim() || '';
+
+    const _showErr = (msg) => { if (errEl) { errEl.innerHTML = '⚠️ ' + msg; errEl.style.display = ''; } };
+    const _clearErr = () => { if (errEl) errEl.style.display = 'none'; };
+    const _setLoading = (on) => {
+      if (!btn) return;
+      btn.disabled = on;
+      btn.innerHTML = on ? '<span style="opacity:.7">⏳ Kontrol ediliyor…</span>' : '<i class="fa-solid fa-right-to-bracket"></i> Giriş Yap';
+    };
+    _clearErr();
+    if (!username) { _showErr('Kullanıcı adını gir.'); return; }
+    if (!password) { _showErr('Şifreni gir.'); return; }
+
+    _setLoading(true);
+    try {
+      const { db, collection, query, where, getDocs } = _fb;
+      const q    = query(collection(db, 'users'), where('name', '==', username));
+      const snap = await getDocs(q);
+      if (snap.empty) { _showErr('Bu kullanıcı adıyla kayıtlı hesap bulunamadı.'); _setLoading(false); return; }
+
+      let found = null;
+      for (const d of snap.docs) {
+        const data = d.data();
+        if (data.passwordSalt) {
+          const { hash } = await _hashPassword(password, data.passwordSalt);
+          if (hash === data.passwordHash) found = data;
+        } else if (data.passwordHash) {
+          const legacy = await _hashPasswordLegacy(password);
+          if (legacy === data.passwordHash) found = data;
+        }
+        if (found) break;
+      }
+
+      if (!found) { _showErr('Şifre yanlış.'); _setLoading(false); return; }
+
+      _myCode  = found.code;
+      _myName  = found.name;
+      _myPhoto = found.photo || null;
+      localStorage.setItem('social_code', _myCode);
+      localStorage.setItem('social_name',  _myName);
+      if (_myPhoto) localStorage.setItem('social_photo', _myPhoto);
+
+      // E-posta varsa Firebase Auth ile giriş deneyebilir, yoksa migrate paneline yönlendir
+      if (found.email) {
+        document.getElementById('onboard-overlay').style.display = 'none';
+        _updateProfileUI();
+        _updateAuthStatusInfo();
+        renderFriends().then(() => renderGroups().then(() => _startBackgroundListeners())).catch(()=>{});
+        if (window.SubPlan) SubPlan.loadPlan();
+        toast('Giriş yapıldı! 🎉', 'ok');
+      } else {
+        // E-posta yok — migration paneline yönlendir
+        switchOnboardMode('migrate');
+      }
+    } catch(e) {
+      _showErr('Bağlantı hatası: ' + e.message);
+    }
+    _setLoading(false);
+  }
+
   function openAuthModal(mode) {
     document.getElementById('onboard-overlay').style.display = 'flex';
     switchOnboardMode(mode || 'login');
   }
 
   function switchOnboardMode(mode) {
-    const panels = ['login','register','forgot','migrate'];
+    const panels = ['login','register','forgot','migrate','legacy'];
     panels.forEach(p => {
       const el = document.getElementById('onboard-' + p + '-panel');
       if (el) el.style.display = p === mode ? '' : 'none';
@@ -8033,7 +8138,7 @@ const Social = (() => {
   }
 
   return {
-    init, completeOnboard, loginWithCredentials, signInWithGoogle, switchOnboardMode, openAuthModal,
+    init, completeOnboard, loginWithCredentials, signInWithGoogle, legacyLogin, switchOnboardMode, openAuthModal,
     forgotPassword, sendPasswordReset, togglePwdVisibility, completeMigration, _finishLogin,
     copyFriendCode, editUsername, changeMyPhoto,
     addFriend, renderFriends, removeFriend,
