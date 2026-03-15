@@ -1763,6 +1763,31 @@ select option{background:var(--surface2);color:var(--text)}
       </div>
     </div>
 
+    <!-- HAP BİLGİ İSTEĞE BAĞLI FOTOĞRAF -->
+    <div id="hap-photo-section" style="display:block">
+      <div class="form-group">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <label style="margin:0"><i class="fa-solid fa-image"></i> Görsel / Şema <span style="font-size:.72rem;color:var(--text3);font-weight:400">(isteğe bağlı)</span></label>
+          <button type="button" id="hap-photo-toggle" onclick="App.toggleHapPhoto()"
+            style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--primary2);font-size:.75rem;cursor:pointer;font-weight:600">
+            + Fotoğraf Ekle
+          </button>
+        </div>
+        <div id="hap-photo-drop-wrap" style="display:none">
+          <div class="photo-drop" id="hap-photo-drop">
+            <input type="file" id="f-hap-photo" accept="image/*" onchange="App.previewHapPhoto(event)"/>
+            <div class="pd-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+            <div class="pd-title">Şema veya Diyagram Ekle</div>
+            <div class="pd-sub">Notunu görsellerle zenginleştir</div>
+          </div>
+          <div id="hap-photo-preview" class="photo-preview" style="display:none">
+            <img id="hap-preview-img" src="" alt="Önizleme"/>
+            <button class="remove-photo" onclick="App.removeHapPhoto()"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="text-question-section">
       <div class="form-group" id="f-question-group">
         <label id="f-question-label"><i class="fa-solid fa-circle-question"></i> Soru / Karıştırılan Nokta</label>
@@ -2795,25 +2820,34 @@ select option{background:var(--surface2);color:var(--text)}
     </div>
 
     <!-- Header -->
-    <div id="ai-header">
-      <button class="btn" style="padding:7px 11px;font-size:.78rem;background:var(--surface2);border:1px solid var(--border);color:var(--text2);display:flex;align-items:center;gap:5px" onclick="GeminiAI.openHistory()">
-        <i class="fa-solid fa-clock-rotate-left"></i> Geçmiş
-      </button>
-      <div style="flex:1;font-family:'Syne','Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:1rem;font-weight:700;text-align:center">
-        <span id="ai-chat-title" style="background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">✦ Gemini AI</span>
+    <div id="ai-header" style="flex-direction:column;gap:8px;padding:10px 12px">
+      <!-- Üst satır: Geçmiş | Başlık | Ayarlar -->
+      <div style="display:flex;align-items:center;gap:8px;width:100%">
+        <button class="btn" style="padding:6px 10px;font-size:.78rem;background:var(--surface2);border:1px solid var(--border);color:var(--text2);display:flex;align-items:center;gap:5px;flex-shrink:0" onclick="GeminiAI.openHistory()">
+          <i class="fa-solid fa-clock-rotate-left"></i> Geçmiş
+        </button>
+        <div style="flex:1;font-family:'Syne','Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:1rem;font-weight:700;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+          <span id="ai-chat-title" style="background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">✦ Gemini AI</span>
+        </div>
+        <button class="btn" style="padding:6px 8px;font-size:.8rem;background:transparent;border:1px solid var(--border);color:var(--text3);flex-shrink:0" onclick="GeminiAI.showSettings()" title="Ayarlar">
+          <i class="fa-solid fa-ellipsis-vertical"></i>
+        </button>
       </div>
-      <button class="ai-summarize-btn" id="ai-summarize-btn" onclick="GeminiAI.summarize()" title="Bu sohbeti özetle">
-        <i class="fa-solid fa-list-ul"></i> Özetle
-      </button>
-      <button id="ai-card-btn-hap" class="btn btn-teal" style="padding:6px 10px;font-size:.75rem" onclick="GeminiAI.createCard()" title="Sohbetten Hap Bilgi kartı oluştur">
-        <i class="fa-solid fa-lightbulb"></i> Hap Bilgi
-      </button>
-      <button id="ai-card-btn-soru" class="btn" style="padding:6px 10px;font-size:.75rem;background:var(--accent2);color:#fff;border:none;border-radius:10px;cursor:pointer;display:flex;align-items:center;gap:5px" onclick="GeminiAI.createSoruKarti()" title="Sohbetteki fotoğraftan Soru Kartı oluştur">
-        <i class="fa-solid fa-camera"></i> Soru Kartı
-      </button>
-      <button class="btn" style="padding:7px 9px;font-size:.8rem;background:transparent;border:1px solid var(--border);color:var(--text3);margin-left:2px" onclick="GeminiAI.showSettings()" title="Ayarlar">
-        <i class="fa-solid fa-ellipsis-vertical"></i>
-      </button>
+      <!-- Alt satır: kart butonları -->
+      <div style="display:flex;align-items:center;gap:6px;width:100%">
+        <button class="ai-summarize-btn" id="ai-summarize-btn" onclick="GeminiAI.summarize()" title="Bu sohbeti özetle" style="flex:1;justify-content:center">
+          <i class="fa-solid fa-list-ul"></i> Özetle
+        </button>
+        <button id="ai-card-btn-hap" class="btn btn-teal" style="padding:6px 10px;font-size:.75rem;flex:1;justify-content:center" onclick="GeminiAI.createCard()" title="Sohbetten Hap Bilgi kartı oluştur">
+          <i class="fa-solid fa-lightbulb"></i> Hap Bilgi
+        </button>
+        <button id="ai-card-btn-hap-photo" class="btn" style="padding:6px 10px;font-size:.75rem;flex:1;justify-content:center;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;border:none;border-radius:10px;cursor:pointer;display:flex;align-items:center;gap:5px" onclick="GeminiAI.createCardWithPhoto()" title="Fotoğraflı Hap Bilgi kartı oluştur">
+          <i class="fa-solid fa-camera"></i> Foto Bilgi
+        </button>
+        <button id="ai-card-btn-soru" class="btn" style="padding:6px 10px;font-size:.75rem;flex:1;justify-content:center;background:var(--accent2);color:#fff;border:none;border-radius:10px;cursor:pointer;display:flex;align-items:center;gap:5px" onclick="GeminiAI.createSoruKarti()" title="Sohbetteki fotoğraftan Soru Kartı oluştur">
+          <i class="fa-solid fa-camera"></i> Soru Kartı
+        </button>
+      </div>
     </div>
 
     <!-- Messages -->
@@ -2852,7 +2886,12 @@ select option{background:var(--surface2);color:var(--text)}
 <div id="ai-settings-modal" class="modal-overlay">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <div class="modal-title">⚙️ AI Ayarları</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div class="modal-title" style="margin:0">⚙️ AI Ayarları</div>
+      <button class="btn btn-primary" style="padding:8px 18px;font-size:.82rem" onclick="GeminiAI.saveSettings()">
+        <i class="fa-solid fa-floppy-disk"></i> Kaydet
+      </button>
+    </div>
 
     <div style="margin-bottom:18px">
       <div style="font-size:.8rem;font-weight:700;color:var(--text2);margin-bottom:10px">📚 Kart Zorluk Seviyesi</div>
@@ -2909,10 +2948,6 @@ select option{background:var(--surface2);color:var(--text)}
         </label>
       </div>
     </div>
-
-    <button class="btn btn-primary" style="width:100%" onclick="GeminiAI.saveSettings()">
-      <i class="fa-solid fa-check-circle"></i> Kaydet
-    </button>
   </div>
 </div>
 
@@ -2920,13 +2955,12 @@ select option{background:var(--surface2);color:var(--text)}
 <div id="ai-card-modal" class="modal-overlay">
   <div class="modal-sheet" style="max-height:90vh;overflow-y:auto">
     <div class="modal-handle"></div>
-    <div class="modal-title">⚡ Kart Oluştur</div>
-    <div style="font-size:.8rem;color:var(--text3);margin-bottom:12px;line-height:1.5">Gemini bu sohbetten aşağıdaki kartları oluşturdu. İçeri aktarmak için onayla.</div>
-    <div id="ai-card-preview-box" class="ai-card-preview">…</div>
-    <div id="ai-card-count" style="font-size:.78rem;color:var(--text3);margin-bottom:16px"></div>
+    <div class="modal-title">⚡ Kartlar Hazır</div>
+    <div id="ai-card-count" style="font-size:.8rem;color:var(--primary2);font-weight:700;margin-bottom:12px"></div>
+    <div id="ai-card-preview-box" style="margin-bottom:16px;max-height:50vh;overflow-y:auto"></div>
     <div style="display:flex;gap:10px">
       <button class="btn" style="flex:1;background:var(--surface2);color:var(--text2)" onclick="GeminiAI.closeCardModal()">İptal</button>
-      <button class="btn btn-primary" style="flex:1" onclick="GeminiAI.confirmImport()"><i class="fa-solid fa-file-import"></i> Aktar</button>
+      <button class="btn btn-primary" style="flex:2" onclick="GeminiAI.confirmImport()"><i class="fa-solid fa-floppy-disk"></i> Kaydet</button>
     </div>
   </div>
 </div>
@@ -3404,9 +3438,12 @@ const App = (() => {
     document.getElementById('atb-hap').className  = 'add-type-btn type-hap' + (type === 'hap'  ? ' active-hap'  : '');
     document.getElementById('atb-foto').className = 'add-type-btn type-foto' + (type === 'foto' ? ' active-foto' : '');
     document.getElementById('foto-upload-section').style.display   = type === 'foto' ? '' : 'none';
+    document.getElementById('hap-photo-section').style.display     = type === 'hap'  ? '' : 'none';
     document.getElementById('text-question-section').style.display = type === 'hap'  ? '' : 'none';
     document.getElementById('hap-subtype-wrap').style.display      = type === 'hap'  ? '' : 'none';
     if (type === 'hap') _applyHapSubType();
+    // Hap fotoğrafı sıfırla
+    if (type !== 'hap') removeHapPhoto();
   }
 
   function setHapSubType(sub) {
@@ -3475,6 +3512,39 @@ const App = (() => {
     document.getElementById('photo-drop').style.display    = '';
   }
 
+  // ── HAP FOTOĞRAF ──
+  let hapPhotoBase64 = null;
+
+  function toggleHapPhoto() {
+    const wrap = document.getElementById('hap-photo-drop-wrap');
+    const btn  = document.getElementById('hap-photo-toggle');
+    const show = wrap.style.display === 'none';
+    wrap.style.display = show ? '' : 'none';
+    btn.textContent = show ? '− Fotoğrafı Kaldır' : '+ Fotoğraf Ekle';
+    if (!show) removeHapPhoto();
+  }
+
+  async function previewHapPhoto(ev) {
+    const file = ev.target.files[0];
+    if (!file) return;
+    toast('Fotoğraf optimize ediliyor…', 'info');
+    hapPhotoBase64 = await optimizeImage(file);
+    document.getElementById('hap-preview-img').src = hapPhotoBase64;
+    document.getElementById('hap-photo-preview').style.display = '';
+    document.getElementById('hap-photo-drop').style.display    = 'none';
+    toast('Fotoğraf hazır ✓', 'ok');
+  }
+
+  function removeHapPhoto() {
+    hapPhotoBase64 = null;
+    const inp = document.getElementById('f-hap-photo');
+    if (inp) inp.value = '';
+    const prev = document.getElementById('hap-photo-preview');
+    const drop = document.getElementById('hap-photo-drop');
+    if (prev) prev.style.display = 'none';
+    if (drop) drop.style.display = '';
+  }
+
   // ── SAVE CARD ──
   async function saveCard() {
     const cat  = document.getElementById('f-category').value;
@@ -3496,7 +3566,7 @@ const App = (() => {
       topic:          top,
       question:       q,
       answer:         ans,
-      photo:          addType === 'foto' ? photoBase64 : null,
+      photo:          addType === 'foto' ? photoBase64 : (addType === 'hap' ? (hapPhotoBase64 || null) : null),
       nextReviewDate: Date.now(),
       interval:       0,
       createdAt:      Date.now()
@@ -3518,6 +3588,12 @@ const App = (() => {
       if (el) el.value = '';
     });
     removePhoto();
+    removeHapPhoto();
+    // Hap fotoğraf toggle'ı kapat
+    const hapWrap = document.getElementById('hap-photo-drop-wrap');
+    const hapBtn  = document.getElementById('hap-photo-toggle');
+    if (hapWrap) hapWrap.style.display = 'none';
+    if (hapBtn)  hapBtn.textContent = '+ Fotoğraf Ekle';
     toast('✅ Kart kaydedildi!', 'ok');
   }
 
@@ -3672,8 +3748,8 @@ const App = (() => {
     const card = studyQueue[studyIdx];
     const pct  = Math.round((studyIdx / total) * 100);
 
-    const photoHTML = card.type === 'foto' && card.photo
-      ? `<img class="fc-photo" src="${card.photo}" alt="Soru fotoğrafı"/>`
+    const photoHTML = card.photo
+      ? `<img class="fc-photo" src="${card.photo}" alt="Görsel"/>`
       : '';
     const isNoteCard = card.type === 'hap' && card.hapSubType === 'note';
     const questionHTML = card.type === 'hap' && card.question && !isNoteCard
@@ -3941,7 +4017,7 @@ const App = (() => {
         const isHap  = c.type === 'hap';
         const isSelected = selectedIds.has(c.id);
         const thumbHTML = isHap
-          ? `<div class="record-thumb hap"><i class="fa-solid fa-bolt"></i></div>`
+          ? `<div class="record-thumb hap">${c.photo ? `<img src="${c.photo}" alt=""/>` : '<i class="fa-solid fa-bolt"></i>'}</div>`
           : `<div class="record-thumb foto">${c.photo ? `<img src="${c.photo}" alt=""/>` : '<i class="fa-solid fa-image"></i>'}</div>`;
         const ds = new Date(c.createdAt).toLocaleDateString('tr-TR', {day:'2-digit',month:'short',year:'numeric'});
         const preview = isHap
@@ -5717,7 +5793,8 @@ STRİKT KURALLAR:
 
   return {
     go, setAddType, setHapSubType, updateSubjectsList, updateRoutineSubjects, onRoutineSubjectChange, updateEditSubjects,
-    previewPhoto, removePhoto, saveCard,
+    previewPhoto, removePhoto,
+    toggleHapPhoto, previewHapPhoto, removeHapPhoto, saveCard,
     openConfig, closeConfig, cfgChip, toggleSubChip, startStudy, startDailyReview,
     showAnswer, rate, studyGoBack,
     renderRecords, deleteCard, clearAll, toggleRecords, recGoPage, _updateRecTopicFilter,
@@ -8461,13 +8538,14 @@ const GeminiAI = (() => {
     setBusy(true);
     const cardPrompt = _buildCardPrompt();
 
-    // Kart oluştururken fotoğrafları at (payload çok büyür), sadece text kısmını gönder
-    const cardContents = _history.map(m => ({
+    // Son 8 mesajı al — güncel konuya odaklanmak için uzun geçmişi kes
+    const recentHistory = _history.slice(-8);
+    const cardContents = recentHistory.map(m => ({
       role: m.role,
       parts: m.parts
-        .filter(p => p.text) // sadece text part'ları al, inline_data'ları at
+        .filter(p => p.text)
         .map(p => ({ text: p.text }))
-    })).filter(m => m.parts.length > 0); // boş mesajları da at
+    })).filter(m => m.parts.length > 0);
 
     if (cardContents.length === 0) {
       setBusy(false);
@@ -8508,6 +8586,13 @@ const GeminiAI = (() => {
       let cards = _safeParseJSON(raw);
       if (!Array.isArray(cards)) cards = [cards];
       if (!cards.length) throw new Error('Geçerli kart üretilemedi');
+
+      // Sohbette fotoğraf varsa karta ekle
+      const photoMsg = _history.slice().reverse().find(m => m.role === 'user' && m._photoDataUrl);
+      if (photoMsg?._photoDataUrl) {
+        cards = cards.map(c => ({ ...c, photo: photoMsg._photoDataUrl }));
+      }
+
       _pendingCards = cards;
       setBusy(false);
       showCardModal(cards);
@@ -8515,6 +8600,16 @@ const GeminiAI = (() => {
       setBusy(false);
       if (window.toast) toast('Kart oluşturma hatası: ' + e.message, 'err');
     }
+  }
+
+  // Fotoğraflı Hap Bilgi kartı — sohbetteki fotoğraf zorunlu
+  async function createCardWithPhoto() {
+    const photoMsg = _history.slice().reverse().find(m => m.role === 'user' && m._photoDataUrl);
+    if (!photoMsg) {
+      if (window.toast) toast('📷 Önce sohbete bir görsel/şema gönder, sonra bu butona bas!', 'err');
+      return;
+    }
+    await createCard();
   }
 
   function _buildCardPrompt() {
@@ -8564,7 +8659,7 @@ STRİKT KURALLAR:
    [f]formül[/f]  [r]hata/dikkat[/r]  [y]önemli[/y]  [g]doğru/sonuç[/g]  [c]tanım/kavram[/c]  [b]kalın[/b]
    Her maddede EN AZ BİR etiket kullan.
 10. Matematiksel semboller: π · ² ³ √ ≥ ≤ ≠ ≈ ∞ Δ α β θ
-11. Kart sayısı: Kesinlikle minimum veya maksimum zorunluluğu yoktur. Sohbetin kapsamına ve seçilen seviyenin ruhuna göre kaç kart gerekiyorsa o kadar üret — tek kart da olabilir, çok kart da.
+11. Kart sayısı: Seviyeye göre belirlenir. Kolay/Normal: konunun genişliğine göre serbest. Zor: az ama derin, maksimum 5. Uzman: sadece o sohbetin tam konusuna odaklan, maksimum 3 kart, başka konuya girme.
 
 Örnek:
 [{"type":"hap","hapSubType":"note","category":"AYT","subject":"Biyoloji","topic":"Bitkiler","question":"Bilgi Notu","answer":"1. [c]Çift döllenme[/c] sadece [y]kapalı tohumlu bitkilere[/y] özgüdür.\\n2. [r]Dikkat:[/r] Endosperm [f]3n[/f], zigot [f]2n[/f]dir.\\n3. [g]Sonuç:[/g] Meyve, [c]yumurtalığın[/c] gelişmesiyle oluşur."}]`;
@@ -8674,9 +8769,25 @@ ANSWER FORMATI - ZORUNLU:
 
   function showCardModal(cards) {
     const preview = document.getElementById('ai-card-preview-box');
-    const count = document.getElementById('ai-card-count');
-    if (preview) preview.textContent = JSON.stringify(cards, null, 2);
+    const count   = document.getElementById('ai-card-count');
     if (count) count.textContent = `${cards.length} kart oluşturuldu`;
+    if (preview) {
+      preview.innerHTML = cards.map((c, i) => {
+        const photoThumb = c.photo
+          ? `<img src="${c.photo}" style="width:100%;max-height:120px;object-fit:cover;border-radius:8px;margin-bottom:8px;display:block">`
+          : '';
+        const title = c.question && c.question !== 'Bilgi Notu'
+          ? c.question.slice(0, 80) + (c.question.length > 80 ? '…' : '')
+          : c.topic || 'Bilgi Notu';
+        const preview = (c.answer || '').slice(0, 100) + ((c.answer||'').length > 100 ? '…' : '');
+        return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px">
+          ${photoThumb}
+          <div style="font-size:.7rem;color:var(--text3);margin-bottom:4px">${c.category||''} · ${c.subject||''} · ${c.topic||''}</div>
+          <div style="font-size:.85rem;font-weight:600;color:var(--text);margin-bottom:4px">${_escHtml(title)}</div>
+          <div style="font-size:.75rem;color:var(--text2);line-height:1.5">${_escHtml(preview)}</div>
+        </div>`;
+      }).join('');
+    }
     const modal = document.getElementById('ai-card-modal');
     if (modal) modal.classList.add('open');
   }
@@ -8687,20 +8798,31 @@ ANSWER FORMATI - ZORUNLU:
     _pendingCards = null;
   }
 
-  function confirmImport() {
+  async function confirmImport() {
     if (!_pendingCards || !_pendingCards.length) return;
-    // Use the existing importJSON logic
-    const importEl = document.getElementById('import-json');
-    if (importEl) {
-      importEl.value = JSON.stringify(_pendingCards);
-      closeCardModal();
-      App.go('import');
-      setTimeout(() => { App.importJSON(); }, 100);
-    } else {
-      // Fallback: directly call importCards if available
-      closeCardModal();
-      if (window.toast) toast('Veri Aktar sekmesine git ve JSON yapıştır.', 'ok');
+    const cards = _pendingCards;
+    closeCardModal();
+    let saved = 0;
+    for (const c of cards) {
+      try {
+        await dbPut({
+          type:           c.type || 'hap',
+          hapSubType:     c.hapSubType || 'note',
+          category:       c.category || 'TYT',
+          subject:        c.subject  || 'Genel',
+          topic:          c.topic    || '',
+          question:       c.question || '',
+          answer:         c.answer   || '',
+          photo:          c.photo    || null,
+          nextReviewDate: Date.now(),
+          interval:       0,
+          createdAt:      Date.now()
+        });
+        saved++;
+      } catch(e) { console.warn('Kart kaydedilemedi:', e); }
     }
+    if (window.toast) toast(`✅ ${saved} kart kaydedildi!`, 'ok');
+    if (window.App) App.renderHome && App.renderHome();
   }
 
   // ── Lifecycle ─────────────────────────────────────────
@@ -8719,7 +8841,7 @@ ANSWER FORMATI - ZORUNLU:
 
   return { onEnter, saveKey, showSettings, saveSettings, send, newChat, summarize,
     openHistory, closeHistory, loadSession, deleteSession, renameSession, commitRename,
-    createCard, createSoruKarti, closeCardModal, confirmImport, onPhotoSelected, removePhoto, getKeyPublic: getKey };
+    createCard, createCardWithPhoto, createSoruKarti, closeCardModal, confirmImport, onPhotoSelected, removePhoto, getKeyPublic: getKey };
 })();
 </script>
 
@@ -9543,44 +9665,45 @@ window.SubPlan = (() => {
 <!-- ══ MONETAG ADS ══ -->
 <script>
 (function() {
-  var adReady = false;
-
-  function randomDelay() {
-    // 60000ms (1dk) ile 120000ms (2dk) arasında rastgele
-    return Math.floor(Math.random() * 60000) + 60000;
-  }
+  const AD_INTERVAL_MS = 5 * 60 * 1000;  // 5 dakika
+  const AD_FIRST_MS    = 2 * 60 * 1000;  // İlk reklam 2 dakika sonra
 
   function loadOnClick() {
     var s = document.createElement('script');
     s.dataset.zone = '10723370';
-    s.src = 'https://al5sm.com/tag.min.js';
+    s.src = 'https://al5sm.com/tag.min.js?' + Date.now();
     document.body.appendChild(s);
   }
 
   function loadVignette() {
     var s = document.createElement('script');
     s.dataset.zone = '10723376';
-    s.src = 'https://gizokraijaw.net/vignette.min.js';
+    s.src = 'https://gizokraijaw.net/vignette.min.js?' + Date.now();
     document.body.appendChild(s);
   }
 
-  function scheduleNext() {
-    var delay = randomDelay();
+  function showAd() {
+    // Her seferinde ikisinden birini rastgele seç
+    if (Math.random() < 0.5) {
+      loadVignette();
+    } else {
+      loadOnClick();
+    }
+  }
+
+  function start() {
+    // İlk reklam 2 dakika sonra
     setTimeout(function() {
-      // Her seferinde ikisinden birini rastgele seç
-      if (Math.random() < 0.5) {
-        loadVignette();
-      } else {
-        loadOnClick();
-      }
-      scheduleNext();
-    }, delay);
+      showAd();
+      // Sonrakiler her 5 dakikada bir
+      setInterval(showAd, AD_INTERVAL_MS);
+    }, AD_FIRST_MS);
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', scheduleNext);
+    document.addEventListener('DOMContentLoaded', start);
   } else {
-    scheduleNext();
+    start();
   }
 })();
 </script>
