@@ -1540,7 +1540,7 @@ select option{background:var(--surface2);color:var(--text)}
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, query, where, orderBy, limit, limitToLast, onSnapshot, updateDoc, deleteDoc, serverTimestamp, increment } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut, updateProfile, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, onAuthStateChanged, signOut, updateProfile, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCiR2N88sbxK8-5L-5GJ4Z5kD0fFX562ns",
@@ -1561,7 +1561,7 @@ select option{background:var(--surface2);color:var(--text)}
   window._FB = {
     db, auth, collection, doc, setDoc, getDoc, getDocs, addDoc,
     query, where, orderBy, limit, limitToLast, onSnapshot, updateDoc, deleteDoc, serverTimestamp, increment,
-    createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail,
+    createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification,
     onAuthStateChanged, signOut, updateProfile,
     GoogleAuthProvider, signInWithPopup,
     IMGBB_KEY
@@ -2134,6 +2134,12 @@ select option{background:var(--surface2);color:var(--text)}
       <i class="fa-solid fa-right-from-bracket"></i> Çıkış Yap
     </button>
     <div id="auth-status-info" style="font-size:.8rem;color:var(--text3);text-align:center;padding:4px 0"></div>
+    <div id="email-verify-banner" style="display:none;background:rgba(255,209,102,.12);border:1px solid rgba(255,209,102,.4);border-radius:10px;padding:10px 14px;font-size:.82rem;color:var(--gold);line-height:1.5">
+      ⚠️ E-posta adresin henüz doğrulanmadı.
+      <button onclick="App.resendVerificationEmail()" style="display:block;margin-top:8px;background:none;border:1px solid var(--gold);color:var(--gold);border-radius:8px;padding:5px 12px;cursor:pointer;font-size:.78rem;font-weight:600;width:100%">
+        📧 Doğrulama Mailini Tekrar Gönder
+      </button>
+    </div>
   </div>
 </div>
 
@@ -5978,6 +5984,7 @@ STRİKT KURALLAR:
     signInWithGoogle: () => Social.signInWithGoogle(),
     legacyLogin: () => Social.legacyLogin(),
     signOut: () => Social.doSignOut(),
+    resendVerificationEmail: () => Social.resendVerificationEmail(),
     copyFriendCode: () => Social.copyFriendCode(),
     editUsername: () => Social.editUsername(),
     changeMyPhoto: (e) => Social.changeMyPhoto(e),
@@ -6368,6 +6375,8 @@ const Social = (() => {
       // Firebase Auth'da hesap oluştur
       const cred = await createUserWithEmailAndPassword(auth, email, pwd);
       await updateProfile(cred.user, { displayName: name });
+      // Doğrulama maili gönder (isteğe bağlı, hata olsa devam et)
+      try { await _fb.sendEmailVerification(cred.user); } catch(e) {}
 
       _myCode = _genCode();
       _myName = name;
@@ -6488,7 +6497,13 @@ const Social = (() => {
     _updateAuthStatusInfo();
     renderFriends().then(() => renderGroups().then(() => _startBackgroundListeners())).catch(()=>{});
     if (window.SubPlan) SubPlan.loadPlan();
-    toast('Giriş yapıldı! 🎉', 'ok');
+    // E-posta doğrulanmamışsa uyarı göster
+    const user = _fb?.auth?.currentUser;
+    if (user && !user.emailVerified && user.providerData?.[0]?.providerId !== 'google.com') {
+      toast('📧 E-postanı doğrula! ' + user.email + ' adresine doğrulama maili gönderildi.', 'ok');
+    } else {
+      toast('Giriş yapıldı! 🎉', 'ok');
+    }
     if (window._saveFcmToken && window._pendingFcmToken) {
       window._saveFcmToken(_myCode).catch(()=>{});
       window._pendingFcmToken = null;
@@ -6599,6 +6614,18 @@ const Social = (() => {
     _setLoading(false);
   }
 
+  async function resendVerificationEmail() {
+    const user = _fb?.auth?.currentUser;
+    if (!user) { toast('Önce giriş yap!', 'err'); return; }
+    if (user.emailVerified) { toast('E-posta zaten doğrulanmış ✅', 'ok'); return; }
+    try {
+      await _fb.sendEmailVerification(user);
+      toast('📧 Doğrulama maili gönderildi: ' + user.email, 'ok');
+    } catch(e) {
+      toast('Mail gönderilemedi: ' + e.message, 'err');
+    }
+  }
+
   async function doSignOut() {
     if (!confirm('Hesaptan çıkış yapılacak. Devam?')) return;
     try {
@@ -6707,11 +6734,18 @@ const Social = (() => {
 
   function _updateAuthStatusInfo() {
     const el = document.getElementById('auth-status-info');
+    const banner = document.getElementById('email-verify-banner');
     if (!el) return;
     if (_myCode && _myName) {
       el.innerHTML = `✅ Giriş yapıldı: <b style="color:var(--teal2)">${_myName}</b>`;
     } else {
       el.innerHTML = '';
+    }
+    // E-posta doğrulama banner
+    if (banner) {
+      const user = _fb?.auth?.currentUser;
+      const needsVerify = user && !user.emailVerified && user.providerData?.[0]?.providerId !== 'google.com';
+      banner.style.display = needsVerify ? '' : 'none';
     }
   }
 
@@ -8160,7 +8194,7 @@ const Social = (() => {
   }
 
   return {
-    init, completeOnboard, loginWithCredentials, signInWithGoogle, legacyLogin, doSignOut, switchOnboardMode, openAuthModal,
+    init, completeOnboard, loginWithCredentials, signInWithGoogle, legacyLogin, doSignOut, resendVerificationEmail, switchOnboardMode, openAuthModal,
     forgotPassword, sendPasswordReset, togglePwdVisibility, completeMigration, _finishLogin,
     copyFriendCode, editUsername, changeMyPhoto,
     addFriend, renderFriends, removeFriend,
@@ -9855,9 +9889,9 @@ window.SubPlan = (() => {
   function closeTokenShop()    { const m=document.getElementById('token-shop-modal'); if(m) m.style.display='none'; }
 
   // ─── Rewarded Ad ────────────────────────────────────────────────────────
-  const AD_TOKEN_REWARD  = 2000;
+  const AD_TOKEN_REWARD  = 5000;
   const AD_DAILY_LIMIT   = 20;
-  const AD_DURATION_SEC  = 15;
+  const AD_DURATION_SEC  = 20;
 
   let _adTimer = null, _adSecondsLeft = 0, _adCompleted = false;
 
@@ -10004,46 +10038,6 @@ window.SubPlan = (() => {
 })();
 </script>
 
-<!-- ══ MONETAG ADS ══ -->
-<script>
-(function() {
-  const AD_INTERVAL_MS = 5 * 60 * 1000;
-  const AD_FIRST_MS    = 2 * 60 * 1000;
-
-  function loadOnClick() {
-    var s = document.createElement('script');
-    s.dataset.zone = '10723370';
-    s.src = 'https://al5sm.com/tag.min.js?' + Date.now();
-    document.body.appendChild(s);
-  }
-
-  function loadVignette() {
-    var s = document.createElement('script');
-    s.dataset.zone = '10723376';
-    s.src = 'https://gizokraijaw.net/vignette.min.js?' + Date.now();
-    document.body.appendChild(s);
-  }
-
-  function showAd() {
-    // Giriş ekranı açıksa reklam gösterme
-    const overlay = document.getElementById('onboard-overlay');
-    if (overlay && overlay.style.display !== 'none') return;
-    if (Math.random() < 0.5) loadVignette(); else loadOnClick();
-  }
-
-  function start() {
-    setTimeout(function() {
-      showAd();
-      setInterval(showAd, AD_INTERVAL_MS);
-    }, AD_FIRST_MS);
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', start);
-  } else {
-    start();
-  }
-})();
-</script>
+<!-- ══ MONETAG ADS — Sadece manuel izleme ══ -->
 </body>
 </html>
