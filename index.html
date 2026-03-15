@@ -9277,13 +9277,13 @@ ANSWER FORMATI - ZORUNLU:
           <div style="font-weight:800;font-size:.95rem;color:#f59e0b">🎬 Reklam İzle</div>
           <div style="font-size:.75rem;color:var(--text3);margin-top:2px">Kısa reklam izle, token kazan</div>
         </div>
-        <div style="background:#f59e0b;border-radius:10px;padding:4px 10px;font-size:.8rem;font-weight:800;color:#000">+2.000</div>
+        <div style="background:#f59e0b;border-radius:10px;padding:4px 10px;font-size:.8rem;font-weight:800;color:#000">+5.000</div>
       </div>
       <div id="ad-cooldown-info" style="font-size:.72rem;color:var(--text3);margin-bottom:10px;display:none"></div>
       <button id="watch-ad-btn" onclick="SubPlan.watchAd()" style="width:100%;background:#f59e0b;border:none;border-radius:10px;padding:11px;color:#000;font-size:.88rem;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
-        <span>▶</span> Reklamı İzle ve 2.000 Token Kazan
+        <span>▶</span> Reklamı İzle ve 5.000 Token Kazan
       </button>
-      <div style="font-size:.68rem;color:var(--text3);text-align:center;margin-top:8px">Günlük en fazla 20 reklam izlenebilir</div>
+      <div style="font-size:.68rem;color:var(--text3);text-align:center;margin-top:8px">Günlük en fazla 10 reklam izlenebilir</div>
     </div>
 
     <!-- ÖDEME İLE SATIN AL -->
@@ -9318,7 +9318,7 @@ ANSWER FORMATI - ZORUNLU:
 
   <!-- Token ödülü -->
   <div style="background:rgba(255,180,0,.12);border:1px solid #f59e0b;border-radius:20px;padding:8px 24px;color:#f59e0b;font-size:.88rem;font-weight:800;margin-bottom:24px">
-    🎁 +2.000 Token kazanacaksın
+    🎁 +5.000 Token kazanacaksın
   </div>
 
   <!-- Atla butonu — sadece süre dolunca çıkar -->
@@ -9890,7 +9890,7 @@ window.SubPlan = (() => {
 
   // ─── Rewarded Ad ────────────────────────────────────────────────────────
   const AD_TOKEN_REWARD  = 5000;
-  const AD_DAILY_LIMIT   = 20;
+  const AD_DAILY_LIMIT   = 10;
   const AD_DURATION_SEC  = 20;
 
   let _adTimer = null, _adSecondsLeft = 0, _adCompleted = false;
