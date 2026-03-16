@@ -1005,7 +1005,48 @@ select option{background:var(--surface2);color:var(--text)}
 }
 .btn-sel-mode i{font-size:.85rem}
 
-/* floating delete bar */
+/* ── WEAK TOPICS ── */
+.weak-topics-card {
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:16px;margin-bottom:16px
+}
+.weak-topics-title {
+  font-family:var(--font-heading);font-size:.88rem;font-weight:700;
+  color:var(--text2);display:flex;align-items:center;gap:8px;margin-bottom:12px
+}
+.weak-topic-row {
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;border-radius:10px;
+  background:var(--surface2);margin-bottom:7px;
+  border:1px solid var(--border)
+}
+.weak-topic-rank {
+  font-size:.7rem;font-weight:800;color:var(--text3);
+  min-width:18px;text-align:center
+}
+.weak-topic-bar-wrap { flex:1;min-width:0 }
+.weak-topic-label {
+  font-size:.78rem;font-weight:600;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px
+}
+.weak-topic-sub { font-size:.68rem;color:var(--text3);margin-bottom:5px }
+.weak-topic-bar-track {
+  height:4px;background:var(--border);border-radius:4px;overflow:hidden
+}
+.weak-topic-bar-fill {
+  height:100%;border-radius:4px;
+  background:linear-gradient(90deg,#ff6584,#ff8c42);
+  transition:width .4s ease
+}
+.weak-topic-interval {
+  font-size:.68rem;font-weight:700;color:var(--accent2);
+  white-space:nowrap;text-align:right;min-width:42px
+}
+.weak-topics-empty {
+  text-align:center;padding:20px 0;
+  font-size:.8rem;color:var(--text3)
+}
+
 .bulk-delete-bar{
   position:fixed;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px) + 12px);left:50%;
   transform:translateX(-50%) translateY(20px);
@@ -2252,6 +2293,15 @@ select option{background:var(--surface2);color:var(--text)}
 
   <!-- Records summary -->
   <div class="stats-row" id="stats-summary" style="margin-bottom:16px"></div>
+
+  <!-- Zayıf Konu Tespiti -->
+  <div class="weak-topics-card" id="weak-topics-card">
+    <div class="weak-topics-title">
+      <span>⚠️</span> Zayıf Konular
+      <span style="font-size:.65rem;font-weight:400;color:var(--text3);margin-left:auto">interval ↓ = daha zayıf</span>
+    </div>
+    <div id="weak-topics-list"></div>
+  </div>
 
   <!-- Activity Log - collapsible -->
   <div class="card" style="padding:0;overflow:hidden;margin-bottom:16px">
@@ -5541,6 +5591,61 @@ STRİKT KURALLAR:
           <div class="sp-num">${cards.filter(c => c.interval >= 7).length}</div>
         </div>`;
     }
+
+    await renderWeakTopics(cards);
+  }
+
+  // ── ZAYIF KONU TESPİTİ ──
+  async function renderWeakTopics(cards) {
+    const el = document.getElementById('weak-topics-list');
+    if (!el) return;
+
+    // Sadece en az 1 kez tekrar edilmiş kartları al (interval > 0)
+    const reviewed = (cards || await dbGetAll()).filter(c => c.interval > 0 && c.subject && c.topic);
+
+    if (!reviewed.length) {
+      el.innerHTML = '<div class="weak-topics-empty">Henüz tekrar edilmiş kart yok.<br>Kartları çalıştıkça zayıf konular burada görünür.</div>';
+      return;
+    }
+
+    // Ders+Konu bazında grupla → ortalama interval hesapla
+    const groups = {};
+    reviewed.forEach(c => {
+      const key = `${c.subject}|||${c.topic}`;
+      if (!groups[key]) groups[key] = { subject: c.subject, topic: c.topic, total: 0, count: 0 };
+      groups[key].total += c.interval;
+      groups[key].count++;
+    });
+
+    // Ortalama interval'e göre sırala (küçükten büyüğe = en zayıftan en iyiye)
+    const sorted = Object.values(groups)
+      .map(g => ({ ...g, avg: g.total / g.count }))
+      .sort((a, b) => a.avg - b.avg)
+      .slice(0, 5);
+
+    // En yüksek ortalama = bar genişliği referansı
+    const maxAvg = Math.max(...sorted.map(g => g.avg), 1);
+
+    el.innerHTML = sorted.map((g, i) => {
+      const pct = Math.round((g.avg / maxAvg) * 100);
+      const label = g.avg < 1 ? 'Hiç öğrenilmedi' : g.avg < 3 ? 'Çok zayıf' : g.avg < 7 ? 'Zayıf' : g.avg < 14 ? 'Orta' : 'İyi';
+      const rankColors = ['#ff4d6d','#ff6b35','#ff9f1c','#9b5de5','#0077b6'];
+      return `
+        <div class="weak-topic-row">
+          <div class="weak-topic-rank" style="color:${rankColors[i]}">${i + 1}</div>
+          <div class="weak-topic-bar-wrap">
+            <div class="weak-topic-label">${esc(g.topic)}</div>
+            <div class="weak-topic-sub">${esc(g.subject)} · ${g.count} kart</div>
+            <div class="weak-topic-bar-track">
+              <div class="weak-topic-bar-fill" style="width:${pct}%"></div>
+            </div>
+          </div>
+          <div class="weak-topic-interval">
+            <div style="font-size:.75rem">${g.avg < 1 ? '<1g' : g.avg.toFixed(1) + 'g'}</div>
+            <div style="font-size:.6rem;color:var(--text3);margin-top:1px">${label}</div>
+          </div>
+        </div>`;
+    }).join('');
   }
 
   async function renderWeeklyChart() {
@@ -6016,7 +6121,8 @@ STRİKT KURALLAR:
     toggleAdvisor,
     initAdvisor,
     startHardStudy,
-    launchSubjectStudy
+    launchSubjectStudy,
+    renderWeakTopics
   };
 
   // ── TEMA ──
@@ -7259,12 +7365,11 @@ const Social = (() => {
         type: 'photo', photo: photoB64, text: '',
         createdAt: serverTimestamp()
       });
-      const tempEl2 = document.getElementById(tempId);
-      if (tempEl2) tempEl2.remove();
     } catch(e) {
+      toast('Fotoğraf gönderilemedi: ' + e.message, 'err');
+    } finally {
       const tempEl2 = document.getElementById(tempId);
       if (tempEl2) tempEl2.remove();
-      toast('Fotoğraf gönderilemedi: ' + e.message, 'err');
     }
   }
 
@@ -8777,10 +8882,10 @@ const GeminiAI = (() => {
       }
     } catch (e) {
       _history.push({ role: 'model', parts: [{ text: '⚠️ Hata: ' + e.message }] });
+    } finally {
+      setBusy(false);
+      renderMessages();
     }
-
-    setBusy(false);
-    renderMessages();
   }
 
   function newChat(skipConfirm) {
@@ -8969,9 +9074,9 @@ const GeminiAI = (() => {
       if (window.toast) toast('✅ Özet hazır!', 'ok');
     } catch(e) {
       if (window.toast) toast('Özet alınamadı: ' + e.message, 'err');
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-list-ul"></i> Özetle'; }
     }
-
-    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-list-ul"></i> Özetle'; }
   }
 
   // ── Card creation ─────────────────────────────────────
@@ -9042,11 +9147,11 @@ const GeminiAI = (() => {
       }
 
       _pendingCards = cards;
-      setBusy(false);
       showCardModal(cards);
     } catch(e) {
-      setBusy(false);
       if (window.toast) toast('Kart oluşturma hatası: ' + e.message, 'err');
+    } finally {
+      setBusy(false);
     }
   }
 
