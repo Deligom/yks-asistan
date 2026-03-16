@@ -237,6 +237,7 @@ a{color:var(--primary2)}
 
 <script>
 let pages = [];
+let wakeLock = null;
 let questions = [];
 let answerKey = {}; // {num: 'A'/'B'/'C'/'D'/'E'}
 let driveToken = null;
@@ -332,9 +333,42 @@ function checkAnalyzeBtn() {
 }
 
 // ── ANALYSIS ──
+async function requestWakeLock() {
+  try {
+    if ('wakeLock' in navigator) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      log('Ekran kilit engellendi (AFK modu aktif)', 'ok');
+      wakeLock.addEventListener('release', () => {
+        log('Ekran kilidi serbest bırakıldı', 'info');
+      });
+    } else {
+      log('Wake Lock desteklenmiyor — ekran kapanabilir', 'err');
+    }
+  } catch(e) {
+    log('Wake Lock hatasi: ' + e.message, 'err');
+  }
+}
+
+async function releaseWakeLock() {
+  if (wakeLock) { await wakeLock.release(); wakeLock = null; }
+}
+
+// Sekme tekrar görünür olunca wake lock yenile
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible' && wakeLock === null) {
+    const progCard = document.getElementById('progress-card');
+    if (progCard && progCard.style.display !== 'none') {
+      await requestWakeLock();
+    }
+  }
+});
+
 async function startAnalysis() {
   const key = document.getElementById('gemini-key').value.trim();
   if (!key) { toast('Gemini API anahtarı gir!', 'err'); return; }
+  if ('Notification' in window && Notification.permission === 'default') {
+    await Notification.requestPermission();
+  }
   questions = [];
   document.getElementById('progress-card').style.display = 'block';
   document.getElementById('result-card').style.display = 'none';
@@ -342,6 +376,7 @@ async function startAnalysis() {
   document.getElementById('analyze-btn').disabled = true;
   const ders = document.getElementById('cfg-ders').value;
   const sinav = document.getElementById('cfg-sinav').value;
+  await requestWakeLock();
   log(`Analiz başlıyor — ${pages.length} sayfa, ${ders} ${sinav}`, 'info');
 
   for (let i = 0; i < pages.length; i++) {
@@ -365,7 +400,47 @@ async function startAnalysis() {
 
   setProgress(100, 'Tamamlandı!');
   document.getElementById('stat-row').style.display = 'grid';
+  await releaseWakeLock();
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification('Soru Ayıklayıcı', { body: questions.length + ' soru analiz tamamlandı!', icon: '/icon-192.png' });
+  }
+  toast('Analiz tamamlandı! ' + questions.length + ' soru bulundu.', 'ok');
   showResult();
+}
+
+async function geminiRequest(key, mimeType, base64, prompt, maxTokens, retryCount=0) {
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=' + key;
+  const body = JSON.stringify({
+    contents:[{ parts:[{ inline_data:{ mime_type:mimeType, data:base64 } }, { text:prompt }]}],
+    generationConfig:{ temperature: maxTokens===1000 ? 0 : 0.1, maxOutputTokens:maxTokens }
+  });
+  const resp = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body });
+  if (resp.status === 429 || resp.status === 503) {
+    const errData = await resp.json().catch(()=>({}));
+    const msg = errData?.error?.message || '';
+    // Extract retry delay from message
+    const retryMatch = msg.match(/retry in ([\d.]+)s/i);
+    const waitSec = retryMatch ? Math.ceil(parseFloat(retryMatch[1])) + 2 : 65;
+    if (retryCount < 5) {
+      log(`Rate limit! ${waitSec}s bekleniyor... (deneme ${retryCount+1}/5)`, 'err');
+      await countdown(waitSec);
+      log('Devam ediliyor...', 'info');
+      return geminiRequest(key, mimeType, base64, prompt, maxTokens, retryCount+1);
+    }
+    throw new Error('Rate limit asılamadı');
+  }
+  if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message || 'HTTP ' + resp.status); }
+  return resp.json();
+}
+
+async function countdown(seconds) {
+  const label = document.getElementById('prog-label');
+  const origLabel = label?.textContent || '';
+  for (let s = seconds; s > 0; s--) {
+    if (label) label.textContent = `Rate limit — ${s}s bekleniyor...`;
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  if (label) label.textContent = origLabel;
 }
 
 async function analyzeWithGemini(page, ders, sinav, key) {
@@ -393,18 +468,7 @@ Her soruyu tespit et. Her soru icin su JSON alanlari:
 SADECE JSON array don:
 [{"num":1,"topic":"...","difficulty":"kolay","x":2,"y":4,"w":47,"h":18}]`;
 
-  const resp = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=' + key, {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      contents:[{ parts:[
-        { inline_data:{ mime_type:mimeType, data:base64 } },
-        { text:prompt }
-      ]}],
-      generationConfig:{ temperature:0.1, maxOutputTokens:3000 }
-    })
-  });
-  if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message || 'HTTP ' + resp.status); }
-  const data = await resp.json();
+  const data = await geminiRequest(key, mimeType, base64, prompt, 3000);
   if (data.usageMetadata) {
     tokenStats.inputTokens += data.usageMetadata.promptTokenCount || 0;
     tokenStats.outputTokens += data.usageMetadata.candidatesTokenCount || 0;
@@ -421,15 +485,8 @@ async function detectAnswerKey(page, key) {
   const base64 = page.dataUrl.split(',')[1];
   const mimeType = page.dataUrl.split(';')[0].split(':')[1];
   const prompt = 'Bu sayfa cevap anahtari mi? Evet ise tum cevaplari cikar. SADECE JSON don: {"isAnswerKey":true,"answers":{"1":"A","2":"C"}} veya {"isAnswerKey":false,"answers":{}}';
-  const resp = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=' + key, {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      contents:[{ parts:[{ inline_data:{ mime_type:mimeType, data:base64 } }, { text:prompt }]}],
-      generationConfig:{ temperature:0, maxOutputTokens:1000 }
-    })
-  });
-  if (!resp.ok) return false;
-  const data = await resp.json();
+  let data;
+  try { data = await geminiRequest(key, mimeType, base64, prompt, 1000); } catch { return false; }
   if (data.usageMetadata) {
     tokenStats.inputTokens += data.usageMetadata.promptTokenCount || 0;
     tokenStats.outputTokens += data.usageMetadata.candidatesTokenCount || 0;
