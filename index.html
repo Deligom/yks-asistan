@@ -8425,8 +8425,28 @@ const GeminiAI = (() => {
     return _history.slice(-60).map(m => ({
       role: m.role,
       parts: m.parts.filter(p => p.text).map(p => ({ text: p.text })),
-      _photoDataUrl: m._photoDataUrl || null
+      _photoDataUrl: m._photoDataUrl || null,
+      _photoUrl: m._photoUrl || null  // ImgBB URL varsa koru
     }));
+  }
+
+  // Fotoğrafı ImgBB'ye yükle, URL döndür. Aynı base64 daha önce yüklendiyse cache'den al.
+  const _imgUrlCache = {};
+  async function _uploadToImgBB(base64) {
+    if (!base64) return null;
+    const cacheKey = base64.slice(-32); // son 32 karakter yeterli unique key
+    if (_imgUrlCache[cacheKey]) return _imgUrlCache[cacheKey];
+    try {
+      const key = window._FB?.IMGBB_KEY;
+      if (!key) return null;
+      const fd = new FormData();
+      fd.append('image', base64);
+      const res = await fetch(`https://api.imgbb.com/1/upload?key=${key}`, { method: 'POST', body: fd });
+      const data = await res.json();
+      const url = data?.data?.url || null;
+      if (url) _imgUrlCache[cacheKey] = url;
+      return url;
+    } catch(e) { console.warn('ImgBB upload hatası:', e); return null; }
   }
 
   async function _syncToFirestore(sessions) {
@@ -8436,14 +8456,66 @@ const GeminiAI = (() => {
     if (!myCode) return;
     const { db, doc, setDoc } = fb;
     for (const s of sessions) {
+      // Mesajları kaydet: text + fotoğraf URL (base64 değil)
+      const messages = await Promise.all((s.messages || []).map(async m => {
+        const textParts = (m.parts || []).filter(p => p.text).map(p => ({ text: p.text }));
+        let photoUrl = m._photoUrl || null;
+        // Eğer base64 var ama URL henüz yoksa ImgBB'ye yükle
+        if (!photoUrl && m._photoDataUrl && m._photoDataUrl.startsWith('data:')) {
+          const base64 = m._photoDataUrl.split(',')[1];
+          photoUrl = await _uploadToImgBB(base64);
+        }
+        if (textParts.length === 0 && !photoUrl) return null;
+        return { role: m.role, parts: textParts, ...(photoUrl ? { _photoUrl: photoUrl } : {}) };
+      }));
+      const cleanMessages = messages.filter(Boolean);
       await setDoc(doc(db, 'ai_sessions', myCode, 'sessions', s.id), {
         title:     s.title,
+        renamed:   s.renamed || false,
         msgCount:  s.msgCount || 0,
         updatedAt: s.updatedAt,
         createdAt: s.createdAt,
-        // Mesajları Firestore'a yazma — sadece meta
+        messages:  cleanMessages,
       }, { merge: true });
     }
+  }
+
+  async function _loadFromFirestore() {
+    try {
+      const fb = window._FB || await new Promise((res, rej) => {
+        if (window._FB) return res(window._FB);
+        const t = setTimeout(() => rej(new Error('timeout')), 6000);
+        window.addEventListener('fb-ready', () => { clearTimeout(t); res(window._FB); }, { once: true });
+      });
+      const myCode = localStorage.getItem('social_code');
+      if (!myCode) return;
+      const { db, collection, query, orderBy, getDocs } = fb;
+      const q = query(collection(db, 'ai_sessions', myCode, 'sessions'), orderBy('updatedAt', 'desc'));
+      const snap = await getDocs(q);
+      if (snap.empty) return;
+      const remoteSessions = snap.docs.map(d => {
+        const data = d.data();
+        // _photoUrl varsa _photoDataUrl olarak da set et ki renderMessages göstersin
+        if (data.messages) {
+          data.messages = data.messages.map(m => ({
+            ...m,
+            _photoDataUrl: m._photoUrl || m._photoDataUrl || null
+          }));
+        }
+        return { id: d.id, ...data };
+      });
+      // Local'dekilerle birleştir — remote daha güncel olanı kazanır
+      const localSessions = _loadSessions();
+      const localMap = Object.fromEntries(localSessions.map(s => [s.id, s]));
+      for (const remote of remoteSessions) {
+        const local = localMap[remote.id];
+        if (!local || remote.updatedAt > (local.updatedAt || 0)) {
+          localMap[remote.id] = remote;
+        }
+      }
+      const merged = Object.values(localMap).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).slice(0, 30);
+      _saveSessions(merged);
+    } catch(e) { console.warn('Firestore session yükleme hatası:', e); }
   }
 
   function _updateChatTitle() {
@@ -9213,6 +9285,11 @@ ANSWER FORMATI - ZORUNLU:
     _updateChatTitle();
     renderMessages();
     if (window.SubPlan) SubPlan.loadPlan();
+    // Firestore'dan geçmişi çek (farklı cihaz desteği)
+    _loadFromFirestore().then(() => {
+      const panel = document.getElementById('ai-history-panel');
+      if (panel && panel.classList.contains('open')) renderHistoryList();
+    }).catch(() => {});
   }
 
   return { onEnter, saveKey, showSettings, saveSettings, send, newChat, summarize,
