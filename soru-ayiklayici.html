@@ -238,6 +238,9 @@ a{color:var(--primary2)}
 <script>
 let pages = [];
 let wakeLock = null;
+let analysisRunning = false;
+let currentPageIdx = 0;
+let analysisPaused = false;
 let questions = [];
 let answerKey = {}; // {num: 'A'/'B'/'C'/'D'/'E'}
 let driveToken = null;
@@ -363,6 +366,71 @@ document.addEventListener('visibilitychange', async () => {
   }
 });
 
+// ── VISIBILITY: resume when tab comes back ──
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible') {
+    await requestWakeLock();
+    if (analysisRunning && analysisPaused) {
+      log('Sekme tekrar aktif — devam ediliyor...', 'ok');
+      analysisPaused = false;
+      const key = window._analysisKey;
+      const ders = window._analysisDers;
+      const sinav = window._analysisSinav;
+      await runAnalysisLoop(key, ders, sinav);
+    }
+  } else {
+    // Tab hidden — mark as paused so we resume on return
+    if (analysisRunning) {
+      analysisPaused = true;
+      log('Sekme arka plana alındı — geri dönünce devam eder', 'info');
+    }
+  }
+});
+
+async function runAnalysisLoop(key, ders, sinav) {
+  for (let i = currentPageIdx; i < pages.length; i++) {
+    // If tab went to background, pause and wait for visibility
+    if (document.visibilityState === 'hidden') {
+      analysisPaused = true;
+      currentPageIdx = i;
+      log(`Sayfa ${i+1} bekleniyor (sekme arka planda)...`, 'info');
+      return; // Will resume via visibilitychange event
+    }
+
+    currentPageIdx = i;
+    const page = pages[i];
+    setProgress(Math.round(i / pages.length * 100), `Sayfa ${i+1}/${pages.length}…`);
+    document.getElementById('pt-' + page.id)?.classList.add('processing');
+    try {
+      const qs = await analyzeWithGemini(page, ders, sinav, key);
+      log(`Sayfa ${i+1}: ${qs.length} soru tespit edildi`, 'ok');
+      document.getElementById('pt-' + page.id)?.classList.replace('processing','done');
+      for (const q of qs) {
+        const crop = await cropQuestion(page.dataUrl, q);
+        questions.push({ id: Date.now()+Math.random(), pageIdx:i, num:q.num, topic:q.topic, difficulty:q.difficulty, cropDataUrl:crop });
+        updateLiveStats();
+      }
+    } catch(e) {
+      log(`Sayfa ${i+1} hata: ${e.message}`, 'err');
+      document.getElementById('pt-' + page.id)?.classList.add('err');
+    }
+  }
+
+  // Loop completed normally
+  if (!analysisPaused) {
+    analysisRunning = false;
+    currentPageIdx = 0;
+    setProgress(100, 'Tamamlandı!');
+    document.getElementById('stat-row').style.display = 'grid';
+    await releaseWakeLock();
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('Soru Ayıklayıcı', { body: questions.length + ' soru analiz tamamlandı!', icon: '/icon-192.png' });
+    }
+    toast('Analiz tamamlandı! ' + questions.length + ' soru bulundu.', 'ok');
+    showResult();
+  }
+}
+
 async function startAnalysis() {
   const key = document.getElementById('gemini-key').value.trim();
   if (!key) { toast('Gemini API anahtarı gir!', 'err'); return; }
@@ -379,33 +447,15 @@ async function startAnalysis() {
   await requestWakeLock();
   log(`Analiz başlıyor — ${pages.length} sayfa, ${ders} ${sinav}`, 'info');
 
-  for (let i = 0; i < pages.length; i++) {
-    const page = pages[i];
-    setProgress(Math.round(i / pages.length * 100), `Sayfa ${i+1}/${pages.length}…`);
-    document.getElementById(`pt-${page.id}`)?.classList.add('processing');
-    try {
-      const qs = await analyzeWithGemini(page, ders, sinav, key);
-      log(`Sayfa ${i+1}: ${qs.length} soru tespit edildi`, 'ok');
-      document.getElementById(`pt-${page.id}`)?.classList.replace('processing','done');
-      for (const q of qs) {
-        const crop = await cropQuestion(page.dataUrl, q);
-        questions.push({ id: Date.now()+Math.random(), pageIdx:i, num:q.num, topic:q.topic, difficulty:q.difficulty, cropDataUrl:crop });
-        updateLiveStats();
-      }
-    } catch(e) {
-      log(`Sayfa ${i+1} hata: ${e.message}`, 'err');
-      document.getElementById(`pt-${page.id}`)?.classList.add('err');
-    }
-  }
+  analysisRunning = true;
+  analysisPaused = false;
+  window._analysisKey = key;
+  window._analysisDers = ders;
+  window._analysisSinav = sinav;
 
-  setProgress(100, 'Tamamlandı!');
-  document.getElementById('stat-row').style.display = 'grid';
-  await releaseWakeLock();
-  if ('Notification' in window && Notification.permission === 'granted') {
-    new Notification('Soru Ayıklayıcı', { body: questions.length + ' soru analiz tamamlandı!', icon: '/icon-192.png' });
-  }
-  toast('Analiz tamamlandı! ' + questions.length + ' soru bulundu.', 'ok');
-  showResult();
+  await runAnalysisLoop(key, ders, sinav);
+
+  // analysis continues in runAnalysisLoop
 }
 
 async function geminiRequest(key, mimeType, base64, prompt, maxTokens, retryCount=0) {
@@ -727,7 +777,7 @@ function log(msg, type='info') {
 }
 function san(s) { return (s||'').replace(/[\/\\:*?"<>|]/g,'_').trim().slice(0,50); }
 function resetAll() {
-  pages=[]; questions=[]; answerKey={}; tokenStats={inputTokens:0,outputTokens:0,calls:0};
+  pages=[]; questions=[]; answerKey={}; tokenStats={inputTokens:0,outputTokens:0,calls:0}; currentPageIdx=0; analysisRunning=false; analysisPaused=false;
   document.getElementById('pages-grid').innerHTML='';
   document.getElementById('log-box').innerHTML='';
   document.getElementById('progress-card').style.display='none';
