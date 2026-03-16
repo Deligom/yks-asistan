@@ -393,7 +393,7 @@ Her soruyu tespit et. Her soru icin su JSON alanlari:
 SADECE JSON array don:
 [{"num":1,"topic":"...","difficulty":"kolay","x":2,"y":4,"w":47,"h":18}]`;
 
-  const resp = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + key, {
+  const resp = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=' + key, {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
       contents:[{ parts:[
@@ -421,7 +421,7 @@ async function detectAnswerKey(page, key) {
   const base64 = page.dataUrl.split(',')[1];
   const mimeType = page.dataUrl.split(';')[0].split(':')[1];
   const prompt = 'Bu sayfa cevap anahtari mi? Evet ise tum cevaplari cikar. SADECE JSON don: {"isAnswerKey":true,"answers":{"1":"A","2":"C"}} veya {"isAnswerKey":false,"answers":{}}';
-  const resp = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + key, {
+  const resp = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=' + key, {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
       contents:[{ parts:[{ inline_data:{ mime_type:mimeType, data:base64 } }, { text:prompt }]}],
