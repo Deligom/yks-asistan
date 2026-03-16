@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Soru Ayıklayıcı</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Fira+Code:wght@500&display=swap');
 :root {
@@ -155,10 +156,11 @@ a{color:var(--primary2)}
        ondragover="event.preventDefault();this.classList.add('drag')"
        ondragleave="this.classList.remove('drag')"
        ondrop="onDrop(event)">
-    <input type="file" id="file-input" accept="image/*" multiple style="display:none" onchange="onFileSelect(event)"/>
-    <div style="font-size:2rem;margin-bottom:8px">📸</div>
-    <div style="font-weight:700;margin-bottom:4px">PDF sayfalarının fotoğrafını yükle</div>
-    <div style="font-size:.78rem;color:var(--text3)">Ekran görüntüsü veya çekilmiş fotoğraf • JPG / PNG • Çoklu seçim</div>
+    <input type="file" id="file-input" accept="image/*,application/pdf" multiple style="display:none" onchange="onFileSelect(event)"/>
+    <div style="font-size:2rem;margin-bottom:8px">📄</div>
+    <div style="font-weight:700;margin-bottom:4px">PDF veya fotoğraf yükle</div>
+    <div style="font-size:.78rem;color:var(--text3)">PDF direkt yükle (sayfalar otomatik ayrılır) • JPG / PNG de desteklenir</div>
+    <div id="pdf-converting" style="display:none;margin-top:10px;font-size:.78rem;color:var(--teal)">⏳ PDF sayfaları dönüştürülüyor…</div>
   </div>
   <div class="pages-grid" id="pages-grid"></div>
   <div style="margin-top:12px;display:none;justify-content:space-between;align-items:center" id="action-bar">
@@ -242,18 +244,54 @@ function saveKeys() {
 function onDrop(e) {
   e.preventDefault();
   document.getElementById('upload-zone').classList.remove('drag');
-  addFiles(Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/')));
+  handleFiles(Array.from(e.dataTransfer.files));
 }
 function onFileSelect(e) {
-  addFiles(Array.from(e.target.files).filter(f => f.type.startsWith('image/')));
+  handleFiles(Array.from(e.target.files));
   e.target.value = '';
 }
-async function addFiles(files) {
+async function handleFiles(files) {
   for (const f of files) {
-    const dataUrl = await new Promise(r => { const rd = new FileReader(); rd.onload = e => r(e.target.result); rd.readAsDataURL(f); });
-    pages.push({ id: Date.now() + Math.random(), dataUrl, name: f.name });
+    if (f.type === 'application/pdf') {
+      await addPdf(f);
+    } else if (f.type.startsWith('image/')) {
+      const dataUrl = await new Promise(r => { const rd = new FileReader(); rd.onload = e => r(e.target.result); rd.readAsDataURL(f); });
+      pages.push({ id: Date.now() + Math.random(), dataUrl, name: f.name });
+      renderThumbs(); checkAnalyzeBtn();
+    }
   }
-  renderThumbs(); checkAnalyzeBtn();
+}
+async function addPdf(file) {
+  const pdfConv = document.getElementById('pdf-converting');
+  pdfConv.style.display = 'block';
+  pdfConv.textContent = `⏳ "${file.name}" dönüştürülüyor…`;
+  try {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const total = pdf.numPages;
+    for (let i = 1; i <= total; i++) {
+      pdfConv.textContent = `⏳ Sayfa ${i}/${total} dönüştürülüyor…`;
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale: 2.0 });
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+      pages.push({ id: Date.now() + Math.random(), dataUrl, name: `${file.name}_sayfa${i}` });
+      renderThumbs(); checkAnalyzeBtn();
+    }
+    pdfConv.textContent = `✓ ${total} sayfa dönüştürüldü`;
+    setTimeout(() => { pdfConv.style.display = 'none'; }, 2000);
+  } catch(e) {
+    pdfConv.textContent = `✗ PDF hatası: ${e.message}`;
+    pdfConv.style.color = 'var(--red)';
+    setTimeout(() => { pdfConv.style.display = 'none'; pdfConv.style.color = 'var(--teal)'; }, 4000);
+  }
+}
+async function addFiles(files) {
+  await handleFiles(files);
 }
 function removePage(id) { pages = pages.filter(p => p.id !== id); renderThumbs(); checkAnalyzeBtn(); }
 function renderThumbs() {
