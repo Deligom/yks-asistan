@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Soru Ayıklayıcı</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Fira+Code:wght@500&display=swap');
+:root {
+  --bg:#0a0c10;--surface:#111318;--surface2:#1a1d24;--border:#252830;
+  --primary:#6c63ff;--primary2:#a78bfa;--teal:#22d3b8;
+  --yellow:#fbbf24;--red:#f87171;--green:#4ade80;
+  --text1:#f0f2f7;--text2:#9ca3af;--text3:#555b6a;
+  --r:14px;--rs:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text1);font-family:'Space Grotesk',sans-serif;min-height:100vh}
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 18px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100}
+.logo{width:36px;height:36px;background:linear-gradient(135deg,var(--primary),var(--teal));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
+.htitle{font-size:.95rem;font-weight:700}
+.hsub{font-size:.7rem;color:var(--text3);margin-top:1px}
+.hright{margin-left:auto;display:flex;gap:6px;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text1);border-radius:var(--rs);padding:8px 14px;font-size:.8rem;font-family:inherit;font-weight:600;cursor:pointer;transition:all .15s}
+.btn:hover{border-color:var(--primary);color:var(--primary)}
+.btn-p{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn-p:hover{background:var(--primary2);border-color:var(--primary2);color:#fff}
+.btn-t{background:var(--teal);border-color:var(--teal);color:#000;font-weight:700}
+.btn-g{background:#4285f4;border-color:#4285f4;color:#fff}
+.btn-g:hover{background:#3367d6;border-color:#3367d6;color:#fff}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.container{max-width:860px;margin:0 auto;padding:18px 14px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.card-title{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.fgroup{flex:1;min-width:130px}
+.flabel{font-size:.72rem;color:var(--text3);margin-bottom:4px;display:block}
+.finput,.fselect{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:8px 10px;color:var(--text1);font-size:.8rem;font-family:inherit;outline:none}
+.finput:focus,.fselect:focus{border-color:var(--primary)}
+.finput.mono{font-family:'Fira Code',monospace;font-size:.75rem}
+.upload-zone{border:2px dashed var(--border);border-radius:var(--r);padding:36px 16px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface)}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--primary);background:rgba(108,99,255,.06)}
+.pages-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;margin-top:12px}
+.pthumb{position:relative;border:2px solid var(--border);border-radius:var(--rs);overflow:hidden;aspect-ratio:3/4;background:var(--surface2)}
+.pthumb img{width:100%;height:100%;object-fit:cover}
+.pnum{position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.8);color:#fff;font-size:.6rem;font-weight:700;padding:2px 5px;border-radius:4px}
+.prem{position:absolute;top:3px;right:3px;background:rgba(248,113,113,.9);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.pthumb.processing{border-color:var(--yellow)}
+.pthumb.done{border-color:var(--teal)}
+.pthumb.err{border-color:var(--red)}
+.prog-wrap{background:var(--surface2);border-radius:99px;height:8px;margin:10px 0;overflow:hidden}
+.prog-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--primary),var(--teal));transition:width .3s}
+.log-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:10px 12px;font-family:'Fira Code',monospace;font-size:.72rem;color:var(--text3);height:160px;overflow-y:auto;margin-top:8px}
+.log-line{margin-bottom:3px;line-height:1.5}
+.log-ok{color:var(--teal)}.log-err{color:var(--red)}.log-info{color:var(--text2)}
+.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.stat-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:12px;text-align:center}
+.stat-num{font-size:1.6rem;font-weight:700;margin-bottom:2px}
+.stat-lbl{font-size:.7rem;color:var(--text3)}
+.drive-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(66,133,244,.1);border:1px solid rgba(66,133,244,.3);border-radius:var(--rs);font-size:.78rem;margin-bottom:10px}
+.drive-bar.ok{background:rgba(34,211,184,.1);border-color:rgba(34,211,184,.3)}
+.toast-wrap{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none}
+.toast{background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:9px 16px;font-size:.78rem;font-weight:600;animation:tIn .25s ease;pointer-events:auto}
+.toast.ok{border-color:var(--teal);color:var(--teal)}.toast.err{border-color:var(--red);color:var(--red)}
+@keyframes tIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:99px;font-size:.65rem;font-weight:700}
+.b-k{background:rgba(74,222,128,.15);color:var(--green);border:1px solid rgba(74,222,128,.3)}
+.b-o{background:rgba(251,191,36,.15);color:var(--yellow);border:1px solid rgba(251,191,36,.3)}
+.b-z{background:rgba(248,113,113,.15);color:var(--red);border:1px solid rgba(248,113,113,.3)}
+.folder-tree{font-family:'Fira Code',monospace;font-size:.72rem;line-height:1.8;padding:6px 0}
+.ft-folder{color:var(--teal)}
+.ft-file{color:var(--text3);padding-left:16px}
+.ft-file::before{content:'- '}
+.help-box{background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.25);border-radius:var(--rs);padding:12px 14px;font-size:.78rem;color:var(--text2);margin-bottom:10px;line-height:1.7}
+.help-box b{color:var(--primary2)}
+.help-box code{background:var(--surface2);padding:1px 5px;border-radius:4px;font-family:'Fira Code',monospace;font-size:.72rem;color:var(--teal)}
+a{color:var(--primary2)}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">✂️</div>
+  <div>
+    <div class="htitle">Soru Ayıklayıcı</div>
+    <div class="hsub">MEB PDF → Gemini AI → Google Drive</div>
+  </div>
+  <div class="hright">
+    <span id="hdr-count" style="font-size:.75rem;color:var(--text3)"></span>
+    <button class="btn btn-t" id="dl-btn" onclick="downloadZip()" style="display:none">⬇️ ZIP</button>
+    <button class="btn btn-g" id="drive-upload-btn" onclick="uploadToDrive()" style="display:none">☁️ Drive'a Kaydet</button>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- AYARLAR -->
+<div class="card">
+  <div class="card-title">⚙️ Gemini API</div>
+  <div class="row" style="margin-bottom:0">
+    <div class="fgroup" style="flex:2;min-width:200px">
+      <label class="flabel">Gemini API Anahtarı <a href="https://aistudio.google.com/app/apikey" target="_blank" style="font-size:.65rem">(Ücretsiz al →)</a></label>
+      <input class="finput mono" id="gemini-key" type="password" placeholder="AIzaSy..." oninput="saveKeys()"/>
+    </div>
+    <div class="fgroup">
+      <label class="flabel">Ders</label>
+      <select class="fselect" id="cfg-ders">
+        <option>Biyoloji</option><option>Kimya</option><option>Fizik</option>
+        <option>Matematik</option><option>Türkçe</option><option>Tarih</option>
+        <option>Coğrafya</option><option>Felsefe</option><option>Diğer</option>
+      </select>
+    </div>
+    <div class="fgroup">
+      <label class="flabel">Sınav Türü</label>
+      <select class="fselect" id="cfg-sinav">
+        <option>TYT</option><option>AYT</option><option>Kazanım Testi</option><option>Deneme</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- GOOGLE DRIVE -->
+<div class="card">
+  <div class="card-title">☁️ Google Drive <span style="font-size:.65rem;font-weight:400;color:var(--text3);text-transform:none">(isteğe bağlı — ZIP de kullanılabilir)</span></div>
+  <div class="help-box">
+    <b>5 dakikada kurulum:</b><br/>
+    1. <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a> → Yeni proje oluştur<br/>
+    2. <b>APIs &amp; Services → Library → Google Drive API</b> → Etkinleştir<br/>
+    3. <b>APIs &amp; Services → Credentials → Create Credentials → OAuth 2.0 Client ID</b><br/>
+    4. Uygulama türü: <code>Web application</code> → Authorized JS origins: <code>null</code> (dosya için) + sitenin URL'si<br/>
+    5. Client ID'yi aşağıya yapıştır → Bağlan
+  </div>
+  <div class="drive-bar" id="drive-bar">
+    <span>🔴</span>
+    <span id="drive-bar-text">Drive bağlı değil</span>
+    <button class="btn btn-g" id="drive-connect-btn" onclick="connectDrive()" style="margin-left:auto;padding:5px 10px;font-size:.72rem">Bağlan</button>
+  </div>
+  <div class="row">
+    <div class="fgroup" style="flex:2">
+      <label class="flabel">OAuth Client ID</label>
+      <input class="finput mono" id="goog-client-id" placeholder="xxxx.apps.googleusercontent.com" oninput="saveKeys()"/>
+    </div>
+    <div class="fgroup">
+      <label class="flabel">Drive Ana Klasör Adı</label>
+      <input class="finput" id="drive-folder" value="YKS_Sorular" oninput="saveKeys()"/>
+    </div>
+  </div>
+</div>
+
+<!-- YÜKLE -->
+<div class="card">
+  <div class="card-title">📄 Sayfa Yükle</div>
+  <div class="upload-zone" id="upload-zone"
+       onclick="document.getElementById('file-input').click()"
+       ondragover="event.preventDefault();this.classList.add('drag')"
+       ondragleave="this.classList.remove('drag')"
+       ondrop="onDrop(event)">
+    <input type="file" id="file-input" accept="image/*" multiple style="display:none" onchange="onFileSelect(event)"/>
+    <div style="font-size:2rem;margin-bottom:8px">📸</div>
+    <div style="font-weight:700;margin-bottom:4px">PDF sayfalarının fotoğrafını yükle</div>
+    <div style="font-size:.78rem;color:var(--text3)">Ekran görüntüsü veya çekilmiş fotoğraf • JPG / PNG • Çoklu seçim</div>
+  </div>
+  <div class="pages-grid" id="pages-grid"></div>
+  <div style="margin-top:12px;display:none;justify-content:space-between;align-items:center" id="action-bar">
+    <span id="page-count-lbl" style="font-size:.78rem;color:var(--text3)"></span>
+    <button class="btn btn-p" id="analyze-btn" onclick="startAnalysis()" disabled>🔍 Analizi Başlat</button>
+  </div>
+</div>
+
+<!-- PROGRESS -->
+<div class="card" id="progress-card" style="display:none">
+  <div class="card-title">🔍 Tam Otomatik Analiz</div>
+  <div style="display:flex;justify-content:space-between;font-size:.78rem;color:var(--text3);margin-bottom:4px">
+    <span id="prog-label">Hazırlanıyor…</span>
+    <span id="prog-pct">0%</span>
+  </div>
+  <div class="prog-wrap"><div class="prog-fill" id="prog-bar" style="width:0%"></div></div>
+  <div class="log-box" id="log-box"></div>
+  <div class="stat-row" id="stat-row" style="display:none">
+    <div class="stat-box"><div class="stat-num" id="s-total" style="color:var(--primary)">0</div><div class="stat-lbl">Soru</div></div>
+    <div class="stat-box"><div class="stat-num" id="s-topics" style="color:var(--teal)">0</div><div class="stat-lbl">Konu</div></div>
+    <div class="stat-box"><div class="stat-num" id="s-pages" style="color:var(--yellow)">0</div><div class="stat-lbl">Sayfa</div></div>
+  </div>
+</div>
+
+<!-- SONUÇ -->
+<div class="card" id="result-card" style="display:none">
+  <div class="card-title">✅ Tamamlandı</div>
+  <div class="stat-row">
+    <div class="stat-box"><div class="stat-num" id="r-total" style="color:var(--primary)">0</div><div class="stat-lbl">Toplam Soru</div></div>
+    <div class="stat-box">
+      <div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap;margin-bottom:4px">
+        <span class="badge b-k" id="r-kolay">0 Kolay</span>
+        <span class="badge b-o" id="r-orta">0 Orta</span>
+        <span class="badge b-z" id="r-zor">0 Zor</span>
+      </div>
+      <div class="stat-lbl">Zorluk</div>
+    </div>
+    <div class="stat-box"><div class="stat-num" id="r-topics" style="color:var(--teal)">0</div><div class="stat-lbl">Konu</div></div>
+  </div>
+  <div style="margin-top:14px">
+    <div class="card-title">📁 Klasör Yapısı</div>
+    <div class="folder-tree" id="folder-tree"></div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+    <button class="btn btn-t" onclick="downloadZip()">⬇️ ZIP İndir</button>
+    <button class="btn btn-g" id="result-drive-btn" onclick="uploadToDrive()" style="display:none">☁️ Drive'a Yükle</button>
+    <button class="btn" onclick="resetAll()" style="margin-left:auto">🔄 Yeni Analiz</button>
+  </div>
+</div>
+
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+<canvas id="crop-canvas" style="display:none"></canvas>
+
+<script>
+let pages = [];
+let questions = [];
+let driveToken = null;
+
+window.onload = () => {
+  const gk = localStorage.getItem('gemini_key_sq');
+  const gc = localStorage.getItem('goog_cid_sq');
+  const gf = localStorage.getItem('drive_folder_sq') || 'YKS_Sorular';
+  if (gk) document.getElementById('gemini-key').value = gk;
+  if (gc) document.getElementById('goog-client-id').value = gc;
+  document.getElementById('drive-folder').value = gf;
+};
+
+function saveKeys() {
+  const gk = document.getElementById('gemini-key').value.trim();
+  const gc = document.getElementById('goog-client-id').value.trim();
+  const gf = document.getElementById('drive-folder').value.trim();
+  if (gk) localStorage.setItem('gemini_key_sq', gk);
+  if (gc) localStorage.setItem('goog_cid_sq', gc);
+  if (gf) localStorage.setItem('drive_folder_sq', gf);
+  checkAnalyzeBtn();
+}
+
+// ── UPLOAD ──
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.remove('drag');
+  addFiles(Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/')));
+}
+function onFileSelect(e) {
+  addFiles(Array.from(e.target.files).filter(f => f.type.startsWith('image/')));
+  e.target.value = '';
+}
+async function addFiles(files) {
+  for (const f of files) {
+    const dataUrl = await new Promise(r => { const rd = new FileReader(); rd.onload = e => r(e.target.result); rd.readAsDataURL(f); });
+    pages.push({ id: Date.now() + Math.random(), dataUrl, name: f.name });
+  }
+  renderThumbs(); checkAnalyzeBtn();
+}
+function removePage(id) { pages = pages.filter(p => p.id !== id); renderThumbs(); checkAnalyzeBtn(); }
+function renderThumbs() {
+  document.getElementById('pages-grid').innerHTML = pages.map((p, i) => `
+    <div class="pthumb" id="pt-${p.id}">
+      <img src="${p.dataUrl}"/>
+      <span class="pnum">S${i+1}</span>
+      <button class="prem" onclick="removePage(${p.id})">✕</button>
+    </div>`).join('');
+  const ab = document.getElementById('action-bar');
+  ab.style.display = pages.length ? 'flex' : 'none';
+  document.getElementById('page-count-lbl').textContent = pages.length ? `${pages.length} sayfa` : '';
+}
+function checkAnalyzeBtn() {
+  document.getElementById('analyze-btn').disabled =
+    !document.getElementById('gemini-key').value.trim() || pages.length === 0;
+}
+
+// ── ANALYSIS ──
+async function startAnalysis() {
+  const key = document.getElementById('gemini-key').value.trim();
+  if (!key) { toast('Gemini API anahtarı gir!', 'err'); return; }
+  questions = [];
+  document.getElementById('progress-card').style.display = 'block';
+  document.getElementById('result-card').style.display = 'none';
+  document.getElementById('stat-row').style.display = 'none';
+  document.getElementById('analyze-btn').disabled = true;
+  const ders = document.getElementById('cfg-ders').value;
+  const sinav = document.getElementById('cfg-sinav').value;
+  log(`Analiz başlıyor — ${pages.length} sayfa, ${ders} ${sinav}`, 'info');
+
+  for (let i = 0; i < pages.length; i++) {
+    const page = pages[i];
+    setProgress(Math.round(i / pages.length * 100), `Sayfa ${i+1}/${pages.length}…`);
+    document.getElementById(`pt-${page.id}`)?.classList.add('processing');
+    try {
+      const qs = await analyzeWithGemini(page, ders, sinav, key);
+      log(`Sayfa ${i+1}: ${qs.length} soru tespit edildi`, 'ok');
+      document.getElementById(`pt-${page.id}`)?.classList.replace('processing','done');
+      for (const q of qs) {
+        const crop = await cropQuestion(page.dataUrl, q);
+        questions.push({ id: Date.now()+Math.random(), pageIdx:i, num:q.num, topic:q.topic, difficulty:q.difficulty, cropDataUrl:crop });
+        updateLiveStats();
+      }
+    } catch(e) {
+      log(`Sayfa ${i+1} hata: ${e.message}`, 'err');
+      document.getElementById(`pt-${page.id}`)?.classList.add('err');
+    }
+  }
+
+  setProgress(100, 'Tamamlandı!');
+  document.getElementById('stat-row').style.display = 'grid';
+  showResult();
+}
+
+async function analyzeWithGemini(page, ders, sinav, key) {
+  const base64 = page.dataUrl.split(',')[1];
+  const mimeType = page.dataUrl.split(';')[0].split(':')[1];
+
+  const prompt = `Bu bir ${ders} ${sinav} sınavı sayfası.
+
+Her soruyu tespit et. Her soru için şu JSON alanlarını çıkar:
+- num: soru numarası (integer)
+- topic: konusu, Türkçe, spesifik (örn: "Canlıların Ortak Özellikleri", "Mitoz Bölünme")
+- difficulty: "kolay" / "orta" / "zor"
+  kolay=tek kavram, ezber | orta=kavram bağlama | zor=karmaşık analiz/tuzak
+- x: sorunun sol kenarı (sayfa genişliğinin %'si, 0-100)
+- y: sorunun üst kenarı (sayfa yüksekliğinin %'si, 0-100)
+- w: genişliği (sayfa genişliğinin %'si)
+- h: yüksekliği (sayfa yüksekliğinin %'si)
+
+Koordinatlar soru numarası dahil son şıkkı kapsasın.
+SADECE JSON array döndür:
+[{"num":1,"topic":"...","difficulty":"kolay","x":2,"y":4,"w":47,"h":18}]`;
+
+  const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      contents:[{ parts:[
+        { inline_data:{ mime_type:mimeType, data:base64 } },
+        { text:prompt }
+      ]}],
+      generationConfig:{ temperature:0.1, maxOutputTokens:3000 }
+    })
+  });
+  if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message || `HTTP ${resp.status}`); }
+  const data = await resp.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const clean = text.replace(/```json|```/g,'').trim();
+  try { return JSON.parse(clean); }
+  catch { const m = clean.match(/\[[\s\S]*\]/); if (m) return JSON.parse(m[0]); throw new Error('JSON parse hatası'); }
+}
+
+async function cropQuestion(dataUrl, q) {
+  return new Promise(r => {
+    const img = new Image();
+    img.onload = () => {
+      const cv = document.getElementById('crop-canvas');
+      const ctx = cv.getContext('2d');
+      const pad = 6;
+      const px = Math.max(0, q.x/100*img.width - pad);
+      const py = Math.max(0, q.y/100*img.height - pad);
+      const pw = Math.min(img.width-px, q.w/100*img.width + pad*2);
+      const ph = Math.min(img.height-py, q.h/100*img.height + pad*2);
+      cv.width=pw; cv.height=ph;
+      ctx.drawImage(img, px, py, pw, ph, 0, 0, pw, ph);
+      r(cv.toDataURL('image/jpeg', 0.92));
+    };
+    img.src = dataUrl;
+  });
+}
+
+function updateLiveStats() {
+  document.getElementById('s-total').textContent = questions.length;
+  document.getElementById('s-topics').textContent = new Set(questions.map(q=>q.topic)).size;
+  document.getElementById('s-pages').textContent = new Set(questions.map(q=>q.pageIdx)).size;
+}
+
+function showResult() {
+  document.getElementById('result-card').style.display = 'block';
+  const total = questions.length;
+  const d = {kolay:0,orta:0,zor:0};
+  questions.forEach(q => { d[q.difficulty]=(d[q.difficulty]||0)+1; });
+  document.getElementById('r-total').textContent = total;
+  document.getElementById('r-kolay').textContent = d.kolay+' Kolay';
+  document.getElementById('r-orta').textContent = d.orta+' Orta';
+  document.getElementById('r-zor').textContent = d.zor+' Zor';
+  document.getElementById('hdr-count').textContent = total+' soru';
+
+  const topics = {};
+  questions.forEach(q => {
+    if (!topics[q.topic]) topics[q.topic]={k:0,o:0,z:0};
+    if (q.difficulty==='kolay') topics[q.topic].k++;
+    else if (q.difficulty==='orta') topics[q.topic].o++;
+    else topics[q.topic].z++;
+  });
+  document.getElementById('r-topics').textContent = Object.keys(topics).length;
+
+  const ders = document.getElementById('cfg-ders').value;
+  let tree = `<div class="ft-folder">📁 ${ders}/</div>`;
+  for (const [t,d2] of Object.entries(topics)) {
+    const c = d2.k+d2.o+d2.z;
+    tree += `<div class="ft-folder" style="padding-left:12px">📁 ${t}/ <span style="color:var(--text3);font-size:.65rem">(${c})</span></div>`;
+    if (d2.k) tree += `<div class="ft-file" style="padding-left:28px">${d2.k}× *_kolay.jpg</div>`;
+    if (d2.o) tree += `<div class="ft-file" style="padding-left:28px">${d2.o}× *_orta.jpg</div>`;
+    if (d2.z) tree += `<div class="ft-file" style="padding-left:28px">${d2.z}× *_zor.jpg</div>`;
+  }
+  document.getElementById('folder-tree').innerHTML = tree;
+  document.getElementById('dl-btn').style.display = 'flex';
+  if (driveToken) {
+    document.getElementById('drive-upload-btn').style.display = 'flex';
+    document.getElementById('result-drive-btn').style.display = 'flex';
+  }
+  log(`Bitti! ${total} soru, ${Object.keys(topics).length} konu`, 'ok');
+  toast(`${total} soru ayıklandı!`, 'ok');
+}
+
+// ── ZIP ──
+async function downloadZip() {
+  if (!questions.length) { toast('Soru yok!', 'err'); return; }
+  toast('ZIP hazırlanıyor…', 'ok');
+  const ders = document.getElementById('cfg-ders').value;
+  const sinav = document.getElementById('cfg-sinav').value;
+  const zip = new JSZip();
+  const root = zip.folder(ders);
+  for (const q of questions) {
+    const folder = root.folder(san(q.topic)||'Genel');
+    folder.file(`soru_${q.num}_${q.difficulty}.jpg`, q.cropDataUrl.split(',')[1], {base64:true});
+  }
+  root.file('metadata.json', JSON.stringify({ders,sinav,created:new Date().toISOString(),total:questions.length,
+    questions:questions.map(q=>({num:q.num,topic:q.topic,difficulty:q.difficulty,page:q.pageIdx+1}))},null,2));
+  const blob = await zip.generateAsync({type:'blob'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${ders}_${sinav}_sorular.zip`;
+  a.click();
+  toast('ZIP indirildi!', 'ok');
+}
+
+// ── DRIVE ──
+function connectDrive() {
+  const cid = document.getElementById('goog-client-id').value.trim();
+  if (!cid) { toast('Client ID gir!', 'err'); return; }
+  const scope = 'https://www.googleapis.com/auth/drive.file';
+  const origin = encodeURIComponent(location.href.split('?')[0]);
+  const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${cid}&redirect_uri=${origin}&response_type=token&scope=${encodeURIComponent(scope)}`;
+  const popup = window.open(url,'drive_auth','width=500,height=600');
+  const t = setInterval(()=>{
+    try {
+      if (popup.location.href.includes('access_token')) {
+        const p = new URLSearchParams(popup.location.hash.slice(1));
+        driveToken = p.get('access_token');
+        popup.close(); clearInterval(t);
+        const bar = document.getElementById('drive-bar');
+        bar.classList.add('ok');
+        document.getElementById('drive-bar-text').textContent = '🟢 Google Drive bağlı';
+        document.getElementById('drive-connect-btn').textContent = '✓ Bağlı';
+        document.getElementById('drive-connect-btn').disabled = true;
+        if (questions.length) {
+          document.getElementById('drive-upload-btn').style.display = 'flex';
+          document.getElementById('result-drive-btn').style.display = 'flex';
+        }
+        toast('Drive bağlandı!', 'ok');
+      }
+    } catch {}
+    if (popup.closed) clearInterval(t);
+  }, 500);
+}
+
+async function uploadToDrive() {
+  if (!driveToken) { toast('Drive bağlı değil!', 'err'); return; }
+  if (!questions.length) { toast('Soru yok!', 'err'); return; }
+  const ders = document.getElementById('cfg-ders').value;
+  const rootName = document.getElementById('drive-folder').value || 'YKS_Sorular';
+  toast('Drive\'a yükleniyor…', 'ok');
+  log('Drive yüklemesi başlıyor…', 'info');
+  document.getElementById('drive-upload-btn').disabled = true;
+  document.getElementById('result-drive-btn').disabled = true;
+  try {
+    const rootId = await driveFolder(rootName, null);
+    const dersId = await driveFolder(ders, rootId);
+    const topicIds = {};
+    let uploaded = 0;
+    for (const q of questions) {
+      const tKey = san(q.topic)||'Genel';
+      if (!topicIds[tKey]) topicIds[tKey] = await driveFolder(tKey, dersId);
+      await driveUpload(`soru_${q.num}_${q.difficulty}.jpg`, q.cropDataUrl, topicIds[tKey]);
+      uploaded++;
+      setProgress(Math.round(uploaded/questions.length*100), `${uploaded}/${questions.length} yüklendi`);
+      if (uploaded % 5 === 0) log(`${uploaded}/${questions.length} yüklendi…`, 'info');
+    }
+    log(`Tüm sorular Drive'a yüklendi: ${rootName}/${ders}`, 'ok');
+    toast(`${questions.length} soru Drive'a yüklendi!`, 'ok');
+  } catch(e) {
+    toast('Drive hatası: '+e.message, 'err');
+    log('Drive hatası: '+e.message, 'err');
+  }
+  document.getElementById('drive-upload-btn').disabled = false;
+  document.getElementById('result-drive-btn').disabled = false;
+}
+
+async function driveFolder(name, parentId) {
+  let q = `name='${name.replace(/'/g,"\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+  if (parentId) q += ` and '${parentId}' in parents`;
+  const s = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`,
+    { headers:{ Authorization:`Bearer ${driveToken}` } });
+  const sd = await s.json();
+  if (sd.files?.length) return sd.files[0].id;
+  const meta = { name, mimeType:'application/vnd.google-apps.folder' };
+  if (parentId) meta.parents = [parentId];
+  const c = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method:'POST', headers:{ Authorization:`Bearer ${driveToken}`, 'Content-Type':'application/json' },
+    body: JSON.stringify(meta)
+  });
+  return (await c.json()).id;
+}
+
+async function driveUpload(name, dataUrl, parentId) {
+  const bin = atob(dataUrl.split(',')[1]);
+  const bytes = new Uint8Array(bin.length);
+  for (let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify({name,parents:[parentId]})], {type:'application/json'}));
+  form.append('file', new Blob([bytes], {type:'image/jpeg'}));
+  const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+    { method:'POST', headers:{ Authorization:`Bearer ${driveToken}` }, body:form });
+  if (!r.ok) throw new Error(`Upload ${r.status}`);
+}
+
+// ── UTILS ──
+function setProgress(pct, label) {
+  document.getElementById('prog-bar').style.width = pct+'%';
+  document.getElementById('prog-label').textContent = label;
+  document.getElementById('prog-pct').textContent = pct+'%';
+}
+function log(msg, type='info') {
+  const box = document.getElementById('log-box');
+  const el = document.createElement('div');
+  el.className = `log-line log-${type}`;
+  el.textContent = `[${new Date().toLocaleTimeString('tr')}] ${msg}`;
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+}
+function san(s) { return (s||'').replace(/[\/\\:*?"<>|]/g,'_').trim().slice(0,50); }
+function resetAll() {
+  pages=[]; questions=[];
+  document.getElementById('pages-grid').innerHTML='';
+  document.getElementById('log-box').innerHTML='';
+  document.getElementById('progress-card').style.display='none';
+  document.getElementById('result-card').style.display='none';
+  document.getElementById('dl-btn').style.display='none';
+  document.getElementById('drive-upload-btn').style.display='none';
+  document.getElementById('hdr-count').textContent='';
+  document.getElementById('action-bar').style.display='none';
+  document.getElementById('analyze-btn').disabled=true;
+}
+function toast(msg, type='ok') {
+  const wrap = document.getElementById('toast-wrap');
+  const el = document.createElement('div');
+  el.className=`toast ${type}`; el.textContent=msg;
+  wrap.appendChild(el);
+  setTimeout(()=>el.remove(), 3000);
+}
+</script>
+</body>
+</html>
