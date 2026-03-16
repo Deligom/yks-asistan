@@ -178,6 +178,14 @@ a{color:var(--primary2)}
   </div>
   <div class="prog-wrap"><div class="prog-fill" id="prog-bar" style="width:0%"></div></div>
   <div class="log-box" id="log-box"></div>
+  <!-- Token Counter -->
+  <div style="display:flex;align-items:center;gap:6px;margin-top:8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:8px 12px;flex-wrap:wrap">
+    <span style="font-size:.7rem;color:var(--text3)">🔢 Token:</span>
+    <span style="font-family:'Fira Code',monospace;font-size:.72rem;color:var(--text2)">Giriş: <b id="tk-in" style="color:var(--primary2)">0</b></span>
+    <span style="font-family:'Fira Code',monospace;font-size:.72rem;color:var(--text2)">Çıkış: <b id="tk-out" style="color:var(--teal)">0</b></span>
+    <span style="font-family:'Fira Code',monospace;font-size:.72rem;color:var(--text2)">İstek: <b id="tk-calls" style="color:var(--yellow)">0</b></span>
+    <span style="margin-left:auto;font-size:.72rem;font-weight:700" id="tk-cost">≈ $0.000</span>
+  </div>
   <div class="stat-row" id="stat-row" style="display:none">
     <div class="stat-box"><div class="stat-num" id="s-total" style="color:var(--primary)">0</div><div class="stat-lbl">Soru</div></div>
     <div class="stat-box"><div class="stat-num" id="s-topics" style="color:var(--teal)">0</div><div class="stat-lbl">Konu</div></div>
@@ -200,6 +208,17 @@ a{color:var(--primary2)}
     </div>
     <div class="stat-box"><div class="stat-num" id="r-topics" style="color:var(--teal)">0</div><div class="stat-lbl">Konu</div></div>
   </div>
+  <!-- Answer Key -->
+  <div style="margin-top:14px" id="answer-key-section" style="display:none">
+    <div class="card-title">🗝️ Cevap Anahtarı <span id="answer-key-badge" style="font-size:.65rem;font-weight:400;text-transform:none;color:var(--text3)"></span></div>
+    <div id="answer-key-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(56px,1fr));gap:6px;margin-bottom:8px"></div>
+  </div>
+  <!-- Token Summary -->
+  <div style="margin-top:14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:10px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <span style="font-size:.72rem;color:var(--text3)">🔢 Toplam API kullanımı:</span>
+    <span style="font-size:.75rem;font-family:'Fira Code',monospace;color:var(--text2)">Giriş: <b id="r-tk-in" style="color:var(--primary2)">0</b> • Çıkış: <b id="r-tk-out" style="color:var(--teal)">0</b> • İstek: <b id="r-tk-calls" style="color:var(--yellow)">0</b></span>
+    <span style="margin-left:auto;font-size:.85rem;font-weight:700;color:var(--green)" id="r-tk-cost">≈ $0.000</span>
+  </div>
   <div style="margin-top:14px">
     <div class="card-title">📁 Klasör Yapısı</div>
     <div class="folder-tree" id="folder-tree"></div>
@@ -219,7 +238,9 @@ a{color:var(--primary2)}
 <script>
 let pages = [];
 let questions = [];
+let answerKey = {}; // {num: 'A'/'B'/'C'/'D'/'E'}
 let driveToken = null;
+let tokenStats = { inputTokens: 0, outputTokens: 0, calls: 0 };
 
 window.onload = () => {
   const gk = localStorage.getItem('gemini_key_sq');
@@ -351,23 +372,28 @@ async function analyzeWithGemini(page, ders, sinav, key) {
   const base64 = page.dataUrl.split(',')[1];
   const mimeType = page.dataUrl.split(';')[0].split(':')[1];
 
-  const prompt = `Bu bir ${ders} ${sinav} sınavı sayfası.
+  // Check if answer key page (only last 30% of pages)
+  const pageIdx = pages.indexOf(page);
+  if (pageIdx >= pages.length * 0.7) {
+    const isAK = await detectAnswerKey(page, key);
+    if (isAK) { log('Cevap anahtari sayfasi bulundu', 'ok'); return []; }
+  }
 
-Her soruyu tespit et. Her soru için şu JSON alanlarını çıkar:
-- num: soru numarası (integer)
-- topic: konusu, Türkçe, spesifik (örn: "Canlıların Ortak Özellikleri", "Mitoz Bölünme")
+  const prompt = `Bu bir ${ders} ${sinav} sinavi sayfasi.
+
+Her soruyu tespit et. Her soru icin su JSON alanlari:
+- num: soru numarasi (integer)
+- topic: konusu, Turkce, spesifik
 - difficulty: "kolay" / "orta" / "zor"
-  kolay=tek kavram, ezber | orta=kavram bağlama | zor=karmaşık analiz/tuzak
-- x: sorunun sol kenarı (sayfa genişliğinin %'si, 0-100)
-- y: sorunun üst kenarı (sayfa yüksekliğinin %'si, 0-100)
-- w: genişliği (sayfa genişliğinin %'si)
-- h: yüksekliği (sayfa yüksekliğinin %'si)
+- x: sol kenar (sayfa genisliginin yuzdesi 0-100)
+- y: ust kenar (sayfa yuksekliginin yuzdesi 0-100)
+- w: genislik yuzdesi
+- h: yukseklik yuzdesi
 
-Koordinatlar soru numarası dahil son şıkkı kapsasın.
-SADECE JSON array döndür:
+SADECE JSON array don:
 [{"num":1,"topic":"...","difficulty":"kolay","x":2,"y":4,"w":47,"h":18}]`;
 
-  const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
+  const resp = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + key, {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
       contents:[{ parts:[
@@ -377,13 +403,80 @@ SADECE JSON array döndür:
       generationConfig:{ temperature:0.1, maxOutputTokens:3000 }
     })
   });
-  if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message || `HTTP ${resp.status}`); }
+  if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message || 'HTTP ' + resp.status); }
   const data = await resp.json();
+  if (data.usageMetadata) {
+    tokenStats.inputTokens += data.usageMetadata.promptTokenCount || 0;
+    tokenStats.outputTokens += data.usageMetadata.candidatesTokenCount || 0;
+    tokenStats.calls++;
+    updateTokenDisplay();
+  }
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
   const clean = text.replace(/```json|```/g,'').trim();
   try { return JSON.parse(clean); }
-  catch { const m = clean.match(/\[[\s\S]*\]/); if (m) return JSON.parse(m[0]); throw new Error('JSON parse hatası'); }
+  catch { const m = clean.match(/\[\s\S]*?\]/s); if (m) return JSON.parse(m[0]); throw new Error('JSON parse hatasi'); }
 }
+
+async function detectAnswerKey(page, key) {
+  const base64 = page.dataUrl.split(',')[1];
+  const mimeType = page.dataUrl.split(';')[0].split(':')[1];
+  const prompt = 'Bu sayfa cevap anahtari mi? Evet ise tum cevaplari cikar. SADECE JSON don: {"isAnswerKey":true,"answers":{"1":"A","2":"C"}} veya {"isAnswerKey":false,"answers":{}}';
+  const resp = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + key, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      contents:[{ parts:[{ inline_data:{ mime_type:mimeType, data:base64 } }, { text:prompt }]}],
+      generationConfig:{ temperature:0, maxOutputTokens:1000 }
+    })
+  });
+  if (!resp.ok) return false;
+  const data = await resp.json();
+  if (data.usageMetadata) {
+    tokenStats.inputTokens += data.usageMetadata.promptTokenCount || 0;
+    tokenStats.outputTokens += data.usageMetadata.candidatesTokenCount || 0;
+    tokenStats.calls++;
+    updateTokenDisplay();
+  }
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  try {
+    const r = JSON.parse(text.replace(/```json|```/g,'').trim());
+    if (r.isAnswerKey && r.answers && Object.keys(r.answers).length > 0) {
+      Object.assign(answerKey, r.answers);
+      renderAnswerKey();
+      return true;
+    }
+  } catch {}
+  return false;
+}
+
+function updateTokenDisplay() {
+  const cost = (tokenStats.inputTokens * 0.000000075) + (tokenStats.outputTokens * 0.0000003);
+  const costStr = '$' + cost.toFixed(4);
+  ['tk-in','r-tk-in'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = tokenStats.inputTokens.toLocaleString(); });
+  ['tk-out','r-tk-out'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = tokenStats.outputTokens.toLocaleString(); });
+  ['tk-calls','r-tk-calls'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = tokenStats.calls; });
+  ['tk-cost','r-tk-cost'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) { el.textContent = '~' + costStr; el.style.color = cost < 0.01 ? 'var(--green)' : cost < 0.1 ? 'var(--yellow)' : 'var(--red)'; }
+  });
+}
+
+function renderAnswerKey() {
+  const keys = Object.keys(answerKey).sort((a,b) => parseInt(a)-parseInt(b));
+  if (!keys.length) return;
+  const sec = document.getElementById('answer-key-section');
+  if (sec) sec.style.removeProperty('display');
+  const badge = document.getElementById('answer-key-badge');
+  if (badge) badge.textContent = '(' + keys.length + ' soru)';
+  const colors = {A:'var(--primary)',B:'var(--teal)',C:'var(--yellow)',D:'var(--red)',E:'var(--primary2)'};
+  const grid = document.getElementById('answer-key-grid');
+  if (grid) grid.innerHTML = keys.map(num =>
+    '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:5px 4px;text-align:center">' +
+    '<div style="font-size:.65rem;color:var(--text3);margin-bottom:2px">' + num + '</div>' +
+    '<div style="font-size:.85rem;font-weight:800;color:' + (colors[answerKey[num]]||'var(--text1)') + '">' + answerKey[num] + '</div>' +
+    '</div>'
+  ).join('');
+}
+
 
 async function cropQuestion(dataUrl, q) {
   return new Promise(r => {
@@ -577,7 +670,7 @@ function log(msg, type='info') {
 }
 function san(s) { return (s||'').replace(/[\/\\:*?"<>|]/g,'_').trim().slice(0,50); }
 function resetAll() {
-  pages=[]; questions=[];
+  pages=[]; questions=[]; answerKey={}; tokenStats={inputTokens:0,outputTokens:0,calls:0};
   document.getElementById('pages-grid').innerHTML='';
   document.getElementById('log-box').innerHTML='';
   document.getElementById('progress-card').style.display='none';
