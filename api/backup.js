@@ -1,154 +1,87 @@
-// api/backup.js — YKS Asistan Firebase Tam Yedekleme
-// Vercel Serverless Function
-//
-// Gerekli env değişkenleri (.env.local veya Vercel Dashboard > Settings > Environment Variables):
-//   BACKUP_SECRET       → İndirme şifresi (örn. "YazdiginSifre")
-//   FIREBASE_PROJECT_ID → Firebase proje ID'si (örn. "yks-asistan-10a95")
-//   FIREBASE_CLIENT_EMAIL → Service account e-postası
-//   FIREBASE_PRIVATE_KEY  → Service account private key (\n karakterleri korunmalı)
-//
-// Kullanım: https://yks-asistan.vercel.app/api/backup?secret=YazdiginSifre
+const admin = require('firebase-admin');
 
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
-
-// Firebase Admin'i bir kez başlat
-function getDb() {
-  if (!getApps().length) {
-    initializeApp({
-      credential: cert({
-        projectId:   process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        // Vercel env'de \n string olarak gelir, gerçek newline'a çevir
-        privateKey:  process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      }),
-    });
-  }
-  return getFirestore();
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      type: "service_account",
+      project_id: process.env.FIREBASE_PROJECT_ID || "yks-asistan-10a95",
+      private_key: (process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, '\n'),
+      client_email: process.env.FIREBASE_CLIENT_EMAIL,
+    })
+  });
 }
 
-// Tek bir koleksiyonu tamamen çek (pagination dahil)
-async function fetchCollection(db, collectionPath) {
-  const result = {};
-  let lastDoc = null;
+const BACKUP_SECRET = process.env.BACKUP_SECRET || 'yks-backup-2026';
+const COLLECTIONS   = ['users', 'chats', 'friends', 'groups', 'inbox', 'leaderboard', 'ai_sessions'];
 
-  while (true) {
-    let query = db.collection(collectionPath).limit(500);
-    if (lastDoc) query = query.startAfter(lastDoc);
-
-    const snap = await query.get();
-    if (snap.empty) break;
-
-    for (const doc of snap.docs) {
-      result[doc.id] = { _id: doc.id, ...doc.data() };
+function serializeDoc(doc) {
+  const data = doc.data() || {};
+  const clean = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (v && typeof v === 'object' && v.toDate) {
+      clean[k] = v.toDate().toISOString();
+    } else if (Array.isArray(v)) {
+      clean[k] = v.map(item => (item && item.toDate) ? item.toDate().toISOString() : item);
+    } else {
+      clean[k] = v;
     }
-
-    lastDoc = snap.docs[snap.docs.length - 1];
-    if (snap.docs.length < 500) break;
   }
-
-  return result;
+  return { _id: doc.id, ...clean };
 }
 
-// Bir koleksiyonun her dokümanının altındaki alt koleksiyonu çek
-// Örn: chats/{chatId}/messages
-async function fetchWithSubcollection(db, parentCollection, subCollectionName) {
-  const result = {};
-  let lastDoc = null;
+module.exports = async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  if (req.method === 'OPTIONS') return res.status(200).end();
 
-  while (true) {
-    let query = db.collection(parentCollection).limit(500);
-    if (lastDoc) query = query.startAfter(lastDoc);
-
-    const snap = await query.get();
-    if (snap.empty) break;
-
-    // Her doküman için alt koleksiyonu paralel çek
-    await Promise.all(snap.docs.map(async (doc) => {
-      const docData = { _id: doc.id, ...doc.data() };
-
-      // Alt koleksiyonu çek
-      const subSnap = await db
-        .collection(parentCollection)
-        .doc(doc.id)
-        .collection(subCollectionName)
-        .orderBy('createdAt', 'asc')
-        .get();
-
-      const subDocs = {};
-      subSnap.forEach(sub => {
-        subDocs[sub.id] = { _id: sub.id, ...sub.data() };
-      });
-
-      docData[`_${subCollectionName}`] = subDocs;
-      result[doc.id] = docData;
-    }));
-
-    lastDoc = snap.docs[snap.docs.length - 1];
-    if (snap.docs.length < 500) break;
-  }
-
-  return result;
-}
-
-export default async function handler(req, res) {
-  // Yalnızca GET
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  // Şifre kontrolü
-  const { secret } = req.query;
-  if (!secret || secret !== process.env.BACKUP_SECRET) {
-    return res.status(401).json({ error: 'Yetkisiz erişim' });
+  if (req.query.secret !== BACKUP_SECRET) {
+    return res.status(401).json({ error: 'Yetkisiz.' });
   }
 
   try {
-    const db = getDb();
-
-    console.log('[backup] Başlatılıyor...');
-
-    // Tüm koleksiyonları paralel çek
-    const [users, chats, friends, groups, inbox, leaderboard, ai_sessions] = await Promise.all([
-      fetchCollection(db, 'users'),
-      fetchWithSubcollection(db, 'chats', 'messages'),   // ← Alt koleksiyon dahil
-      fetchCollection(db, 'friends'),
-      fetchWithSubcollection(db, 'groups', 'members'),   // ← Grup üyeleri dahil
-      fetchCollection(db, 'inbox'),
-      fetchCollection(db, 'leaderboard'),
-      fetchCollection(db, 'ai_sessions'),
-    ]);
-
+    const db = admin.firestore();
     const backup = {
       exportedAt: new Date().toISOString(),
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      collections: {
-        users,
-        chats,
-        friends,
-        groups,
-        inbox,
-        leaderboard,
-        ai_sessions,
-      },
+      projectId: process.env.FIREBASE_PROJECT_ID || 'yks-asistan-10a95',
+      collections: {}
     };
 
-    const json = JSON.stringify(backup);
-    const date = new Date().toISOString().slice(0, 10);
-    const filename = `yks-backup-${date}.json`;
+    let totalDocs = 0;
 
-    console.log(`[backup] Tamamlandı. Boyut: ${(json.length / 1024).toFixed(1)} KB`);
+    for (const colName of COLLECTIONS) {
+      backup.collections[colName] = {};
+      const snapshot = await db.collection(colName).get();
 
-    res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Cache-Control', 'no-store');
+      for (const doc of snapshot.docs) {
+        const entry = serializeDoc(doc);
+
+        if (colName === 'chats') {
+          try {
+            const msgSnap = await doc.ref.collection('messages').get();
+            entry._messages = {};
+            for (const msgDoc of msgSnap.docs) {
+              entry._messages[msgDoc.id] = serializeDoc(msgDoc);
+            }
+            totalDocs += msgSnap.size;
+          } catch(e) {
+            entry._messages = {};
+          }
+        }
+
+        backup.collections[colName][doc.id] = entry;
+        totalDocs++;
+      }
+    }
+
+    const json     = JSON.stringify(backup, null, 2);
+    const dateStr  = new Date().toISOString().slice(0, 10);
+    const fileName = `yks-backup-${dateStr}.json`;
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('X-Total-Docs', String(totalDocs));
     return res.status(200).send(json);
 
-  } catch (err) {
-    console.error('[backup] Hata:', err);
-    return res.status(500).json({
-      error: 'Yedekleme başarısız',
-      detail: err.message,
-    });
+  } catch (e) {
+    return res.status(500).json({ error: 'Yedekleme başarısız', detail: e.message });
   }
-}
+};
