@@ -3023,12 +3023,18 @@ select option{background:var(--surface2);color:var(--text)}
         <div style="flex:1;font-family:'Syne','Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:1rem;font-weight:700;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
           <span id="ai-chat-title" style="background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">✦ Gemini AI</span>
         </div>
+        <button class="btn" style="padding:6px 8px;font-size:.8rem;background:transparent;border:1px solid rgba(255,99,99,.35);color:#ff6b6b;flex-shrink:0;border-radius:10px" onclick="GeminiAI.clearCurrentChat()" title="Sohbeti sil">
+          <i class="fa-solid fa-trash"></i>
+        </button>
         <button class="btn" style="padding:6px 8px;font-size:.8rem;background:transparent;border:1px solid var(--border);color:var(--text3);flex-shrink:0" onclick="GeminiAI.showSettings()" title="Ayarlar">
           <i class="fa-solid fa-ellipsis-vertical"></i>
         </button>
       </div>
       <!-- Alt satır: kart butonları -->
-      <div style="display:flex;align-items:center;gap:6px;width:100%">
+      <div style="display:flex;align-items:center;gap:6px;width:100%;margin-top:2px">
+        <button class="btn" style="padding:6px 10px;font-size:.75rem;background:var(--primary);border:none;color:#fff;flex:1;justify-content:center;border-radius:10px;font-weight:700;display:flex;align-items:center;gap:5px" onclick="GeminiAI.newChat()" title="Yeni sohbet">
+          <i class="fa-solid fa-plus-circle"></i> Yeni
+        </button>
         <button class="ai-summarize-btn" id="ai-summarize-btn" onclick="GeminiAI.summarize()" title="Bu sohbeti özetle" style="flex:1;justify-content:center">
           <i class="fa-solid fa-list-ul"></i> Özetle
         </button>
@@ -9397,7 +9403,18 @@ ANSWER FORMATI - ZORUNLU:
     }).catch(() => {});
   }
 
-  return { onEnter, saveKey, showSettings, saveSettings, send, newChat, summarize,
+  function clearCurrentChat() {
+    if (_history.length === 0) { if (window.toast) toast('Zaten boş bir sohbet!', 'err'); return; }
+    if (!confirm('Mevcut sohbet silinsin mi?')) return;
+    _history = [];
+    _currentSessionId = null;
+    localStorage.removeItem(HISTORY_KEY);
+    _updateChatTitle();
+    renderMessages();
+    if (window.toast) toast('Sohbet temizlendi.', 'ok');
+  }
+
+  return { onEnter, saveKey, showSettings, saveSettings, send, newChat, clearCurrentChat, summarize,
     openHistory, closeHistory, loadSession, deleteSession, renameSession, commitRename,
     createCard, createCardWithPhoto, createSoruKarti, closeCardModal, confirmImport, onPhotoSelected, removePhoto, getKeyPublic: getKey };
 })();
