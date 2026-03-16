@@ -94,6 +94,26 @@ async function fetchInbox(db) {
   return result;
 }
 
+// ai_sessions/{userCode}/sessions/{sessionId} subcollection
+async function fetchAiSessions(db) {
+  const result = {};
+  const snap = await db.collectionGroup('sessions').get();
+
+  snap.forEach(d => {
+    // path: ai_sessions/{userCode}/sessions/{sessionId}
+    const pathParts = d.ref.path.split('/');
+    if (pathParts[0] !== 'ai_sessions') return;
+
+    const userCode = pathParts[1];
+    if (!result[userCode]) {
+      result[userCode] = { _id: userCode, _sessions: {} };
+    }
+    result[userCode]._sessions[d.id] = serialize(d);
+  });
+
+  return result;
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -105,20 +125,21 @@ module.exports = async function handler(req, res) {
   try {
     const db = admin.firestore();
 
-    const [users, chats, friends, groups, inbox, leaderboard, push_tokens] = await Promise.all([
+    const [users, chats, friends, groups, inbox, leaderboard, push_tokens, ai_sessions] = await Promise.all([
       fetchFlat(db, 'users'),
-      fetchChats(db),          // collectionGroup ile
+      fetchChats(db),
       fetchFlat(db, 'friends'),
-      fetchGroups(db),         // groups + alt messages
-      fetchInbox(db),          // inbox/{user}/items
+      fetchGroups(db),
+      fetchInbox(db),
       fetchFlat(db, 'leaderboard'),
       fetchFlat(db, 'push_tokens'),
+      fetchAiSessions(db),     // ai_sessions/{user}/sessions
     ]);
 
     const backup = {
       exportedAt: new Date().toISOString(),
       projectId: process.env.FIREBASE_PROJECT_ID || 'yks-asistan-10a95',
-      collections: { users, chats, friends, groups, inbox, leaderboard, push_tokens }
+      collections: { users, chats, friends, groups, inbox, leaderboard, push_tokens, ai_sessions }
     };
 
     const json    = JSON.stringify(backup, null, 2);
