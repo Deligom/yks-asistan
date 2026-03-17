@@ -1,829 +1,578 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Soru Ayıklayıcı</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Fira+Code:wght@500&display=swap');
-:root {
-  --bg:#0a0c10;--surface:#111318;--surface2:#1a1d24;--border:#252830;
-  --primary:#6c63ff;--primary2:#a78bfa;--teal:#22d3b8;
-  --yellow:#fbbf24;--red:#f87171;--green:#4ade80;
-  --text1:#f0f2f7;--text2:#9ca3af;--text3:#555b6a;
-  --r:14px;--rs:8px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text1);font-family:'Space Grotesk',sans-serif;min-height:100vh}
-.header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 18px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100}
-.logo{width:36px;height:36px;background:linear-gradient(135deg,var(--primary),var(--teal));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
-.htitle{font-size:.95rem;font-weight:700}
-.hsub{font-size:.7rem;color:var(--text3);margin-top:1px}
-.hright{margin-left:auto;display:flex;gap:6px;align-items:center}
-.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text1);border-radius:var(--rs);padding:8px 14px;font-size:.8rem;font-family:inherit;font-weight:600;cursor:pointer;transition:all .15s}
-.btn:hover{border-color:var(--primary);color:var(--primary)}
-.btn-p{background:var(--primary);border-color:var(--primary);color:#fff}
-.btn-p:hover{background:var(--primary2);border-color:var(--primary2);color:#fff}
-.btn-t{background:var(--teal);border-color:var(--teal);color:#000;font-weight:700}
-.btn-g{background:#4285f4;border-color:#4285f4;color:#fff}
-.btn-g:hover{background:#3367d6;border-color:#3367d6;color:#fff}
-.btn:disabled{opacity:.4;cursor:not-allowed}
-.container{max-width:860px;margin:0 auto;padding:18px 14px}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:12px}
-.card-title{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:12px}
-.row{display:flex;gap:8px;flex-wrap:wrap}
-.fgroup{flex:1;min-width:130px}
-.flabel{font-size:.72rem;color:var(--text3);margin-bottom:4px;display:block}
-.finput,.fselect{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:8px 10px;color:var(--text1);font-size:.8rem;font-family:inherit;outline:none}
-.finput:focus,.fselect:focus{border-color:var(--primary)}
-.finput.mono{font-family:'Fira Code',monospace;font-size:.75rem}
-.upload-zone{border:2px dashed var(--border);border-radius:var(--r);padding:36px 16px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface)}
-.upload-zone:hover,.upload-zone.drag{border-color:var(--primary);background:rgba(108,99,255,.06)}
-.pages-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;margin-top:12px}
-.pthumb{position:relative;border:2px solid var(--border);border-radius:var(--rs);overflow:hidden;aspect-ratio:3/4;background:var(--surface2)}
-.pthumb img{width:100%;height:100%;object-fit:cover}
-.pnum{position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.8);color:#fff;font-size:.6rem;font-weight:700;padding:2px 5px;border-radius:4px}
-.prem{position:absolute;top:3px;right:3px;background:rgba(248,113,113,.9);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.pthumb.processing{border-color:var(--yellow)}
-.pthumb.done{border-color:var(--teal)}
-.pthumb.err{border-color:var(--red)}
-.pthumb.cvp-marked{border-color:#a78bfa;background:rgba(167,139,250,.1)}
-.cvp-btn{position:absolute;bottom:3px;right:3px;background:rgba(0,0,0,.6);border:none;border-radius:4px;color:#fff;font-size:.6rem;padding:2px 4px;cursor:pointer;opacity:.5}
-.pthumb.cvp-marked .cvp-btn{opacity:1;background:rgba(167,139,250,.8)}
-.cvp-label{position:absolute;top:3px;left:3px;background:#a78bfa;color:#000;font-size:.55rem;font-weight:800;padding:2px 5px;border-radius:4px}
-.prog-wrap{background:var(--surface2);border-radius:99px;height:8px;margin:10px 0;overflow:hidden}
-.prog-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--primary),var(--teal));transition:width .3s}
-.log-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:10px 12px;font-family:'Fira Code',monospace;font-size:.72rem;color:var(--text3);height:160px;overflow-y:auto;margin-top:8px}
-.log-line{margin-bottom:3px;line-height:1.5}
-.log-ok{color:var(--teal)}.log-err{color:var(--red)}.log-info{color:var(--text2)}
-.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
-.stat-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:12px;text-align:center}
-.stat-num{font-size:1.6rem;font-weight:700;margin-bottom:2px}
-.stat-lbl{font-size:.7rem;color:var(--text3)}
-.drive-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(66,133,244,.1);border:1px solid rgba(66,133,244,.3);border-radius:var(--rs);font-size:.78rem;margin-bottom:10px}
-.drive-bar.ok{background:rgba(34,211,184,.1);border-color:rgba(34,211,184,.3)}
-.toast-wrap{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none}
-.toast{background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:9px 16px;font-size:.78rem;font-weight:600;animation:tIn .25s ease;pointer-events:auto}
-.toast.ok{border-color:var(--teal);color:var(--teal)}.toast.err{border-color:var(--red);color:var(--red)}
-@keyframes tIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:99px;font-size:.65rem;font-weight:700}
-.b-k{background:rgba(74,222,128,.15);color:var(--green);border:1px solid rgba(74,222,128,.3)}
-.b-o{background:rgba(251,191,36,.15);color:var(--yellow);border:1px solid rgba(251,191,36,.3)}
-.b-z{background:rgba(248,113,113,.15);color:var(--red);border:1px solid rgba(248,113,113,.3)}
-.folder-tree{font-family:'Fira Code',monospace;font-size:.72rem;line-height:1.8;padding:6px 0}
-.ft-folder{color:var(--teal)}
-.ft-file{color:var(--text3);padding-left:16px}
-.ft-file::before{content:'- '}
-.help-box{background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.25);border-radius:var(--rs);padding:12px 14px;font-size:.78rem;color:var(--text2);margin-bottom:10px;line-height:1.7}
-.help-box b{color:var(--primary2)}
-.help-box code{background:var(--surface2);padding:1px 5px;border-radius:4px;font-family:'Fira Code',monospace;font-size:.72rem;color:var(--teal)}
-a{color:var(--primary2)}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soru Ayıklayıcı | MEB PDF Analizi</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    
+    <style>
+        :root {
+            --bg-color: #0a0c10;
+            --panel-bg: #161b22;
+            --border-color: #30363d;
+            --text-main: #e6edf3;
+            --text-muted: #8b949e;
+            --primary: #238636;
+            --primary-hover: #2ea043;
+            --danger: #da3633;
+            --accent: #58a6ff;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.5;
+            padding: 1rem;
+        }
+
+        .container { max-width: 1000px; margin: 0 auto; display: flex; flex-direction: column; gap: 1rem; }
+
+        .panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+        }
+
+        h1, h2, h3 { color: var(--text-main); margin-bottom: 1rem; }
+        
+        label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 600; }
+        
+        input[type="text"], input[type="password"], select {
+            width: 100%;
+            padding: 0.5rem;
+            margin-bottom: 1rem;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            border-radius: 6px;
+        }
+
+        button {
+            background-color: var(--primary);
+            color: #fff;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        button:hover { background-color: var(--primary-hover); }
+        button:disabled { background-color: var(--border-color); cursor: not-allowed; color: var(--text-muted); }
+        
+        .btn-outline { background-color: transparent; border: 1px solid var(--border-color); color: var(--text-main); }
+        .btn-outline:hover { background-color: var(--border-color); }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+        @media (min-width: 600px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
+
+        #preview-area {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .page-thumb {
+            position: relative;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .page-thumb img { width: 100%; display: block; }
+        .page-thumb.is-cvp { border-color: var(--accent); }
+        .page-thumb.is-cvp::after {
+            content: "CVP";
+            position: absolute;
+            top: 5px; right: 5px;
+            background-color: var(--accent);
+            color: #fff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        #log-area {
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            padding: 1rem;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            height: 200px;
+            overflow-y: auto;
+            color: var(--text-muted);
+            white-space: pre-wrap;
+        }
+
+        .stats {
+            display: flex; gap: 1rem; font-size: 0.9rem; color: var(--accent);
+            background: rgba(88, 166, 255, 0.1); padding: 0.5rem; border-radius: 6px; margin-top: 1rem;
+        }
+
+        #actions-panel { display: none; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; }
+    </style>
 </head>
 <body>
 
-<div class="header">
-  <div class="logo">✂️</div>
-  <div>
-    <div class="htitle">Soru Ayıklayıcı</div>
-    <div class="hsub">MEB PDF → Gemini AI → Google Drive</div>
-  </div>
-  <div class="hright">
-    <span id="hdr-count" style="font-size:.75rem;color:var(--text3)"></span>
-    <button class="btn btn-t" id="dl-btn" onclick="downloadZip()" style="display:none">⬇️ ZIP</button>
-    <button class="btn btn-g" id="drive-upload-btn" onclick="uploadToDrive()" style="display:none">☁️ Drive'a Kaydet</button>
-  </div>
-</div>
-
 <div class="container">
+    <div class="panel">
+        <h1>🔍 Soru Ayıklayıcı</h1>
+        <p style="color: var(--text-muted); margin-bottom: 1rem; font-size: 0.9rem;">MEB PDF'lerinden Gemini 1.5 Flash ile otomatik soru kırpma aracı.</p>
+        
+        <div class="grid-2">
+            <div>
+                <label>Gemini API Anahtarı</label>
+                <input type="password" id="gemini-key" placeholder="AIzaSy...">
+            </div>
+            <div>
+                <label>Google Drive Client ID (İsteğe bağlı)</label>
+                <input type="text" id="drive-client-id" placeholder="...apps.googleusercontent.com">
+            </div>
+        </div>
 
-<!-- AYARLAR -->
-<div class="card">
-  <div class="card-title">⚙️ Gemini API</div>
-  <div class="row" style="margin-bottom:0">
-    <div class="fgroup" style="flex:2;min-width:200px">
-      <label class="flabel">Gemini API Anahtarı <a href="https://aistudio.google.com/app/apikey" target="_blank" style="font-size:.65rem">(Ücretsiz al →)</a></label>
-      <input class="finput mono" id="gemini-key" type="password" placeholder="AIzaSy..." oninput="saveKeys()"/>
+        <div class="grid-2">
+            <div>
+                <label>Ders</label>
+                <input type="text" id="subject" placeholder="Örn: Biyoloji" value="Biyoloji">
+            </div>
+            <div>
+                <label>Sınav Türü</label>
+                <select id="exam-type">
+                    <option value="TYT">TYT</option>
+                    <option value="AYT">AYT</option>
+                    <option value="Kazanım Testi">Kazanım Testi</option>
+                    <option value="Deneme">Deneme</option>
+                </select>
+            </div>
+        </div>
     </div>
-    <div class="fgroup">
-      <label class="flabel">Ders</label>
-      <select class="fselect" id="cfg-ders">
-        <option>Biyoloji</option><option>Kimya</option><option>Fizik</option>
-        <option>Matematik</option><option>Türkçe</option><option>Tarih</option>
-        <option>Coğrafya</option><option>Felsefe</option><option>Diğer</option>
-      </select>
+
+    <div class="panel">
+        <h2>1. PDF Yükle</h2>
+        <input type="file" id="pdf-upload" accept="application/pdf" style="margin-bottom: 1rem;">
+        
+        <div id="preview-area"></div>
+        
+        <div style="margin-top: 1rem; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.9rem; color: var(--text-muted);">* Sayfalara tıklayarak Cevap Anahtarı (CVP) olarak işaretleyin.</span>
+            <button id="start-analysis-btn" disabled>Analizi Başlat</button>
+        </div>
     </div>
-    <div class="fgroup">
-      <label class="flabel">Sınav Türü</label>
-      <select class="fselect" id="cfg-sinav">
-        <option>TYT</option><option>AYT</option><option>Kazanım Testi</option><option>Deneme</option>
-      </select>
+
+    <div class="panel">
+        <h2>2. İşlem Durumu</h2>
+        <div id="log-area">Sistem hazır. PDF bekleniyor...</div>
+        <div class="stats">
+            <span>Toplam Token: <b id="token-count">0</b></span>
+            <span>Tahmini Maliyet: <b id="cost-est">$0.000</b></span>
+        </div>
+
+        <div id="actions-panel">
+            <button id="download-zip-btn" class="btn-outline">📦 ZIP İndir</button>
+            <button id="save-drive-btn" style="background-color: #4285F4;">☁️ Google Drive'a Kaydet</button>
+        </div>
     </div>
-  </div>
 </div>
-
-<!-- GOOGLE DRIVE -->
-<div class="card">
-  <div class="card-title">☁️ Google Drive <span style="font-size:.65rem;font-weight:400;color:var(--text3);text-transform:none">(isteğe bağlı — ZIP de kullanılabilir)</span></div>
-  <div class="help-box">
-    <b>5 dakikada kurulum:</b><br/>
-    1. <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a> → Yeni proje oluştur<br/>
-    2. <b>APIs &amp; Services → Library → Google Drive API</b> → Etkinleştir<br/>
-    3. <b>APIs &amp; Services → Credentials → Create Credentials → OAuth 2.0 Client ID</b><br/>
-    4. Uygulama türü: <code>Web application</code> → Authorized JS origins: <code>null</code> (dosya için) + sitenin URL'si<br/>
-    5. Client ID'yi aşağıya yapıştır → Bağlan
-  </div>
-  <div class="drive-bar" id="drive-bar">
-    <span>🔴</span>
-    <span id="drive-bar-text">Drive bağlı değil</span>
-    <button class="btn btn-g" id="drive-connect-btn" onclick="connectDrive()" style="margin-left:auto;padding:5px 10px;font-size:.72rem">Bağlan</button>
-  </div>
-  <div class="row">
-    <div class="fgroup" style="flex:2">
-      <label class="flabel">OAuth Client ID</label>
-      <input class="finput mono" id="goog-client-id" placeholder="xxxx.apps.googleusercontent.com" oninput="saveKeys()"/>
-    </div>
-    <div class="fgroup">
-      <label class="flabel">Drive Ana Klasör Adı</label>
-      <input class="finput" id="drive-folder" value="YKS_Sorular" oninput="saveKeys()"/>
-    </div>
-  </div>
-</div>
-
-<!-- YÜKLE -->
-<div class="card">
-  <div class="card-title">📄 Sayfa Yükle</div>
-  <div class="upload-zone" id="upload-zone"
-       onclick="document.getElementById('file-input').click()"
-       ondragover="event.preventDefault();this.classList.add('drag')"
-       ondragleave="this.classList.remove('drag')"
-       ondrop="onDrop(event)">
-    <input type="file" id="file-input" accept="image/*,application/pdf" multiple style="display:none" onchange="onFileSelect(event)"/>
-    <div style="font-size:2rem;margin-bottom:8px">📄</div>
-    <div style="font-weight:700;margin-bottom:4px">PDF veya fotoğraf yükle</div>
-    <div style="font-size:.78rem;color:var(--text3)">PDF direkt yükle (sayfalar otomatik ayrılır) • JPG / PNG de desteklenir</div>
-    <div id="pdf-converting" style="display:none;margin-top:10px;font-size:.78rem;color:var(--teal)">⏳ PDF sayfaları dönüştürülüyor…</div>
-  </div>
-  <div class="pages-grid" id="pages-grid"></div>
-  <div style="margin-top:12px;display:none;justify-content:space-between;align-items:center" id="action-bar">
-    <span id="page-count-lbl" style="font-size:.78rem;color:var(--text3)"></span>
-    <button class="btn btn-p" id="analyze-btn" onclick="startAnalysis()" disabled>🔍 Analizi Başlat</button>
-  </div>
-</div>
-
-<!-- PROGRESS -->
-<div class="card" id="progress-card" style="display:none">
-  <div class="card-title">🔍 Tam Otomatik Analiz</div>
-  <div style="display:flex;justify-content:space-between;font-size:.78rem;color:var(--text3);margin-bottom:4px">
-    <span id="prog-label">Hazırlanıyor…</span>
-    <span id="prog-pct">0%</span>
-  </div>
-  <div class="prog-wrap"><div class="prog-fill" id="prog-bar" style="width:0%"></div></div>
-  <div class="log-box" id="log-box"></div>
-  <!-- Token Counter -->
-  <div style="display:flex;align-items:center;gap:6px;margin-top:8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:8px 12px;flex-wrap:wrap">
-    <span style="font-size:.7rem;color:var(--text3)">🔢 Token:</span>
-    <span style="font-family:'Fira Code',monospace;font-size:.72rem;color:var(--text2)">Giriş: <b id="tk-in" style="color:var(--primary2)">0</b></span>
-    <span style="font-family:'Fira Code',monospace;font-size:.72rem;color:var(--text2)">Çıkış: <b id="tk-out" style="color:var(--teal)">0</b></span>
-    <span style="font-family:'Fira Code',monospace;font-size:.72rem;color:var(--text2)">İstek: <b id="tk-calls" style="color:var(--yellow)">0</b></span>
-    <span style="margin-left:auto;font-size:.72rem;font-weight:700" id="tk-cost">≈ $0.000</span>
-  </div>
-  <div class="stat-row" id="stat-row" style="display:none">
-    <div class="stat-box"><div class="stat-num" id="s-total" style="color:var(--primary)">0</div><div class="stat-lbl">Soru</div></div>
-    <div class="stat-box"><div class="stat-num" id="s-topics" style="color:var(--teal)">0</div><div class="stat-lbl">Konu</div></div>
-    <div class="stat-box"><div class="stat-num" id="s-pages" style="color:var(--yellow)">0</div><div class="stat-lbl">Sayfa</div></div>
-  </div>
-</div>
-
-<!-- SONUÇ -->
-<div class="card" id="result-card" style="display:none">
-  <div class="card-title">✅ Tamamlandı</div>
-  <div class="stat-row">
-    <div class="stat-box"><div class="stat-num" id="r-total" style="color:var(--primary)">0</div><div class="stat-lbl">Toplam Soru</div></div>
-    <div class="stat-box">
-      <div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap;margin-bottom:4px">
-        <span class="badge b-k" id="r-kolay">0 Kolay</span>
-        <span class="badge b-o" id="r-orta">0 Orta</span>
-        <span class="badge b-z" id="r-zor">0 Zor</span>
-      </div>
-      <div class="stat-lbl">Zorluk</div>
-    </div>
-    <div class="stat-box"><div class="stat-num" id="r-topics" style="color:var(--teal)">0</div><div class="stat-lbl">Konu</div></div>
-  </div>
-  <!-- Answer Key -->
-  <div style="margin-top:14px;display:none" id="answer-key-section">
-    <div class="card-title">🗝️ Cevap Anahtarı <span id="answer-key-badge" style="font-size:.65rem;font-weight:400;text-transform:none;color:var(--text3)"></span></div>
-    <div id="answer-key-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(56px,1fr));gap:6px;margin-bottom:8px"></div>
-  </div>
-  <!-- Token Summary -->
-  <div style="margin-top:14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:10px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-    <span style="font-size:.72rem;color:var(--text3)">🔢 Toplam API kullanımı:</span>
-    <span style="font-size:.75rem;font-family:'Fira Code',monospace;color:var(--text2)">Giriş: <b id="r-tk-in" style="color:var(--primary2)">0</b> • Çıkış: <b id="r-tk-out" style="color:var(--teal)">0</b> • İstek: <b id="r-tk-calls" style="color:var(--yellow)">0</b></span>
-    <span style="margin-left:auto;font-size:.85rem;font-weight:700;color:var(--green)" id="r-tk-cost">≈ $0.000</span>
-  </div>
-  <div style="margin-top:14px">
-    <div class="card-title">📁 Klasör Yapısı</div>
-    <div class="folder-tree" id="folder-tree"></div>
-  </div>
-  <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-    <button class="btn btn-t" onclick="downloadZip()">⬇️ ZIP İndir</button>
-    <button class="btn btn-g" id="result-drive-btn" onclick="uploadToDrive()" style="display:none">☁️ Drive'a Yükle</button>
-    <button class="btn" onclick="resetAll()" style="margin-left:auto">🔄 Yeni Analiz</button>
-  </div>
-</div>
-
-</div>
-
-<div class="toast-wrap" id="toast-wrap"></div>
-<canvas id="crop-canvas" style="display:none"></canvas>
 
 <script>
-let pages = [];
-let answerKeyPages = new Set(); // page ids marked as answer key
-let wakeLock = null;
-let analysisRunning = false;
-let currentPageIdx = 0;
-let analysisPaused = false;
-let questions = [];
-let answerKey = {}; // {num: 'A'/'B'/'C'/'D'/'E'}
-let driveToken = null;
-let tokenStats = { inputTokens: 0, outputTokens: 0, calls: 0 };
-
-window.onload = () => {
-  const gk = localStorage.getItem('gemini_key_sq');
-  const gc = localStorage.getItem('goog_cid_sq');
-  const gf = localStorage.getItem('drive_folder_sq') || 'YKS_Sorular';
-  if (gk) document.getElementById('gemini-key').value = gk;
-  if (gc) document.getElementById('goog-client-id').value = gc;
-  document.getElementById('drive-folder').value = gf;
-};
-
-function saveKeys() {
-  const gk = document.getElementById('gemini-key').value.trim();
-  const gc = document.getElementById('goog-client-id').value.trim();
-  const gf = document.getElementById('drive-folder').value.trim();
-  if (gk) localStorage.setItem('gemini_key_sq', gk);
-  if (gc) localStorage.setItem('goog_cid_sq', gc);
-  if (gf) localStorage.setItem('drive_folder_sq', gf);
-  checkAnalyzeBtn();
-}
-
-// ── UPLOAD ──
-function onDrop(e) {
-  e.preventDefault();
-  document.getElementById('upload-zone').classList.remove('drag');
-  handleFiles(Array.from(e.dataTransfer.files));
-}
-function onFileSelect(e) {
-  handleFiles(Array.from(e.target.files));
-  e.target.value = '';
-}
-async function handleFiles(files) {
-  for (const f of files) {
-    if (f.type === 'application/pdf') {
-      await addPdf(f);
-    } else if (f.type.startsWith('image/')) {
-      const dataUrl = await new Promise(r => { const rd = new FileReader(); rd.onload = e => r(e.target.result); rd.readAsDataURL(f); });
-      pages.push({ id: Date.now() + Math.random(), dataUrl, name: f.name });
-      renderThumbs(); checkAnalyzeBtn();
-    }
-  }
-}
-async function addPdf(file) {
-  const pdfConv = document.getElementById('pdf-converting');
-  pdfConv.style.display = 'block';
-  pdfConv.textContent = `⏳ "${file.name}" dönüştürülüyor…`;
-  try {
+    // --- Ayarlar ve Worker ---
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    const total = pdf.numPages;
-    for (let i = 1; i <= total; i++) {
-      pdfConv.textContent = `⏳ Sayfa ${i}/${total} dönüştürülüyor…`;
-      const page = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale: 2.0 });
-      const canvas = document.createElement('canvas');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-      pages.push({ id: Date.now() + Math.random(), dataUrl, name: `${file.name}_sayfa${i}` });
-      renderThumbs(); checkAnalyzeBtn();
-    }
-    pdfConv.textContent = `✓ ${total} sayfa dönüştürüldü`;
-    setTimeout(() => { pdfConv.style.display = 'none'; }, 2000);
-  } catch(e) {
-    pdfConv.textContent = `✗ PDF hatası: ${e.message}`;
-    pdfConv.style.color = 'var(--red)';
-    setTimeout(() => { pdfConv.style.display = 'none'; pdfConv.style.color = 'var(--teal)'; }, 4000);
-  }
-}
-async function addFiles(files) {
-  await handleFiles(files);
-}
-function removePage(id) { pages = pages.filter(p => p.id !== id); answerKeyPages.delete(id); renderThumbs(); checkAnalyzeBtn(); }
-function toggleCvp(id) {
-  if (answerKeyPages.has(id)) answerKeyPages.delete(id);
-  else answerKeyPages.add(id);
-  renderThumbs();
-}
-function renderThumbs() {
-  document.getElementById('pages-grid').innerHTML = pages.map((p, i) => {
-    const isCvp = answerKeyPages.has(p.id);
-    return `<div class="pthumb${isCvp?' cvp-marked':''}" id="pt-${p.id}">
-      <img src="${p.dataUrl}"/>
-      <span class="pnum">S${i+1}</span>
-      <button class="cvp-btn" onclick="toggleCvp(${p.id})" title="Cevap anahtarı olarak işaretle">${isCvp?'📋':'📋'}</button>
-      <button class="prem" onclick="removePage(${p.id})">✕</button>
-      ${isCvp?'<div class="cvp-label">CVP</div>':''}
-    </div>`;
-  }).join('');
-  const ab = document.getElementById('action-bar');
-  ab.style.display = pages.length ? 'flex' : 'none';
-  document.getElementById('page-count-lbl').textContent = pages.length ? `${pages.length} sayfa` : '';
-}
-function checkAnalyzeBtn() {
-  document.getElementById('analyze-btn').disabled =
-    !document.getElementById('gemini-key').value.trim() || pages.length === 0;
-}
-
-// ── ANALYSIS ──
-async function requestWakeLock() {
-  try {
-    if ('wakeLock' in navigator) {
-      wakeLock = await navigator.wakeLock.request('screen');
-      log('Ekran kilit engellendi (AFK modu aktif)', 'ok');
-      wakeLock.addEventListener('release', () => {
-        log('Ekran kilidi serbest bırakıldı', 'info');
-      });
-    } else {
-      log('Wake Lock desteklenmiyor — ekran kapanabilir', 'err');
-    }
-  } catch(e) {
-    log('Wake Lock hatasi: ' + e.message, 'err');
-  }
-}
-
-async function releaseWakeLock() {
-  if (wakeLock) { await wakeLock.release(); wakeLock = null; }
-}
-
-// Sekme tekrar görünür olunca wake lock yenile
-document.addEventListener('visibilitychange', async () => {
-  if (document.visibilityState === 'visible' && wakeLock === null) {
-    const progCard = document.getElementById('progress-card');
-    if (progCard && progCard.style.display !== 'none') {
-      await requestWakeLock();
-    }
-  }
-});
-
-// ── VISIBILITY: resume when tab comes back ──
-document.addEventListener('visibilitychange', async () => {
-  if (document.visibilityState === 'visible') {
-    await requestWakeLock();
-    if (analysisRunning && analysisPaused) {
-      log('Sekme tekrar aktif — devam ediliyor...', 'ok');
-      analysisPaused = false;
-      const key = window._analysisKey;
-      const ders = window._analysisDers;
-      const sinav = window._analysisSinav;
-      await runAnalysisLoop(key, ders, sinav);
-    }
-  } else {
-    // Tab hidden — mark as paused so we resume on return
-    if (analysisRunning) {
-      analysisPaused = true;
-      log('Sekme arka plana alındı — geri dönünce devam eder', 'info');
-    }
-  }
-});
-
-async function runAnalysisLoop(key, ders, sinav) {
-  for (let i = currentPageIdx; i < pages.length; i++) {
-    // If tab went to background, pause and wait for visibility
-    if (document.visibilityState === 'hidden') {
-      analysisPaused = true;
-      currentPageIdx = i;
-      log(`Sayfa ${i+1} bekleniyor (sekme arka planda)...`, 'info');
-      return; // Will resume via visibilitychange event
-    }
-
-    currentPageIdx = i;
-    const page = pages[i];
-    setProgress(Math.round(i / pages.length * 100), `Sayfa ${i+1}/${pages.length}…`);
-    document.getElementById('pt-' + page.id)?.classList.add('processing');
-    // Manually marked as answer key — extract answers, skip question detection
-    if (answerKeyPages.has(page.id)) {
-      log(`Sayfa ${i+1}: Cevap anahtarı sayfası — cevaplar çıkarılıyor…`, 'info');
-      try { await detectAnswerKey(page, key); } catch {}
-      document.getElementById('pt-' + page.id)?.classList.replace('processing','done');
-      continue;
-    }
-    try {
-      const qs = await analyzeWithGemini(page, ders, sinav, key);
-      log(`Sayfa ${i+1}: ${qs.length} soru tespit edildi`, 'ok');
-      document.getElementById('pt-' + page.id)?.classList.replace('processing','done');
-      for (const q of qs) {
-        const crop = await cropQuestion(page.dataUrl, q);
-        questions.push({ id: Date.now()+Math.random(), pageIdx:i, num:q.num, topic:q.topic, difficulty:q.difficulty, cropDataUrl:crop });
-        updateLiveStats();
-      }
-    } catch(e) {
-      log(`Sayfa ${i+1} hata: ${e.message}`, 'err');
-      document.getElementById('pt-' + page.id)?.classList.add('err');
-    }
-  }
-
-  // Loop completed — all pages processed
-  analysisRunning = false;
-  analysisPaused = false;
-  currentPageIdx = 0;
-  setProgress(100, 'Tamamlandı!');
-  document.getElementById('stat-row').style.display = 'grid';
-  await releaseWakeLock();
-  if ('Notification' in window && Notification.permission === 'granted') {
-    new Notification('Soru Ayıklayıcı', { body: questions.length + ' soru analiz tamamlandı!', icon: '/icon-192.png' });
-  }
-  toast('Analiz tamamlandı! ' + questions.length + ' soru bulundu.', 'ok');
-  try {
-    showResult();
-  } catch(err) {
-    log('showResult hatası: ' + err.message, 'err');
-    // Fallback: force show result card and download button
-    document.getElementById('result-card').style.display = 'block';
-    document.getElementById('dl-btn').style.display = 'flex';
-    document.getElementById('r-total').textContent = questions.length;
-    if (driveToken) {
-      document.getElementById('drive-upload-btn').style.display = 'flex';
-      document.getElementById('result-drive-btn').style.display = 'flex';
-    }
-  }
-}
-
-async function startAnalysis() {
-  const key = document.getElementById('gemini-key').value.trim();
-  if (!key) { toast('Gemini API anahtarı gir!', 'err'); return; }
-  if ('Notification' in window && Notification.permission === 'default') {
-    await Notification.requestPermission();
-  }
-  questions = [];
-  document.getElementById('progress-card').style.display = 'block';
-  document.getElementById('result-card').style.display = 'none';
-  document.getElementById('stat-row').style.display = 'none';
-  document.getElementById('analyze-btn').disabled = true;
-  const ders = document.getElementById('cfg-ders').value;
-  const sinav = document.getElementById('cfg-sinav').value;
-  await requestWakeLock();
-  log(`Analiz başlıyor — ${pages.length} sayfa, ${ders} ${sinav}`, 'info');
-
-  analysisRunning = true;
-  analysisPaused = false;
-  window._analysisKey = key;
-  window._analysisDers = ders;
-  window._analysisSinav = sinav;
-
-  await runAnalysisLoop(key, ders, sinav);
-
-  // analysis continues in runAnalysisLoop
-}
-
-async function geminiRequest(key, mimeType, base64, prompt, maxTokens, retryCount=0) {
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=' + key;
-  const body = JSON.stringify({
-    contents:[{ parts:[{ inline_data:{ mime_type:mimeType, data:base64 } }, { text:prompt }]}],
-    generationConfig:{ temperature: maxTokens===1000 ? 0 : 0.1, maxOutputTokens:maxTokens }
-  });
-  const resp = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body });
-  if (resp.status === 429 || resp.status === 503) {
-    const errData = await resp.json().catch(()=>({}));
-    const msg = errData?.error?.message || '';
-    // Extract retry delay from message
-    const retryMatch = msg.match(/retry in ([\d.]+)s/i);
-    const waitSec = retryMatch ? Math.ceil(parseFloat(retryMatch[1])) + 2 : 65;
-    if (retryCount < 5) {
-      log(`Rate limit! ${waitSec}s bekleniyor... (deneme ${retryCount+1}/5)`, 'err');
-      await countdown(waitSec);
-      log('Devam ediliyor...', 'info');
-      return geminiRequest(key, mimeType, base64, prompt, maxTokens, retryCount+1);
-    }
-    throw new Error('Rate limit asılamadı');
-  }
-  if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message || 'HTTP ' + resp.status); }
-  return resp.json();
-}
-
-async function countdown(seconds) {
-  const label = document.getElementById('prog-label');
-  const origLabel = label?.textContent || '';
-  for (let s = seconds; s > 0; s--) {
-    if (label) label.textContent = `Rate limit — ${s}s bekleniyor...`;
-    await new Promise(r => setTimeout(r, 1000));
-  }
-  if (label) label.textContent = origLabel;
-}
-
-async function analyzeWithGemini(page, ders, sinav, key) {
-  const base64 = page.dataUrl.split(',')[1];
-  const mimeType = page.dataUrl.split(';')[0].split(':')[1];
-
-  const prompt = `Bu bir ${ders} ${sinav} sinavi sayfasi.
-Her soruyu tespit et. Her soru icin JSON alanlari: num (integer), topic (Turkce konu adi), difficulty (kolay/orta/zor), x (sol kenar %), y (ust kenar %), w (genislik %), h (yukseklik %).
-Eger sayfada hic soru yoksa bos array don.
-KRITIK: Sadece gecerli JSON array don. Markdown, kod blogu, aciklama YAZMA.
-Ornek: [{"num":1,"topic":"Canlilar","difficulty":"orta","x":2,"y":5,"w":47,"h":20}]`;
-
-  const data = await geminiRequest(key, mimeType, base64, prompt, 3000);
-  if (data.usageMetadata) {
-    tokenStats.inputTokens += data.usageMetadata.promptTokenCount || 0;
-    tokenStats.outputTokens += data.usageMetadata.candidatesTokenCount || 0;
-    tokenStats.calls++;
-    updateTokenDisplay();
-  }
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  const clean = text.replace(/```json|```/g,'').trim();
-  // Multiple parse attempts
-  try { return JSON.parse(clean); } catch {}
-  // Try extracting array from anywhere in text
-  const m1 = clean.match(/\[\s*\{[\s\S]*?\}\s*\]/);
-  if (m1) { try { return JSON.parse(m1[0]); } catch {} }
-  // If empty array signal
-  if (clean.includes('[]') || clean.trim() === '') return [];
-  // Log raw response for debugging
-  log('Ham yanit: ' + clean.slice(0, 100), 'err');
-  return []; // Return empty instead of throwing, don't block other pages
-}
-
-async function detectAnswerKey(page, key) {
-  const base64 = page.dataUrl.split(',')[1];
-  const mimeType = page.dataUrl.split(';')[0].split(':')[1];
-  const prompt = 'Bu sayfa cevap anahtari mi? Evet ise tum cevaplari cikar. SADECE JSON don: {"isAnswerKey":true,"answers":{"1":"A","2":"C"}} veya {"isAnswerKey":false,"answers":{}}';
-  let data;
-  try { data = await geminiRequest(key, mimeType, base64, prompt, 1000); } catch { return false; }
-  if (data.usageMetadata) {
-    tokenStats.inputTokens += data.usageMetadata.promptTokenCount || 0;
-    tokenStats.outputTokens += data.usageMetadata.candidatesTokenCount || 0;
-    tokenStats.calls++;
-    updateTokenDisplay();
-  }
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  try {
-    const r = JSON.parse(text.replace(/```json|```/g,'').trim());
-    if (r.isAnswerKey && r.answers && Object.keys(r.answers).length > 0) {
-      Object.assign(answerKey, r.answers);
-      renderAnswerKey();
-      return true;
-    }
-  } catch {}
-  return false;
-}
-
-function updateTokenDisplay() {
-  const cost = (tokenStats.inputTokens * 0.000000075) + (tokenStats.outputTokens * 0.0000003);
-  const costStr = '$' + cost.toFixed(4);
-  ['tk-in','r-tk-in'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = tokenStats.inputTokens.toLocaleString(); });
-  ['tk-out','r-tk-out'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = tokenStats.outputTokens.toLocaleString(); });
-  ['tk-calls','r-tk-calls'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = tokenStats.calls; });
-  ['tk-cost','r-tk-cost'].forEach(id => {
-    const el = document.getElementById(id);
-    if(el) { el.textContent = '~' + costStr; el.style.color = cost < 0.01 ? 'var(--green)' : cost < 0.1 ? 'var(--yellow)' : 'var(--red)'; }
-  });
-}
-
-function renderAnswerKey() {
-  const keys = Object.keys(answerKey).sort((a,b) => parseInt(a)-parseInt(b));
-  if (!keys.length) return;
-  const sec = document.getElementById('answer-key-section');
-  if (sec) sec.style.removeProperty('display');
-  const badge = document.getElementById('answer-key-badge');
-  if (badge) badge.textContent = '(' + keys.length + ' soru)';
-  const colors = {A:'var(--primary)',B:'var(--teal)',C:'var(--yellow)',D:'var(--red)',E:'var(--primary2)'};
-  const grid = document.getElementById('answer-key-grid');
-  if (grid) grid.innerHTML = keys.map(num =>
-    '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:5px 4px;text-align:center">' +
-    '<div style="font-size:.65rem;color:var(--text3);margin-bottom:2px">' + num + '</div>' +
-    '<div style="font-size:.85rem;font-weight:800;color:' + (colors[answerKey[num]]||'var(--text1)') + '">' + answerKey[num] + '</div>' +
-    '</div>'
-  ).join('');
-}
-
-
-async function cropQuestion(dataUrl, q) {
-  return new Promise(r => {
-    const img = new Image();
-    img.onload = () => {
-      const cv = document.getElementById('crop-canvas');
-      const ctx = cv.getContext('2d');
-      const pad = 6;
-      const px = Math.max(0, q.x/100*img.width - pad);
-      const py = Math.max(0, q.y/100*img.height - pad);
-      const pw = Math.min(img.width-px, q.w/100*img.width + pad*2);
-      const ph = Math.min(img.height-py, q.h/100*img.height + pad*2);
-      cv.width=pw; cv.height=ph;
-      ctx.drawImage(img, px, py, pw, ph, 0, 0, pw, ph);
-      r(cv.toDataURL('image/jpeg', 0.92));
+    
+    // Global Durum
+    const state = {
+        pages: [], // { id, dataUrl, isCvp, imgWidth, imgHeight }
+        extractedData: { subject: "", exam: "", questions: [], answerKey: {} },
+        croppedImages: [], // { filename, blob, topic }
+        totalTokens: 0,
+        oauthToken: null
     };
-    img.src = dataUrl;
-  });
-}
 
-function updateLiveStats() {
-  document.getElementById('s-total').textContent = questions.length;
-  document.getElementById('s-topics').textContent = new Set(questions.map(q=>q.topic)).size;
-  document.getElementById('s-pages').textContent = new Set(questions.map(q=>q.pageIdx)).size;
-}
+    // UI Elementleri
+    const els = {
+        geminiKey: document.getElementById('gemini-key'),
+        driveClientId: document.getElementById('drive-client-id'),
+        subject: document.getElementById('subject'),
+        examType: document.getElementById('exam-type'),
+        pdfUpload: document.getElementById('pdf-upload'),
+        previewArea: document.getElementById('preview-area'),
+        startBtn: document.getElementById('start-analysis-btn'),
+        logArea: document.getElementById('log-area'),
+        tokenCount: document.getElementById('token-count'),
+        costEst: document.getElementById('cost-est'),
+        actionsPanel: document.getElementById('actions-panel'),
+        btnZip: document.getElementById('download-zip-btn'),
+        btnDrive: document.getElementById('save-drive-btn')
+    };
 
-function showResult() {
-  document.getElementById('result-card').style.display = 'block';
-  const total = questions.length;
-  const d = {kolay:0,orta:0,zor:0};
-  questions.forEach(q => { d[q.difficulty]=(d[q.difficulty]||0)+1; });
-  document.getElementById('r-total').textContent = total;
-  document.getElementById('r-kolay').textContent = d.kolay+' Kolay';
-  document.getElementById('r-orta').textContent = d.orta+' Orta';
-  document.getElementById('r-zor').textContent = d.zor+' Zor';
-  document.getElementById('hdr-count').textContent = total+' soru';
+    // Başlangıç: LocalStorage'dan yükle
+    els.geminiKey.value = localStorage.getItem('sa_gemini_key') || '';
+    els.driveClientId.value = localStorage.getItem('sa_drive_client') || '';
+    els.geminiKey.addEventListener('input', () => localStorage.setItem('sa_gemini_key', els.geminiKey.value));
+    els.driveClientId.addEventListener('input', () => localStorage.setItem('sa_drive_client', els.driveClientId.value));
 
-  const topics = {};
-  questions.forEach(q => {
-    if (!topics[q.topic]) topics[q.topic]={k:0,o:0,z:0};
-    if (q.difficulty==='kolay') topics[q.topic].k++;
-    else if (q.difficulty==='orta') topics[q.topic].o++;
-    else topics[q.topic].z++;
-  });
-  document.getElementById('r-topics').textContent = Object.keys(topics).length;
-
-  const ders = document.getElementById('cfg-ders').value;
-  let tree = `<div class="ft-folder">📁 ${ders}/</div>`;
-  for (const [t,d2] of Object.entries(topics)) {
-    const c = d2.k+d2.o+d2.z;
-    tree += `<div class="ft-folder" style="padding-left:12px">📁 ${t}/ <span style="color:var(--text3);font-size:.65rem">(${c})</span></div>`;
-    if (d2.k) tree += `<div class="ft-file" style="padding-left:28px">${d2.k}× *_kolay.jpg</div>`;
-    if (d2.o) tree += `<div class="ft-file" style="padding-left:28px">${d2.o}× *_orta.jpg</div>`;
-    if (d2.z) tree += `<div class="ft-file" style="padding-left:28px">${d2.z}× *_zor.jpg</div>`;
-  }
-  document.getElementById('folder-tree').innerHTML = tree;
-  document.getElementById('dl-btn').style.display = 'flex';
-  if (driveToken) {
-    document.getElementById('drive-upload-btn').style.display = 'flex';
-    document.getElementById('result-drive-btn').style.display = 'flex';
-  }
-  log(`Bitti! ${total} soru, ${Object.keys(topics).length} konu`, 'ok');
-  toast(`${total} soru ayıklandı!`, 'ok');
-  updateTokenDisplay();
-  renderAnswerKey();
-  // Scroll to result
-  document.getElementById('result-card').scrollIntoView({behavior:'smooth'});
-}
-
-// ── ZIP ──
-async function downloadZip() {
-  if (!questions.length) { toast('Soru yok!', 'err'); return; }
-  toast('ZIP hazırlanıyor…', 'ok');
-  const ders = document.getElementById('cfg-ders').value;
-  const sinav = document.getElementById('cfg-sinav').value;
-  const zip = new JSZip();
-  const root = zip.folder(ders);
-  for (const q of questions) {
-    const folder = root.folder(san(q.topic)||'Genel');
-    folder.file(`soru_${q.num}_${q.difficulty}.jpg`, q.cropDataUrl.split(',')[1], {base64:true});
-  }
-  root.file('metadata.json', JSON.stringify({ders,sinav,created:new Date().toISOString(),total:questions.length,
-    questions:questions.map(q=>({num:q.num,topic:q.topic,difficulty:q.difficulty,page:q.pageIdx+1}))},null,2));
-  const blob = await zip.generateAsync({type:'blob'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `${ders}_${sinav}_sorular.zip`;
-  a.click();
-  toast('ZIP indirildi!', 'ok');
-}
-
-// ── DRIVE ──
-function connectDrive() {
-  const cid = document.getElementById('goog-client-id').value.trim();
-  if (!cid) { toast('Client ID gir!', 'err'); return; }
-  const scope = 'https://www.googleapis.com/auth/drive.file';
-  const origin = encodeURIComponent(location.href.split('?')[0]);
-  const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${cid}&redirect_uri=${origin}&response_type=token&scope=${encodeURIComponent(scope)}`;
-  const popup = window.open(url,'drive_auth','width=500,height=600');
-  const t = setInterval(()=>{
-    try {
-      if (popup.location.href.includes('access_token')) {
-        const p = new URLSearchParams(popup.location.hash.slice(1));
-        driveToken = p.get('access_token');
-        popup.close(); clearInterval(t);
-        const bar = document.getElementById('drive-bar');
-        bar.classList.add('ok');
-        document.getElementById('drive-bar-text').textContent = '🟢 Google Drive bağlı';
-        document.getElementById('drive-connect-btn').textContent = '✓ Bağlı';
-        document.getElementById('drive-connect-btn').disabled = true;
-        if (questions.length) {
-          document.getElementById('drive-upload-btn').style.display = 'flex';
-          document.getElementById('result-drive-btn').style.display = 'flex';
-        }
-        toast('Drive bağlandı!', 'ok');
-      }
-    } catch {}
-    if (popup.closed) clearInterval(t);
-  }, 500);
-}
-
-async function uploadToDrive() {
-  if (!driveToken) { toast('Drive bağlı değil!', 'err'); return; }
-  if (!questions.length) { toast('Soru yok!', 'err'); return; }
-  const ders = document.getElementById('cfg-ders').value;
-  const rootName = document.getElementById('drive-folder').value || 'YKS_Sorular';
-  toast('Drive\'a yükleniyor…', 'ok');
-  log('Drive yüklemesi başlıyor…', 'info');
-  document.getElementById('drive-upload-btn').disabled = true;
-  document.getElementById('result-drive-btn').disabled = true;
-  try {
-    const rootId = await driveFolder(rootName, null);
-    const dersId = await driveFolder(ders, rootId);
-    const topicIds = {};
-    let uploaded = 0;
-    for (const q of questions) {
-      const tKey = san(q.topic)||'Genel';
-      if (!topicIds[tKey]) topicIds[tKey] = await driveFolder(tKey, dersId);
-      await driveUpload(`soru_${q.num}_${q.difficulty}.jpg`, q.cropDataUrl, topicIds[tKey]);
-      uploaded++;
-      setProgress(Math.round(uploaded/questions.length*100), `${uploaded}/${questions.length} yüklendi`);
-      if (uploaded % 5 === 0) log(`${uploaded}/${questions.length} yüklendi…`, 'info');
+    function log(msg) {
+        const time = new Date().toLocaleTimeString('tr-TR');
+        els.logArea.innerHTML += `[${time}] ${msg}\n`;
+        els.logArea.scrollTop = els.logArea.scrollHeight;
     }
-    log(`Tüm sorular Drive'a yüklendi: ${rootName}/${ders}`, 'ok');
-    toast(`${questions.length} soru Drive'a yüklendi!`, 'ok');
-  } catch(e) {
-    toast('Drive hatası: '+e.message, 'err');
-    log('Drive hatası: '+e.message, 'err');
-  }
-  document.getElementById('drive-upload-btn').disabled = false;
-  document.getElementById('result-drive-btn').disabled = false;
-}
 
-async function driveFolder(name, parentId) {
-  let q = `name='${name.replace(/'/g,"\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
-  if (parentId) q += ` and '${parentId}' in parents`;
-  const s = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`,
-    { headers:{ Authorization:`Bearer ${driveToken}` } });
-  const sd = await s.json();
-  if (sd.files?.length) return sd.files[0].id;
-  const meta = { name, mimeType:'application/vnd.google-apps.folder' };
-  if (parentId) meta.parents = [parentId];
-  const c = await fetch('https://www.googleapis.com/drive/v3/files', {
-    method:'POST', headers:{ Authorization:`Bearer ${driveToken}`, 'Content-Type':'application/json' },
-    body: JSON.stringify(meta)
-  });
-  return (await c.json()).id;
-}
+    function updateStats(tokens) {
+        state.totalTokens += tokens;
+        els.tokenCount.innerText = state.totalTokens.toLocaleString();
+        // Gemini 1.5 Flash tahmini fiyatlandırması: ~$0.075 / 1M token (input)
+        const cost = (state.totalTokens / 1000000) * 0.075;
+        els.costEst.innerText = `$${cost.toFixed(4)}`;
+    }
 
-async function driveUpload(name, dataUrl, parentId) {
-  const bin = atob(dataUrl.split(',')[1]);
-  const bytes = new Uint8Array(bin.length);
-  for (let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
-  const form = new FormData();
-  form.append('metadata', new Blob([JSON.stringify({name,parents:[parentId]})], {type:'application/json'}));
-  form.append('file', new Blob([bytes], {type:'image/jpeg'}));
-  const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
-    { method:'POST', headers:{ Authorization:`Bearer ${driveToken}` }, body:form });
-  if (!r.ok) throw new Error(`Upload ${r.status}`);
-}
+    // --- PDF İşlemleri ---
+    els.pdfUpload.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        state.pages = [];
+        els.previewArea.innerHTML = '';
+        els.actionsPanel.style.display = 'none';
+        log(`PDF yükleniyor: ${file.name}`);
+        
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+        log(`PDF işleniyor. Toplam sayfa: ${pdf.numPages}`);
 
-// ── UTILS ──
-function setProgress(pct, label) {
-  document.getElementById('prog-bar').style.width = pct+'%';
-  document.getElementById('prog-label').textContent = label;
-  document.getElementById('prog-pct').textContent = pct+'%';
-}
-function log(msg, type='info') {
-  const box = document.getElementById('log-box');
-  const el = document.createElement('div');
-  el.className = `log-line log-${type}`;
-  el.textContent = `[${new Date().toLocaleTimeString('tr')}] ${msg}`;
-  box.appendChild(el);
-  box.scrollTop = box.scrollHeight;
-}
-function san(s) { return (s||'').replace(/[\/\\:*?"<>|]/g,'_').trim().slice(0,50); }
-function resetAll() {
-  pages=[]; questions=[]; answerKey={}; answerKeyPages=new Set(); tokenStats={inputTokens:0,outputTokens:0,calls:0}; currentPageIdx=0; analysisRunning=false; analysisPaused=false;
-  document.getElementById('pages-grid').innerHTML='';
-  document.getElementById('log-box').innerHTML='';
-  document.getElementById('progress-card').style.display='none';
-  document.getElementById('result-card').style.display='none';
-  document.getElementById('dl-btn').style.display='none';
-  document.getElementById('drive-upload-btn').style.display='none';
-  document.getElementById('hdr-count').textContent='';
-  document.getElementById('action-bar').style.display='none';
-  document.getElementById('analyze-btn').disabled=true;
-}
-function toast(msg, type='ok') {
-  const wrap = document.getElementById('toast-wrap');
-  const el = document.createElement('div');
-  el.className=`toast ${type}`; el.textContent=msg;
-  wrap.appendChild(el);
-  setTimeout(()=>el.remove(), 3000);
-}
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const viewport = page.getViewport({ scale: 2.0 }); // Yüksek kalite
+            
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.85); // %85 JPG
+            
+            state.pages.push({
+                id: i,
+                dataUrl: dataUrl,
+                isCvp: false,
+                width: canvas.width,
+                height: canvas.height,
+                canvas: canvas // Kırpma işlemi için referans tutuyoruz
+            });
+
+            const thumb = document.createElement('div');
+            thumb.className = 'page-thumb';
+            thumb.innerHTML = `<img src="${dataUrl}">`;
+            thumb.onclick = () => {
+                state.pages[i-1].isCvp = !state.pages[i-1].isCvp;
+                thumb.classList.toggle('is-cvp');
+            };
+            els.previewArea.appendChild(thumb);
+        }
+        
+        els.startBtn.disabled = false;
+        log("PDF sayfalara ayrıldı. Lütfen cevap anahtarı olan sayfalara tıklayın, ardından 'Analizi Başlat'a basın.");
+    });
+
+    // --- API İstekleri & Analiz ---
+    const delay = ms => new Promise(res => setTimeout(res, ms));
+
+    async function callGemini(base64Image, promptText) {
+        const apiKey = els.geminiKey.value;
+        if (!apiKey) throw new Error("Gemini API Anahtarı eksik!");
+
+        const base64Data = base64Image.split(',')[1];
+        
+        const body = {
+            contents: [{
+                parts: [
+                    { text: promptText },
+                    { inlineData: { mimeType: "image/jpeg", data: base64Data } }
+                ]
+            }],
+            generationConfig: {
+                response_mime_type: "application/json",
+                temperature: 0.1
+            }
+        };
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+        while (true) {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            if (response.status === 429) {
+                const text = await response.text();
+                let waitTime = 10; // Varsayılan bekleme
+                // Rate limit hatasından süreyi çıkarmayı deneme "retry in 30s"
+                const match = text.match(/retry in (\d+)s/i);
+                if (match) waitTime = parseInt(match[1], 10) + 1;
+                
+                log(`[Rate Limit] 429 alındı. ${waitTime} saniye bekleniyor...`);
+                await delay(waitTime * 1000);
+                continue;
+            }
+
+            if (!response.ok) {
+                throw new Error(`API Hatası: ${response.status} - ${await response.text()}`);
+            }
+
+            const data = await response.json();
+            
+            // Token hesaplama (Metadata'dan)
+            if (data.usageMetadata) {
+                updateStats(data.usageMetadata.totalTokenCount || 0);
+            }
+
+            const jsonStr = data.candidates[0].content.parts[0].text;
+            return JSON.parse(jsonStr);
+        }
+    }
+
+    els.startBtn.addEventListener('click', async () => {
+        if (!els.geminiKey.value) return alert("Lütfen Gemini API anahtarını girin.");
+        els.startBtn.disabled = true;
+        state.croppedImages = [];
+        state.extractedData.subject = els.subject.value;
+        state.extractedData.exam = els.examType.value;
+        
+        const cvpPages = state.pages.filter(p => p.isCvp);
+        const questionPages = state.pages.filter(p => !p.isCvp);
+
+        log(`Analiz başlatıldı. ${cvpPages.length} Cevap anahtarı sayfası, ${questionPages.length} soru sayfası tespit edildi.`);
+
+        // 1. Cevap Anahtarlarını İşle
+        for (const page of cvpPages) {
+            log(`Sayfa ${page.id} (Cevap Anahtarı) analiz ediliyor...`);
+            const prompt = `Bu görseldeki cevap anahtarını oku. Geriye sadece şu formatta JSON döndür: 
+            {"answers": { "1": "A", "2": "B", "3": "C" }}. 
+            Sadece soru numarası ve cevabı (harf) eşleştir.`;
+            
+            try {
+                const res = await callGemini(page.dataUrl, prompt);
+                if (res.answers) {
+                    Object.assign(state.extractedData.answerKey, res.answers);
+                }
+            } catch (e) {
+                log(`Hata (Sayfa ${page.id}): ${e.message}`);
+            }
+        }
+
+        // 2. Soruları Tespit Et ve Kırp
+        for (const page of questionPages) {
+            log(`Sayfa ${page.id} (Sorular) analiz ediliyor...`);
+            const prompt = `Bu sınav sayfasındaki tüm soruları tespit et. Şemaya uyan bir JSON dizisi döndür:
+            {
+                "questions": [
+                    {
+                        "num": 1, 
+                        "topic": "Konu_Adi_AltTireli", 
+                        "difficulty": "kolay" | "orta" | "zor",
+                        "box": { "ymin": 0-1000, "xmin": 0-1000, "ymax": 0-1000, "xmax": 0-1000 }
+                    }
+                ]
+            }
+            Koordinatlar (box) görselin genel yapısına göre orantılı olarak 0 ile 1000 arasında olmalıdır (Gemini standart bounding box sistemi).`;
+            
+            try {
+                const res = await callGemini(page.dataUrl, prompt);
+                if (res.questions && res.questions.length > 0) {
+                    log(`Sayfa ${page.id} üzerinde ${res.questions.length} soru bulundu. Kırpılıyor...`);
+                    await processAndCropQuestions(page, res.questions);
+                } else {
+                    log(`Sayfa ${page.id} üzerinde soru algılanamadı.`);
+                }
+            } catch (e) {
+                log(`Hata (Sayfa ${page.id}): ${e.message}`);
+            }
+        }
+
+        log("Tüm analiz işlemleri tamamlandı!");
+        els.actionsPanel.style.display = 'flex';
+        els.startBtn.disabled = false;
+    });
+
+    async function processAndCropQuestions(page, questions) {
+        const sourceCanvas = page.canvas;
+        const width = sourceCanvas.width;
+        const height = sourceCanvas.height;
+
+        for (const q of questions) {
+            // Gemini 1000x1000 koordinat sistemini piksele çevirme
+            // Biraz pay (padding) bırakıyoruz ki soru numaraları veya kenarlar kesilmesin
+            let x = (q.box.xmin / 1000) * width;
+            let y = (q.box.ymin / 1000) * height;
+            let w = ((q.box.xmax - q.box.xmin) / 1000) * width;
+            let h = ((q.box.ymax - q.box.ymin) / 1000) * height;
+
+            // Sınır kontrolleri
+            x = Math.max(0, x - 20); y = Math.max(0, y - 20);
+            w = Math.min(width - x, w + 40); h = Math.min(height - y, h + 40);
+
+            const cropCanvas = document.createElement('canvas');
+            cropCanvas.width = w;
+            cropCanvas.height = h;
+            const ctx = cropCanvas.getContext('2d');
+            
+            // Beyaz arka plan çiz
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, w, h);
+            
+            // Resmi aktar
+            ctx.drawImage(sourceCanvas, x, y, w, h, 0, 0, w, h);
+
+            const blob = await new Promise(resolve => cropCanvas.toBlob(resolve, 'image/jpeg', 0.9));
+            const filename = `soru_${q.num}_${q.difficulty}.jpg`;
+            const topicSafe = (q.topic || "Genel").replace(/[^a-zA-Z0-9_ğüşıöçĞÜŞİÖÇ]/g, '_');
+            
+            state.croppedImages.push({
+                blob: blob,
+                filename: filename,
+                topic: topicSafe,
+                num: q.num
+            });
+
+            // Metadata'ya ekle
+            state.extractedData.questions.push({
+                num: q.num,
+                topic: q.topic,
+                difficulty: q.difficulty,
+                answer: state.extractedData.answerKey[q.num] || "Bilinmiyor"
+            });
+        }
+    }
+
+    // --- Kaydetme İşlemleri ---
+
+    // 1. ZIP İndirme
+    els.btnZip.addEventListener('click', async () => {
+        log("ZIP dosyası oluşturuluyor...");
+        const zip = new JSZip();
+        
+        const rootFolder = zip.folder(state.extractedData.subject);
+        
+        // Klasör yapısı ve görseller
+        state.croppedImages.forEach(imgData => {
+            const topicFolder = rootFolder.folder(imgData.topic);
+            topicFolder.file(imgData.filename, imgData.blob);
+        });
+
+        // Metadata JSON
+        rootFolder.file("metadata.json", JSON.stringify(state.extractedData, null, 2));
+
+        const content = await zip.generateAsync({type:"blob"});
+        const url = URL.createObjectURL(content);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${state.extractedData.subject}_Sorular.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        log("ZIP indirme başlatıldı.");
+    });
+
+    // 2. Google Drive Yükleme (OAuth2)
+    els.btnDrive.addEventListener('click', () => {
+        const clientId = els.driveClientId.value;
+        if (!clientId) {
+            alert("Drive'a kaydetmek için Google Drive Client ID girmelisiniz.");
+            return;
+        }
+
+        log("Google Drive yetkilendirmesi başlatılıyor...");
+        const client = google.accounts.oauth2.initTokenClient({
+            client_id: clientId,
+            scope: 'https://www.googleapis.com/auth/drive.file',
+            callback: (response) => {
+                if (response.error !== undefined) {
+                    log("Drive Yetki Hatası: " + response.error);
+                } else {
+                    log("Drive yetkisi alındı. Yükleme başlıyor...");
+                    state.oauthToken = response.access_token;
+                    uploadDataToDrive();
+                }
+            },
+        });
+        client.requestAccessToken();
+    });
+
+    async function createDriveFolder(name, parentId = null) {
+        const metadata = {
+            name: name,
+            mimeType: 'application/vnd.google-apps.folder',
+            ...(parentId ? { parents: [parentId] } : {})
+        };
+        const res = await fetch('https://www.googleapis.com/drive/v3/files?fields=id', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + state.oauthToken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(metadata)
+        });
+        const data = await res.json();
+        return data.id;
+    }
+
+    async function uploadFileToDrive(blob, filename, folderId, mimeType) {
+        const form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify({ name: filename, parents: [folderId] })], { type: 'application/json' }));
+        form.append('file', blob);
+
+        await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + state.oauthToken },
+            body: form
+        });
+    }
+
+    async function uploadDataToDrive() {
+        try {
+            els.btnDrive.disabled = true;
+            // Kök Klasör (Ders)
+            const rootId = await createDriveFolder(state.extractedData.subject);
+            log(`Drive: Ana klasör oluşturuldu (${state.extractedData.subject})`);
+
+            // Metadata yükle
+            const metadataBlob = new Blob([JSON.stringify(state.extractedData, null, 2)], {type: 'application/json'});
+            await uploadFileToDrive(metadataBlob, "metadata.json", rootId, 'application/json');
+
+            // Alt klasörler (Konular) id'lerini takip et
+            const topicFolders = {};
+
+            for (const imgData of state.croppedImages) {
+                if (!topicFolders[imgData.topic]) {
+                    const tid = await createDriveFolder(imgData.topic, rootId);
+                    topicFolders[imgData.topic] = tid;
+                }
+                
+                await uploadFileToDrive(imgData.blob, imgData.filename, topicFolders[imgData.topic], 'image/jpeg');
+                log(`Drive'a yüklendi: ${imgData.topic}/${imgData.filename}`);
+            }
+
+            log("Tüm dosyalar başarıyla Google Drive'a yüklendi!");
+        } catch (error) {
+            log("Drive Yükleme Hatası: " + error.message);
+        } finally {
+            els.btnDrive.disabled = false;
+        }
+    }
 </script>
+
 </body>
 </html>
