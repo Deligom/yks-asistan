@@ -449,8 +449,17 @@
                 </select>
             </div>
         </div>
-        <p style="font-size:0.7rem; color:var(--muted); font-family:'JetBrains Mono',monospace; margin-top:-0.25rem;">
-            💡 Ders adı ve konu AI tarafından otomatik tespit edilir.
+        <div class="field" style="margin-top:0.5rem;">
+            <label>Gemini Modeli <span style="font-size:0.6rem;color:var(--muted)">(kota sorunu varsa değiştirin)</span></label>
+            <select id="gemini-model">
+                <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite — 30 RPM (önerilen)</option>
+                <option value="gemini-2.0-flash">gemini-2.0-flash — 15 RPM</option>
+                <option value="gemini-1.5-flash">gemini-1.5-flash — 15 RPM</option>
+                <option value="gemini-1.5-flash-8b">gemini-1.5-flash-8b — 15 RPM (en ucuz)</option>
+            </select>
+        </div>
+        <p style="font-size:0.7rem; color:var(--muted); font-family:'JetBrains Mono',monospace; margin-top:0.25rem;">
+            💡 Ders adı ve konu AI tarafından otomatik tespit edilir. &nbsp;|&nbsp; Ücretsiz kota: günde ~1500 istek.
         </p>
     </div>
 
@@ -542,6 +551,7 @@ const els = {
     delCount:     $('del-count'),
     folderPreview:$('folder-preview'),
     fileDrop:     $('file-drop'),
+    geminiModel:  $('gemini-model'),
 };
 
 // ─── LOCAL STORAGE ────────────────────────────────────────────────────────
@@ -622,7 +632,7 @@ async function processPDFs(files) {
 
         for (let i = 1; i <= pdf.numPages; i++) {
             const page     = await pdf.getPage(i);
-            const viewport = page.getViewport({ scale: 1.8 });
+            const viewport = page.getViewport({ scale: 1.2 });
             const canvas   = document.createElement('canvas');
             canvas.height  = viewport.height;
             canvas.width   = viewport.width;
@@ -698,8 +708,8 @@ function deletePage(e, id) {
 }
 
 // ─── GEMINI API ──────────────────────────────────────────────────────────
-const GEMINI_MODEL = 'gemini-2.0-flash'; // flash-lite çok kısıtlı, flash kullan
-const REQUEST_GAP_MS = 2000; // İstekler arası minimum bekleme (429 önleyici)
+// Model, kullanıcı seçimine göre dinamik alınır
+const REQUEST_GAP_MS = 4500; // 60sn/4.5sn = ~13 RPM (15 RPM limitinin altında)
 
 async function callGemini(base64Image, promptText) {
     const apiKey = els.geminiKey.value;
@@ -708,19 +718,20 @@ async function callGemini(base64Image, promptText) {
         contents: [{ parts: [{ text: promptText }, { inlineData: { mimeType: 'image/jpeg', data: base64 } }] }],
         generationConfig: { response_mime_type: 'application/json', temperature: 0.05 }
     };
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+    const model = els.geminiModel ? els.geminiModel.value : 'gemini-2.0-flash-lite';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-    const MAX_RETRIES = 5;
-    let waitMs = 20000; // İlk bekleme 20sn
+    const MAX_RETRIES = 3;
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 
         if (res.status === 429) {
-            if (attempt >= MAX_RETRIES) throw new Error(`429 — ${MAX_RETRIES} denemeden sonra vazgeçildi`);
-            log(`⏳ Hız sınırı (429) — ${waitMs/1000}sn bekleniyor... (${attempt}/${MAX_RETRIES})`, 'warn');
-            await new Promise(r => setTimeout(r, waitMs));
-            waitMs = Math.min(waitMs * 1.8, 120000); // Üstel artış, max 2dk
+            if (attempt >= MAX_RETRIES) throw new Error('KOTA_BITTI');
+            // RPM aşımı: 1 dakika bekle (pencere sıfırlanır)
+            const waitSec = 65;
+            log(`⏳ RPM aşıldı — ${waitSec}sn bekleniyor (dakika sıfırlanacak)... (${attempt}/${MAX_RETRIES})`, 'warn');
+            await new Promise(r => setTimeout(r, waitSec * 1000));
             continue;
         }
 
@@ -773,7 +784,10 @@ Cevap yoksa: {"answers":{}}`
             );
             if (res.answers) Object.assign(state.extractedData.answerKey, res.answers);
             log(`✅ ${Object.keys(res.answers || {}).length} cevap okundu`, 'ok');
-        } catch (e) { log(`⚠ CVP okuma hatası: ${e.message}`, 'err'); }
+        } catch (e) {
+            if (e.message === 'KOTA_BITTI') { log('🚫 API kotası doldu! Farklı model seçin veya yarın tekrar deneyin.', 'err'); break; }
+            log(`⚠ CVP hatası: ${e.message}`, 'err');
+        }
         done++;
         setProgress((done / total) * 100);
         await gap();
@@ -812,7 +826,10 @@ Yalnızca JSON döndür, başka hiçbir şey yazma:
                 log(`✅ S${page.id}: ${questions.length} soru bulundu (${res.subject})`, 'ok');
                 await cropQuestions(page, questions, res.subject || 'Genel');
             }
-        } catch (e) { log(`⚠ S${page.id} analiz hatası: ${e.message}`, 'err'); }
+        } catch (e) {
+            if (e.message === 'KOTA_BITTI') { log('🚫 API kotası doldu! Farklı model seçin veya yarın tekrar deneyin.', 'err'); break; }
+            log(`⚠ S${page.id} hatası: ${e.message}`, 'err');
+        }
 
         done++;
         setProgress((done / total) * 100);
