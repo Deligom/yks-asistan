@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Soru Ayıklayıcı | MEB PDF Analizi</title>
+    <title>Soru Ayıklayıcı | Gemini 3.1 Flash Lite</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -41,13 +41,14 @@
             padding: 1.5rem;
         }
 
-        h1, h2, h3 { color: var(--text-main); margin-bottom: 1rem; }
-        
+        h1 { font-size: 1.5rem; display: flex; align-items: center; gap: 10px; }
+        .badge { background: #21262d; border: 1px solid var(--accent); color: var(--accent); font-size: 0.7rem; padding: 2px 6px; border-radius: 12px; }
+
         label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 600; }
         
         input[type="text"], input[type="password"], select {
             width: 100%;
-            padding: 0.5rem;
+            padding: 0.6rem;
             margin-bottom: 1rem;
             background-color: var(--bg-color);
             border: 1px solid var(--border-color);
@@ -59,11 +60,11 @@
             background-color: var(--primary);
             color: #fff;
             border: none;
-            padding: 0.6rem 1.2rem;
+            padding: 0.7rem 1.4rem;
             border-radius: 6px;
             cursor: pointer;
             font-weight: 600;
-            transition: background-color 0.2s;
+            transition: 0.2s;
         }
         button:hover { background-color: var(--primary-hover); }
         button:disabled { background-color: var(--border-color); cursor: not-allowed; color: var(--text-muted); }
@@ -76,9 +77,12 @@
 
         #preview-area {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 1rem;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 0.8rem;
             margin-top: 1rem;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 5px;
         }
 
         .page-thumb {
@@ -87,10 +91,9 @@
             border-radius: 6px;
             overflow: hidden;
             cursor: pointer;
-            transition: border-color 0.2s;
         }
         .page-thumb img { width: 100%; display: block; }
-        .page-thumb.is-cvp { border-color: var(--accent); }
+        .page-thumb.is-cvp { border-color: var(--accent); box-shadow: 0 0 10px rgba(88,166,255,0.3); }
         .page-thumb.is-cvp::after {
             content: "CVP";
             position: absolute;
@@ -99,26 +102,27 @@
             color: #fff;
             padding: 2px 6px;
             border-radius: 4px;
-            font-size: 0.8rem;
+            font-size: 0.7rem;
             font-weight: bold;
         }
 
         #log-area {
             background-color: var(--bg-color);
             border: 1px solid var(--border-color);
-            padding: 1rem;
+            padding: 0.8rem;
             border-radius: 6px;
-            font-family: monospace;
-            font-size: 0.85rem;
-            height: 200px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.8rem;
+            height: 180px;
             overflow-y: auto;
-            color: var(--text-muted);
+            color: #8b949e;
             white-space: pre-wrap;
         }
 
         .stats {
-            display: flex; gap: 1rem; font-size: 0.9rem; color: var(--accent);
-            background: rgba(88, 166, 255, 0.1); padding: 0.5rem; border-radius: 6px; margin-top: 1rem;
+            display: flex; gap: 1.5rem; font-size: 0.85rem; color: var(--accent);
+            background: rgba(88, 166, 255, 0.05); padding: 0.6rem; border-radius: 6px; margin-top: 1rem;
+            border-left: 3px solid var(--accent);
         }
 
         #actions-panel { display: none; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; }
@@ -128,78 +132,75 @@
 
 <div class="container">
     <div class="panel">
-        <h1>🔍 Soru Ayıklayıcı</h1>
-        <p style="color: var(--text-muted); margin-bottom: 1rem; font-size: 0.9rem;">MEB PDF'lerinden Gemini 1.5 Flash ile otomatik soru kırpma aracı.</p>
+        <h1>🔍 Soru Ayıklayıcı <span class="badge">v3.1 Flash Lite</span></h1>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 5px;">PDF sayfalarını otomatik analiz eder, konularına göre sınıflandırıp Drive'a yükler.</p>
         
-        <div class="grid-2">
+        <div class="grid-2" style="margin-top: 1.5rem;">
             <div>
                 <label>Gemini API Anahtarı</label>
                 <input type="password" id="gemini-key" placeholder="AIzaSy...">
             </div>
             <div>
-                <label>Google Drive Client ID (İsteğe bağlı)</label>
+                <label>Drive Client ID (Opsiyonel)</label>
                 <input type="text" id="drive-client-id" placeholder="...apps.googleusercontent.com">
             </div>
         </div>
 
         <div class="grid-2">
             <div>
-                <label>Ders</label>
-                <input type="text" id="subject" placeholder="Örn: Biyoloji" value="Biyoloji">
+                <label>Ders Adı</label>
+                <input type="text" id="subject" value="Biyoloji">
             </div>
             <div>
-                <label>Sınav Türü</label>
+                <label>Sınav Kategorisi</label>
                 <select id="exam-type">
                     <option value="TYT">TYT</option>
                     <option value="AYT">AYT</option>
-                    <option value="Kazanım Testi">Kazanım Testi</option>
                     <option value="Deneme">Deneme</option>
+                    <option value="Kazanım">Kazanım Testi</option>
                 </select>
             </div>
         </div>
     </div>
 
     <div class="panel">
-        <h2>1. PDF Yükle</h2>
-        <input type="file" id="pdf-upload" accept="application/pdf" style="margin-bottom: 1rem;">
+        <label>1. PDF Dosyasını Seçin</label>
+        <input type="file" id="pdf-upload" accept="application/pdf">
         
         <div id="preview-area"></div>
         
-        <div style="margin-top: 1rem; display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 0.9rem; color: var(--text-muted);">* Sayfalara tıklayarak Cevap Anahtarı (CVP) olarak işaretleyin.</span>
+        <div style="margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <span style="font-size: 0.8rem; color: var(--text-muted);">ℹ️ Cevap sayfalarını işaretlemeyi unutmayın.</span>
             <button id="start-analysis-btn" disabled>Analizi Başlat</button>
         </div>
     </div>
 
     <div class="panel">
-        <h2>2. İşlem Durumu</h2>
-        <div id="log-area">Sistem hazır. PDF bekleniyor...</div>
+        <label>2. İşlem Kaydı</label>
+        <div id="log-area">Sistem hazır.</div>
         <div class="stats">
-            <span>Toplam Token: <b id="token-count">0</b></span>
-            <span>Tahmini Maliyet: <b id="cost-est">$0.000</b></span>
+            <span>Token: <b id="token-count">0</b></span>
+            <span>Maliyet: <b id="cost-est">$0.0000</b></span>
         </div>
 
         <div id="actions-panel">
-            <button id="download-zip-btn" class="btn-outline">📦 ZIP İndir</button>
-            <button id="save-drive-btn" style="background-color: #4285F4;">☁️ Google Drive'a Kaydet</button>
+            <button id="download-zip-btn" class="btn-outline">📦 ZIP Olarak İndir</button>
+            <button id="save-drive-btn" style="background-color: #4285F4;">☁️ Drive'a Gönder</button>
         </div>
     </div>
 </div>
 
 <script>
-    // --- Ayarlar ve Worker ---
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     
-    // Global Durum
     const state = {
-        pages: [], // { id, dataUrl, isCvp, imgWidth, imgHeight }
+        pages: [],
         extractedData: { subject: "", exam: "", questions: [], answerKey: {} },
-        croppedImages: [], // { filename, blob, topic }
+        croppedImages: [],
         totalTokens: 0,
         oauthToken: null
     };
 
-    // UI Elementleri
     const els = {
         geminiKey: document.getElementById('gemini-key'),
         driveClientId: document.getElementById('drive-client-id'),
@@ -216,11 +217,11 @@
         btnDrive: document.getElementById('save-drive-btn')
     };
 
-    // Başlangıç: LocalStorage'dan yükle
-    els.geminiKey.value = localStorage.getItem('sa_gemini_key') || '';
-    els.driveClientId.value = localStorage.getItem('sa_drive_client') || '';
-    els.geminiKey.addEventListener('input', () => localStorage.setItem('sa_gemini_key', els.geminiKey.value));
-    els.driveClientId.addEventListener('input', () => localStorage.setItem('sa_drive_client', els.driveClientId.value));
+    // Hafıza
+    els.geminiKey.value = localStorage.getItem('sa_gemini_key_v3') || '';
+    els.driveClientId.value = localStorage.getItem('sa_drive_client_v3') || '';
+    els.geminiKey.addEventListener('input', () => localStorage.setItem('sa_gemini_key_v3', els.geminiKey.value));
+    els.driveClientId.addEventListener('input', () => localStorage.setItem('sa_drive_client_v3', els.driveClientId.value));
 
     function log(msg) {
         const time = new Date().toLocaleTimeString('tr-TR');
@@ -231,12 +232,12 @@
     function updateStats(tokens) {
         state.totalTokens += tokens;
         els.tokenCount.innerText = state.totalTokens.toLocaleString();
-        // Gemini 1.5 Flash tahmini fiyatlandırması: ~$0.075 / 1M token (input)
-        const cost = (state.totalTokens / 1000000) * 0.075;
-        els.costEst.innerText = `$${cost.toFixed(4)}`;
+        // 3.1 Flash Lite tahmini (Hacimli işlem indirimi dahil)
+        const cost = (state.totalTokens / 1000000) * 0.05; 
+        els.costEst.innerText = `$${cost.toFixed(5)}`;
     }
 
-    // --- PDF İşlemleri ---
+    // PDF İşleme
     els.pdfUpload.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -244,32 +245,23 @@
         state.pages = [];
         els.previewArea.innerHTML = '';
         els.actionsPanel.style.display = 'none';
-        log(`PDF yükleniyor: ${file.name}`);
+        log(`Dosya yüklendi: ${file.name}`);
         
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
-        log(`PDF işleniyor. Toplam sayfa: ${pdf.numPages}`);
 
         for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
-            const viewport = page.getViewport({ scale: 2.0 }); // Yüksek kalite
-            
+            const viewport = page.getViewport({ scale: 2.0 });
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             canvas.height = viewport.height;
             canvas.width = viewport.width;
 
             await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.85); // %85 JPG
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
             
-            state.pages.push({
-                id: i,
-                dataUrl: dataUrl,
-                isCvp: false,
-                width: canvas.width,
-                height: canvas.height,
-                canvas: canvas // Kırpma işlemi için referans tutuyoruz
-            });
+            state.pages.push({ id: i, dataUrl, isCvp: false, width: canvas.width, height: canvas.height, canvas });
 
             const thumb = document.createElement('div');
             thumb.className = 'page-thumb';
@@ -280,18 +272,13 @@
             };
             els.previewArea.appendChild(thumb);
         }
-        
         els.startBtn.disabled = false;
-        log("PDF sayfalara ayrıldı. Lütfen cevap anahtarı olan sayfalara tıklayın, ardından 'Analizi Başlat'a basın.");
+        log(`${pdf.numPages} sayfa işlendi. Cevapları seçip analizi başlatın.`);
     });
 
-    // --- API İstekleri & Analiz ---
-    const delay = ms => new Promise(res => setTimeout(res, ms));
-
+    // API Çağrısı (v3.1 Flash Lite)
     async function callGemini(base64Image, promptText) {
         const apiKey = els.geminiKey.value;
-        if (!apiKey) throw new Error("Gemini API Anahtarı eksik!");
-
         const base64Data = base64Image.split(',')[1];
         
         const body = {
@@ -301,13 +288,11 @@
                     { inlineData: { mimeType: "image/jpeg", data: base64Data } }
                 ]
             }],
-            generationConfig: {
-                response_mime_type: "application/json",
-                temperature: 0.1
-            }
+            generationConfig: { response_mime_type: "application/json", temperature: 0.1 }
         };
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        // GÜNCELLENEN URL:
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${apiKey}`;
 
         while (true) {
             const response = await fetch(url, {
@@ -317,262 +302,117 @@
             });
 
             if (response.status === 429) {
-                const text = await response.text();
-                let waitTime = 10; // Varsayılan bekleme
-                // Rate limit hatasından süreyi çıkarmayı deneme "retry in 30s"
-                const match = text.match(/retry in (\d+)s/i);
-                if (match) waitTime = parseInt(match[1], 10) + 1;
-                
-                log(`[Rate Limit] 429 alındı. ${waitTime} saniye bekleniyor...`);
-                await delay(waitTime * 1000);
+                log("Hız sınırı (429). 15 saniye bekleniyor...");
+                await new Promise(r => setTimeout(r, 15000));
                 continue;
             }
 
-            if (!response.ok) {
-                throw new Error(`API Hatası: ${response.status} - ${await response.text()}`);
-            }
-
             const data = await response.json();
-            
-            // Token hesaplama (Metadata'dan)
-            if (data.usageMetadata) {
-                updateStats(data.usageMetadata.totalTokenCount || 0);
-            }
-
-            const jsonStr = data.candidates[0].content.parts[0].text;
-            return JSON.parse(jsonStr);
+            if (data.usageMetadata) updateStats(data.usageMetadata.totalTokenCount || 0);
+            return JSON.parse(data.candidates[0].content.parts[0].text);
         }
     }
 
     els.startBtn.addEventListener('click', async () => {
-        if (!els.geminiKey.value) return alert("Lütfen Gemini API anahtarını girin.");
+        if (!els.geminiKey.value) return alert("API anahtarı gerekli.");
         els.startBtn.disabled = true;
-        state.croppedImages = [];
         state.extractedData.subject = els.subject.value;
         state.extractedData.exam = els.examType.value;
         
         const cvpPages = state.pages.filter(p => p.isCvp);
         const questionPages = state.pages.filter(p => !p.isCvp);
 
-        log(`Analiz başlatıldı. ${cvpPages.length} Cevap anahtarı sayfası, ${questionPages.length} soru sayfası tespit edildi.`);
-
-        // 1. Cevap Anahtarlarını İşle
+        // Cevap Anahtarı
         for (const page of cvpPages) {
-            log(`Sayfa ${page.id} (Cevap Anahtarı) analiz ediliyor...`);
-            const prompt = `Bu görseldeki cevap anahtarını oku. Geriye sadece şu formatta JSON döndür: 
-            {"answers": { "1": "A", "2": "B", "3": "C" }}. 
-            Sadece soru numarası ve cevabı (harf) eşleştir.`;
-            
-            try {
-                const res = await callGemini(page.dataUrl, prompt);
-                if (res.answers) {
-                    Object.assign(state.extractedData.answerKey, res.answers);
-                }
-            } catch (e) {
-                log(`Hata (Sayfa ${page.id}): ${e.message}`);
-            }
+            log(`Sayfa ${page.id} analiz ediliyor (CVP)...`);
+            const res = await callGemini(page.dataUrl, "Görseldeki cevap anahtarını JSON döndür: {\"answers\": {\"1\":\"A\", ...}}");
+            if (res.answers) Object.assign(state.extractedData.answerKey, res.answers);
         }
 
-        // 2. Soruları Tespit Et ve Kırp
+        // Sorular
         for (const page of questionPages) {
-            log(`Sayfa ${page.id} (Sorular) analiz ediliyor...`);
-            const prompt = `Bu sınav sayfasındaki tüm soruları tespit et. Şemaya uyan bir JSON dizisi döndür:
-            {
-                "questions": [
-                    {
-                        "num": 1, 
-                        "topic": "Konu_Adi_AltTireli", 
-                        "difficulty": "kolay" | "orta" | "zor",
-                        "box": { "ymin": 0-1000, "xmin": 0-1000, "ymax": 0-1000, "xmax": 0-1000 }
-                    }
-                ]
-            }
-            Koordinatlar (box) görselin genel yapısına göre orantılı olarak 0 ile 1000 arasında olmalıdır (Gemini standart bounding box sistemi).`;
-            
+            log(`Sayfa ${page.id} inceleniyor (Sorular)...`);
+            const prompt = `Görseldeki tüm soruları tespit et. JSON döndür: {"questions": [{"num": 1, "topic": "Konu", "difficulty": "kolay", "box": {"ymin": 0-1000, "xmin": 0-1000, "ymax": 0-1000, "xmax": 0-1000}}]}`;
             try {
                 const res = await callGemini(page.dataUrl, prompt);
-                if (res.questions && res.questions.length > 0) {
-                    log(`Sayfa ${page.id} üzerinde ${res.questions.length} soru bulundu. Kırpılıyor...`);
-                    await processAndCropQuestions(page, res.questions);
-                } else {
-                    log(`Sayfa ${page.id} üzerinde soru algılanamadı.`);
-                }
-            } catch (e) {
-                log(`Hata (Sayfa ${page.id}): ${e.message}`);
-            }
+                if (res.questions) await cropQuestions(page, res.questions);
+            } catch (e) { log(`Hata: ${e.message}`); }
         }
 
-        log("Tüm analiz işlemleri tamamlandı!");
+        log("Analiz bitti!");
         els.actionsPanel.style.display = 'flex';
         els.startBtn.disabled = false;
     });
 
-    async function processAndCropQuestions(page, questions) {
-        const sourceCanvas = page.canvas;
-        const width = sourceCanvas.width;
-        const height = sourceCanvas.height;
-
+    async function cropQuestions(page, questions) {
         for (const q of questions) {
-            // Gemini 1000x1000 koordinat sistemini piksele çevirme
-            // Biraz pay (padding) bırakıyoruz ki soru numaraları veya kenarlar kesilmesin
-            let x = (q.box.xmin / 1000) * width;
-            let y = (q.box.ymin / 1000) * height;
-            let w = ((q.box.xmax - q.box.xmin) / 1000) * width;
-            let h = ((q.box.ymax - q.box.ymin) / 1000) * height;
+            const x = (q.box.xmin / 1000) * page.width;
+            const y = (q.box.ymin / 1000) * page.height;
+            const w = ((q.box.xmax - q.box.xmin) / 1000) * page.width;
+            const h = ((q.box.ymax - q.box.ymin) / 1000) * page.height;
 
-            // Sınır kontrolleri
-            x = Math.max(0, x - 20); y = Math.max(0, y - 20);
-            w = Math.min(width - x, w + 40); h = Math.min(height - y, h + 40);
+            const crop = document.createElement('canvas');
+            crop.width = w + 40; crop.height = h + 40;
+            const ctx = crop.getContext('2d');
+            ctx.fillStyle = "#fff"; ctx.fillRect(0,0, crop.width, crop.height);
+            ctx.drawImage(page.canvas, x - 20, y - 20, w + 40, h + 40, 0, 0, w + 40, h + 40);
 
-            const cropCanvas = document.createElement('canvas');
-            cropCanvas.width = w;
-            cropCanvas.height = h;
-            const ctx = cropCanvas.getContext('2d');
-            
-            // Beyaz arka plan çiz
-            ctx.fillStyle = "#ffffff";
-            ctx.fillRect(0, 0, w, h);
-            
-            // Resmi aktar
-            ctx.drawImage(sourceCanvas, x, y, w, h, 0, 0, w, h);
-
-            const blob = await new Promise(resolve => cropCanvas.toBlob(resolve, 'image/jpeg', 0.9));
-            const filename = `soru_${q.num}_${q.difficulty}.jpg`;
-            const topicSafe = (q.topic || "Genel").replace(/[^a-zA-Z0-9_ğüşıöçĞÜŞİÖÇ]/g, '_');
-            
-            state.croppedImages.push({
-                blob: blob,
-                filename: filename,
-                topic: topicSafe,
-                num: q.num
-            });
-
-            // Metadata'ya ekle
-            state.extractedData.questions.push({
-                num: q.num,
-                topic: q.topic,
-                difficulty: q.difficulty,
-                answer: state.extractedData.answerKey[q.num] || "Bilinmiyor"
-            });
+            const blob = await new Promise(r => crop.toBlob(r, 'image/jpeg', 0.9));
+            const topic = (q.topic || "Genel").replace(/\s+/g, '_');
+            state.croppedImages.push({ blob, filename: `Soru_${q.num}_${q.difficulty}.jpg`, topic });
+            state.extractedData.questions.push({ ...q, answer: state.extractedData.answerKey[q.num] || "-" });
         }
     }
 
-    // --- Kaydetme İşlemleri ---
-
-    // 1. ZIP İndirme
-    els.btnZip.addEventListener('click', async () => {
-        log("ZIP dosyası oluşturuluyor...");
+    // İndirme / Drive
+    els.btnZip.onclick = async () => {
         const zip = new JSZip();
-        
-        const rootFolder = zip.folder(state.extractedData.subject);
-        
-        // Klasör yapısı ve görseller
-        state.croppedImages.forEach(imgData => {
-            const topicFolder = rootFolder.folder(imgData.topic);
-            topicFolder.file(imgData.filename, imgData.blob);
-        });
-
-        // Metadata JSON
-        rootFolder.file("metadata.json", JSON.stringify(state.extractedData, null, 2));
-
+        const root = zip.folder(state.extractedData.subject);
+        state.croppedImages.forEach(img => root.folder(img.topic).file(img.filename, img.blob));
+        root.file("metadata.json", JSON.stringify(state.extractedData, null, 2));
         const content = await zip.generateAsync({type:"blob"});
-        const url = URL.createObjectURL(content);
         const a = document.createElement("a");
-        a.href = url;
-        a.download = `${state.extractedData.subject}_Sorular.zip`;
-        document.body.appendChild(a);
+        a.href = URL.createObjectURL(content);
+        a.download = `${state.extractedData.subject}.zip`;
         a.click();
-        document.body.removeChild(a);
-        log("ZIP indirme başlatıldı.");
-    });
+    };
 
-    // 2. Google Drive Yükleme (OAuth2)
-    els.btnDrive.addEventListener('click', () => {
-        const clientId = els.driveClientId.value;
-        if (!clientId) {
-            alert("Drive'a kaydetmek için Google Drive Client ID girmelisiniz.");
-            return;
-        }
-
-        log("Google Drive yetkilendirmesi başlatılıyor...");
+    els.btnDrive.onclick = () => {
+        if (!els.driveClientId.value) return alert("Client ID gerekli.");
         const client = google.accounts.oauth2.initTokenClient({
-            client_id: clientId,
+            client_id: els.driveClientId.value,
             scope: 'https://www.googleapis.com/auth/drive.file',
-            callback: (response) => {
-                if (response.error !== undefined) {
-                    log("Drive Yetki Hatası: " + response.error);
-                } else {
-                    log("Drive yetkisi alındı. Yükleme başlıyor...");
-                    state.oauthToken = response.access_token;
-                    uploadDataToDrive();
-                }
-            },
+            callback: (res) => { state.oauthToken = res.access_token; uploadToDrive(); }
         });
         client.requestAccessToken();
-    });
+    };
 
-    async function createDriveFolder(name, parentId = null) {
-        const metadata = {
-            name: name,
-            mimeType: 'application/vnd.google-apps.folder',
-            ...(parentId ? { parents: [parentId] } : {})
+    async function uploadToDrive() {
+        log("Drive yüklemesi başladı...");
+        const createF = async (n, p) => {
+            const r = await fetch('https://www.googleapis.com/drive/v3/files', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + state.oauthToken, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: n, mimeType: 'application/vnd.google-apps.folder', parents: p ? [p] : [] })
+            });
+            return (await r.json()).id;
         };
-        const res = await fetch('https://www.googleapis.com/drive/v3/files?fields=id', {
-            method: 'POST',
-            headers: {
-                'Authorization': 'Bearer ' + state.oauthToken,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(metadata)
-        });
-        const data = await res.json();
-        return data.id;
-    }
 
-    async function uploadFileToDrive(blob, filename, folderId, mimeType) {
-        const form = new FormData();
-        form.append('metadata', new Blob([JSON.stringify({ name: filename, parents: [folderId] })], { type: 'application/json' }));
-        form.append('file', blob);
-
-        await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + state.oauthToken },
-            body: form
-        });
-    }
-
-    async function uploadDataToDrive() {
-        try {
-            els.btnDrive.disabled = true;
-            // Kök Klasör (Ders)
-            const rootId = await createDriveFolder(state.extractedData.subject);
-            log(`Drive: Ana klasör oluşturuldu (${state.extractedData.subject})`);
-
-            // Metadata yükle
-            const metadataBlob = new Blob([JSON.stringify(state.extractedData, null, 2)], {type: 'application/json'});
-            await uploadFileToDrive(metadataBlob, "metadata.json", rootId, 'application/json');
-
-            // Alt klasörler (Konular) id'lerini takip et
-            const topicFolders = {};
-
-            for (const imgData of state.croppedImages) {
-                if (!topicFolders[imgData.topic]) {
-                    const tid = await createDriveFolder(imgData.topic, rootId);
-                    topicFolders[imgData.topic] = tid;
-                }
-                
-                await uploadFileToDrive(imgData.blob, imgData.filename, topicFolders[imgData.topic], 'image/jpeg');
-                log(`Drive'a yüklendi: ${imgData.topic}/${imgData.filename}`);
-            }
-
-            log("Tüm dosyalar başarıyla Google Drive'a yüklendi!");
-        } catch (error) {
-            log("Drive Yükleme Hatası: " + error.message);
-        } finally {
-            els.btnDrive.disabled = false;
+        const rootId = await createF(state.extractedData.subject);
+        const folders = {};
+        for (const img of state.croppedImages) {
+            if (!folders[img.topic]) folders[img.topic] = await createF(img.topic, rootId);
+            const form = new FormData();
+            form.append('metadata', new Blob([JSON.stringify({ name: img.filename, parents: [folders[img.topic]] })], { type: 'application/json' }));
+            form.append('file', img.blob);
+            await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+                method: 'POST', headers: { 'Authorization': 'Bearer ' + state.oauthToken }, body: form
+            });
+            log(`Yüklendi: ${img.filename}`);
         }
+        log("Drive işlemi tamam!");
     }
 </script>
-
 </body>
 </html>
+
