@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Soru Ayıklayıcı v4</title>
+    <title>Soru Ayıklayıcı v5</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -40,7 +40,6 @@
             min-height: 100vh;
         }
 
-        /* Animated grid background */
         body::before {
             content: '';
             position: fixed;
@@ -64,7 +63,6 @@
             z-index: 1;
         }
 
-        /* Header */
         .header {
             display: flex;
             align-items: center;
@@ -83,16 +81,8 @@
             display: flex; align-items: center; justify-content: center;
             font-size: 1.3rem;
         }
-        .header h1 {
-            font-size: 1.25rem;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-        }
-        .header p {
-            font-size: 0.78rem;
-            color: var(--muted);
-            font-family: 'JetBrains Mono', monospace;
-        }
+        .header h1 { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; }
+        .header p { font-size: 0.78rem; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
         .version-tag {
             margin-left: auto;
             background: var(--accent-dim);
@@ -105,7 +95,6 @@
             white-space: nowrap;
         }
 
-        /* Panel */
         .panel {
             background: var(--surface);
             border: 1px solid var(--border);
@@ -124,14 +113,8 @@
             align-items: center;
             gap: 8px;
         }
-        .panel-title::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: var(--border);
-        }
+        .panel-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
-        /* Form */
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
         @media (max-width: 540px) { .grid-2 { grid-template-columns: 1fr; } }
 
@@ -146,9 +129,7 @@
             font-family: 'JetBrains Mono', monospace;
         }
 
-        input[type="text"],
-        input[type="password"],
-        select {
+        input[type="text"], input[type="password"], select {
             width: 100%;
             padding: 0.6rem 0.75rem;
             background: var(--bg);
@@ -166,7 +147,6 @@
         }
         select option { background: var(--surface2); }
 
-        /* Buttons */
         .btn {
             padding: 0.65rem 1.2rem;
             border-radius: 8px;
@@ -180,25 +160,14 @@
             align-items: center;
             gap: 6px;
         }
-        .btn-primary {
-            background: var(--accent);
-            color: #fff;
-        }
+        .btn-primary { background: var(--accent); color: #fff; }
         .btn-primary:hover { background: #6ba0ff; transform: translateY(-1px); }
         .btn-primary:disabled { background: var(--border-lit); color: var(--muted); cursor: not-allowed; transform: none; }
-        .btn-outline {
-            background: transparent;
-            border: 1px solid var(--border-lit);
-            color: var(--text);
-        }
+        .btn-outline { background: transparent; border: 1px solid var(--border-lit); color: var(--text); }
         .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
-        .btn-drive {
-            background: #1a73e8;
-            color: #fff;
-        }
+        .btn-drive { background: #1a73e8; color: #fff; }
         .btn-drive:hover { background: #1557b0; }
 
-        /* File input */
         .file-drop {
             border: 2px dashed var(--border-lit);
             border-radius: 10px;
@@ -208,19 +177,12 @@
             transition: all 0.2s;
             position: relative;
         }
-        .file-drop:hover, .file-drop.drag-over {
-            border-color: var(--accent);
-            background: var(--accent-dim);
-        }
-        .file-drop input {
-            position: absolute; inset: 0;
-            opacity: 0; cursor: pointer; width: 100%; height: 100%;
-        }
+        .file-drop:hover, .file-drop.drag-over { border-color: var(--accent); background: var(--accent-dim); }
+        .file-drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
         .file-drop-icon { font-size: 2rem; margin-bottom: 0.5rem; }
         .file-drop-text { font-size: 0.85rem; color: var(--muted); }
         .file-drop-text strong { color: var(--accent); }
 
-        /* Page preview grid */
         #preview-area {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
@@ -243,11 +205,8 @@
         }
         .page-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .page-thumb:hover { border-color: var(--border-lit); transform: scale(1.02); }
+        .page-thumb.is-cvp { border-color: var(--cvp-color); box-shadow: 0 0 12px rgba(167,139,250,0.25); }
 
-        .page-thumb.is-cvp {
-            border-color: var(--cvp-color);
-            box-shadow: 0 0 12px rgba(167,139,250,0.25);
-        }
         .page-label {
             position: absolute;
             bottom: 0; left: 0; right: 0;
@@ -272,10 +231,20 @@
         }
         .page-thumb.is-cvp .cvp-badge { display: block; }
 
-        /* Delete button on thumb */
-        .thumb-del {
+        /* Mode badge: 📝 text or 🤖 AI */
+        .mode-badge {
             position: absolute;
             top: 4px; left: 4px;
+            font-size: 0.7rem;
+            background: rgba(0,0,0,0.6);
+            border-radius: 3px;
+            padding: 1px 3px;
+            line-height: 1;
+        }
+
+        .thumb-del {
+            position: absolute;
+            top: 22px; left: 4px;
             width: 18px; height: 18px;
             background: rgba(239,68,68,0.85);
             border: none;
@@ -292,7 +261,6 @@
         .page-thumb:hover .thumb-del { opacity: 1; }
         .thumb-del:hover { background: var(--red) !important; transform: scale(1.15); }
 
-        /* Info bar */
         .thumb-info {
             display: flex;
             gap: 0.5rem;
@@ -305,10 +273,12 @@
             background: var(--surface2);
             border-radius: 6px;
             border: 1px solid var(--border);
+            flex-wrap: wrap;
         }
         .thumb-info span { color: var(--text); font-weight: 600; }
+        .badge-text { color: var(--green) !important; }
+        .badge-ai { color: var(--orange) !important; }
 
-        /* Log */
         #log-area {
             background: var(--bg);
             border: 1px solid var(--border);
@@ -327,7 +297,6 @@
         .log-warn { color: var(--orange); }
         .log-err { color: var(--red); }
 
-        /* Stats */
         .stats-bar {
             display: flex;
             gap: 1rem;
@@ -348,7 +317,6 @@
         .stat-item .val { color: var(--accent); font-weight: 700; }
         .stat-item .val.green { color: var(--green); }
 
-        /* Actions */
         #actions-panel {
             display: none;
             gap: 0.75rem;
@@ -358,7 +326,6 @@
             border-top: 1px solid var(--border);
         }
 
-        /* Progress */
         .progress-bar {
             height: 3px;
             background: var(--border);
@@ -375,7 +342,6 @@
             width: 0%;
         }
 
-        /* Folder preview */
         .folder-preview {
             background: var(--bg);
             border: 1px solid var(--border);
@@ -396,13 +362,11 @@
         .folder-preview .hard { color: var(--red); }
         .folder-preview .mid { color: var(--orange); }
 
-        /* Scrollbar */
         ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-track { background: var(--surface); }
         ::-webkit-scrollbar-thumb { background: var(--border-lit); border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
-        /* Tooltip */
         [title] { cursor: help; }
     </style>
 </head>
@@ -415,9 +379,9 @@
         <div class="header-icon">🔍</div>
         <div>
             <h1>Soru Ayıklayıcı</h1>
-            <p>PDF → AI Grupla → Drive'a Yükle</p>
+            <p>PDF → Akıllı Analiz → Drive'a Yükle</p>
         </div>
-        <span class="version-tag">v4.0 · Gemini Flash</span>
+        <span class="version-tag">v5.0 · Metin+AI</span>
     </div>
 
     <!-- AYARLAR PANELİ -->
@@ -425,7 +389,7 @@
         <div class="panel-title">⚙ Ayarlar</div>
         <div class="grid-2">
             <div class="field">
-                <label>Gemini API Anahtarı</label>
+                <label>Gemini API Anahtarı <span style="font-size:0.6rem;color:var(--muted)">(yalnızca taranmış PDF için)</span></label>
                 <input type="password" id="gemini-key" placeholder="AIzaSy...">
             </div>
             <div class="field">
@@ -450,16 +414,15 @@
             </div>
         </div>
         <div class="field" style="margin-top:0.5rem;">
-            <label>Gemini Modeli <span style="font-size:0.6rem;color:var(--muted)">(kota sorunu varsa değiştirin)</span></label>
+            <label>Gemini Modeli <span style="font-size:0.6rem;color:var(--muted)">(sadece taranmış sayfalar için kullanılır)</span></label>
             <select id="gemini-model">
-                <option value="gemini-3.1-flash-lite-preview">gemini-3.1-flash-lite-preview — önerilen</option>
-                <option value="gemini-3-flash-preview">gemini-3-flash-preview — daha güçlü</option>
-                <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview — en güçlü</option>
-                <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite — eski yedek</option>
+                <option value="gemini-2.5-flash-preview-04-17">gemini-2.5-flash-preview — önerilen</option>
+                <option value="gemini-2.0-flash">gemini-2.0-flash — hızlı</option>
+                <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite — yedek</option>
             </select>
         </div>
         <p style="font-size:0.7rem; color:var(--muted); font-family:'JetBrains Mono',monospace; margin-top:0.25rem; display:flex; gap:1rem; align-items:center; flex-wrap:wrap;">
-            <span>💡 Ders adı ve konu AI tarafından otomatik tespit edilir. &nbsp;|&nbsp; Ücretsiz kota: günde ~1500 istek.</span>
+            <span>📝 Metin tabanlı PDF → AI'sız (ücretsiz, anlık) &nbsp;|&nbsp; 🤖 Taranmış PDF → Gemini AI (kota: ~1500/gün)</span>
             <button class="btn btn-outline" id="test-api-btn" style="font-size:0.7rem; padding:0.3rem 0.8rem;">🔌 API Test</button>
         </p>
     </div>
@@ -476,10 +439,12 @@
         <div id="preview-area"></div>
 
         <div id="thumb-info-bar" class="thumb-info" style="display:none;">
-            <span id="page-count">0</span> sayfa yüklendi —
-            <span id="cvp-count">0</span> CVP işaretlendi —
-            <span id="del-count">0</span> silindi
-            &nbsp;|&nbsp; <span style="color:var(--cvp-color)">Mor = CVP sayfası</span>
+            <span id="page-count">0</span> sayfa —
+            <span id="cvp-count">0</span> CVP —
+            <span id="del-count">0</span> silindi &nbsp;|&nbsp;
+            📝 <span class="badge-text" id="text-count">0</span> metin &nbsp;
+            🤖 <span class="badge-ai" id="ai-count">0</span> AI &nbsp;|&nbsp;
+            <span style="color:var(--cvp-color)">Mor = CVP sayfası</span>
         </div>
 
         <div class="progress-bar" id="progress-bar">
@@ -520,9 +485,10 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 
 // ─── STATE ────────────────────────────────────────────────────────────────
 const state = {
-    pages: [],       // { id, dataUrl, isCvp, width, height, canvas, deleted }
+    pages: [],
+    pdfDocs: [],   // PDF dokümanlarını bellekte tut
     extractedData: { publisher: '', area: '', questions: [], answerKey: {} },
-    croppedImages: [],  // { blob, filename, publisher, area, subject, topic }
+    croppedImages: [],
     totalTokens: 0,
     oauthToken: null
 };
@@ -550,18 +516,20 @@ const els = {
     pageCount:    $('page-count'),
     cvpCount:     $('cvp-count'),
     delCount:     $('del-count'),
+    textCount:    $('text-count'),
+    aiCount:      $('ai-count'),
     folderPreview:$('folder-preview'),
     fileDrop:     $('file-drop'),
     geminiModel:  $('gemini-model'),
 };
 
 // ─── LOCAL STORAGE ────────────────────────────────────────────────────────
-els.geminiKey.value    = localStorage.getItem('sa_gemini_key_v4') || '';
-els.driveClientId.value = localStorage.getItem('sa_drive_client_v4') || '';
-els.publisher.value    = localStorage.getItem('sa_publisher_v4') || '';
-els.geminiKey.addEventListener('input',     () => localStorage.setItem('sa_gemini_key_v4', els.geminiKey.value));
-els.driveClientId.addEventListener('input', () => localStorage.setItem('sa_drive_client_v4', els.driveClientId.value));
-els.publisher.addEventListener('input',     () => localStorage.setItem('sa_publisher_v4', els.publisher.value));
+els.geminiKey.value     = localStorage.getItem('sa_gemini_key_v5') || '';
+els.driveClientId.value = localStorage.getItem('sa_drive_client_v5') || '';
+els.publisher.value     = localStorage.getItem('sa_publisher_v5') || '';
+els.geminiKey.addEventListener('input',     () => localStorage.setItem('sa_gemini_key_v5', els.geminiKey.value));
+els.driveClientId.addEventListener('input', () => localStorage.setItem('sa_drive_client_v5', els.driveClientId.value));
+els.publisher.addEventListener('input',     () => localStorage.setItem('sa_publisher_v5', els.publisher.value));
 
 // ─── LOGGING ─────────────────────────────────────────────────────────────
 function log(msg, type = 'info') {
@@ -580,13 +548,18 @@ function updateStats(tokens) {
 }
 
 function updateThumbInfo() {
-    const total   = state.pages.length;
-    const cvpCnt  = state.pages.filter(p => p.isCvp && !p.deleted).length;
-    const delCnt  = state.pages.filter(p => p.deleted).length;
+    const total    = state.pages.length;
+    const delCnt   = state.pages.filter(p => p.deleted).length;
     const activeCnt = total - delCnt;
+    const cvpCnt   = state.pages.filter(p => p.isCvp && !p.deleted).length;
+    const textCnt  = state.pages.filter(p => p.isTextBased && !p.deleted).length;
+    const aiCnt    = state.pages.filter(p => !p.isTextBased && !p.deleted).length;
+
     els.pageCount.textContent = activeCnt;
     els.cvpCount.textContent  = cvpCnt;
     els.delCount.textContent  = delCnt;
+    els.textCount.textContent = textCnt;
+    els.aiCount.textContent   = aiCnt;
     els.thumbInfoBar.style.display = total > 0 ? 'flex' : 'none';
     els.startBtn.disabled = activeCnt === 0;
 }
@@ -615,8 +588,10 @@ els.pdfUpload.addEventListener('change', async e => {
     await processPDFs(files);
 });
 
+// ─── PDF İŞLEME ──────────────────────────────────────────────────────────
 async function processPDFs(files) {
     state.pages = [];
+    state.pdfDocs = [];
     state.croppedImages = [];
     state.extractedData = { publisher: '', area: '', questions: [], answerKey: {} };
     els.previewArea.innerHTML = '';
@@ -626,50 +601,61 @@ async function processPDFs(files) {
 
     let pageOffset = 0;
     for (const file of files) {
-        log(`📄 Dosya: ${file.name}`);
+        log(`📄 Dosya yükleniyor: ${file.name}`);
         const ab  = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument(ab).promise;
+        state.pdfDocs.push(pdf); // bellekte tut
         log(`${pdf.numPages} sayfa bulundu`, 'ok');
 
         for (let i = 1; i <= pdf.numPages; i++) {
-            const page     = await pdf.getPage(i);
-            const viewport = page.getViewport({ scale: 1.2 });
-            const canvas   = document.createElement('canvas');
-            canvas.height  = viewport.height;
-            canvas.width   = viewport.width;
-            await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+            const pdfPage = await pdf.getPage(i);
 
-            // Blank page detection
-            const isBlank = isPageBlank(canvas);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+            // ── Metin tabanlı mı? ─────────────────────────────────────
+            const tc = await pdfPage.getTextContent();
+            const charCount = tc.items.reduce((s, item) => s + item.str.trim().length, 0);
+            const isTextBased = charCount > 50;
+
+            // ── Küçük önizleme (1.5x) — bellekte canvas tutma ─────────
+            const thumbViewport = pdfPage.getViewport({ scale: 1.5 });
+            const thumbCanvas   = document.createElement('canvas');
+            thumbCanvas.width   = thumbViewport.width;
+            thumbCanvas.height  = thumbViewport.height;
+            await pdfPage.render({ canvasContext: thumbCanvas.getContext('2d'), viewport: thumbViewport }).promise;
+
+            const isBlank  = isPageBlank(thumbCanvas);
+            const dataUrl  = thumbCanvas.toDataURL('image/jpeg', 0.72);
             const globalId = pageOffset + i;
 
-            state.pages.push({ id: globalId, dataUrl, isCvp: false, width: canvas.width, height: canvas.height, canvas, deleted: isBlank, fileName: file.name });
+            state.pages.push({
+                id: globalId,
+                dataUrl,
+                isCvp: false,
+                width: thumbCanvas.width,
+                height: thumbCanvas.height,
+                canvas: null,      // kanvası bellekte tutmuyoruz
+                pdfPage,           // yeniden render için saklıyoruz
+                isTextBased,
+                deleted: isBlank,
+                fileName: file.name
+            });
 
-            addThumb(globalId, dataUrl, isBlank, `${file.name.slice(0,12)} · S${i}`);
+            addThumb(globalId, dataUrl, isBlank, `${file.name.slice(0,10)} · S${i}`, isTextBased);
         }
         pageOffset += pdf.numPages;
     }
     updateThumbInfo();
 }
 
-// Basit boş sayfa tespiti (ortalama piksel değeri beyaza yakınsa)
-function isPageBlank(canvas) {
-    const ctx  = canvas.getContext('2d');
-    const data = ctx.getImageData(0, 0, Math.min(canvas.width, 200), Math.min(canvas.height, 200)).data;
-    let sum = 0;
-    for (let i = 0; i < data.length; i += 4) sum += (data[i] + data[i+1] + data[i+2]) / 3;
-    const avg = sum / (data.length / 4);
-    return avg > 248; // Neredeyse beyaz = boş
-}
-
-function addThumb(id, dataUrl, deleted, label) {
+// ─── SAYFA TÜRÜ BADGEI ────────────────────────────────────────────────────
+function addThumb(id, dataUrl, deleted, label, isTextBased) {
     const thumb = document.createElement('div');
     thumb.className = 'page-thumb' + (deleted ? ' deleted-thumb' : '');
     thumb.dataset.pageId = id;
     if (deleted) thumb.style.opacity = '0.35';
 
+    const modeBadge = isTextBased ? '📝' : '🤖';
     thumb.innerHTML = `
+        <span class="mode-badge" title="${isTextBased ? 'Metin tabanlı - AI yok' : 'Taranmış - AI kullanır'}">${modeBadge}</span>
         <button class="thumb-del" title="Bu sayfayı sil" onclick="deletePage(event, ${id})">✕</button>
         <span class="cvp-badge">CVP</span>
         <img src="${dataUrl}" alt="Sayfa ${id}">
@@ -699,29 +685,172 @@ function deletePage(e, id) {
     if (thumb) {
         thumb.style.opacity = pg.deleted ? '0.3' : '1';
         const lbl = thumb.querySelector('.page-label');
-        if (pg.deleted) {
-            lbl.innerHTML += ' · SİLİNDİ';
-        } else {
-            lbl.innerHTML = lbl.innerHTML.replace(' · SİLİNDİ', '');
-        }
+        if (pg.deleted) lbl.innerHTML += ' · SİLİNDİ';
+        else lbl.innerHTML = lbl.innerHTML.replace(' · SİLİNDİ', '');
     }
     updateThumbInfo();
 }
 
-// ─── GEMINI API ──────────────────────────────────────────────────────────
-// Model, kullanıcı seçimine göre dinamik alınır
-const REQUEST_GAP_MS = 4500; // 60sn/4.5sn = ~13 RPM (15 RPM limitinin altında)
+// ─── BOŞ SAYFA TESPİTİ ────────────────────────────────────────────────────
+function isPageBlank(canvas) {
+    const ctx  = canvas.getContext('2d');
+    const data = ctx.getImageData(0, 0, Math.min(canvas.width, 200), Math.min(canvas.height, 200)).data;
+    let sum = 0;
+    for (let i = 0; i < data.length; i += 4) sum += (data[i] + data[i+1] + data[i+2]) / 3;
+    return (sum / (data.length / 4)) > 248;
+}
 
-async function callGemini(base64Image, promptText) {
+// ─── YÜKSEK ÇÖZÜNÜRLÜKLİ RENDER ─────────────────────────────────────────
+// Analiz sırasında sayfa yeniden yüksek kalitede render edilir.
+// Böylece önizlemeler düşük çözünürlüklü kalırken kırpılan sorular net çıkar.
+async function getHiResCanvas(pageObj, scale = 2.5) {
+    const viewport = pageObj.pdfPage.getViewport({ scale });
+    const canvas   = document.createElement('canvas');
+    canvas.width   = viewport.width;
+    canvas.height  = viewport.height;
+    await pageObj.pdfPage.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    return { canvas, viewport };
+}
+
+// ─── KONU HARİTASI ────────────────────────────────────────────────────────
+const SUBJECT_MAP = {
+    'biyoloji':'Biyoloji','matematik':'Matematik','fizik':'Fizik',
+    'kimya':'Kimya','türkçe':'Türkçe','tarih':'Tarih','coğrafya':'Coğrafya',
+    'geometri':'Geometri','felsefe':'Felsefe','edebiyat':'Edebiyat',
+    'ingilizce':'İngilizce','almanca':'Almanca','fransızca':'Fransızca',
+    'sosyoloji':'Sosyoloji','psikoloji':'Psikoloji','mantık':'Mantık',
+    'din':'Din Kültürü','dil bilgisi':'Dil Bilgisi'
+};
+
+// ─── METİN TABANLI SORU ANALİZİ ──────────────────────────────────────────
+async function analyzePageTextBased(pageObj, hiResCanvas, viewport) {
+    const W = hiResCanvas.width;
+    const H = hiResCanvas.height;
+
+    const tc = await pageObj.pdfPage.getTextContent();
+
+    // PDF koordinatlarını canvas koordinatlarına çevir
+    const items = tc.items.map(item => {
+        const [cx, cy] = pdfjsLib.Util.applyTransform(
+            [item.transform[4], item.transform[5]], viewport.transform
+        );
+        const fontSize = Math.abs(item.transform[3]) * viewport.scale;
+        return { str: item.str.trim(), cx, cy, fontSize };
+    }).filter(item => item.str.length > 0);
+
+    // Konu tespiti (ilk 30 öğeden)
+    const headerText = items.slice(0, 30).map(i => i.str.toLowerCase()).join(' ');
+    let subject = 'Genel';
+    for (const [key, val] of Object.entries(SUBJECT_MAP)) {
+        if (headerText.includes(key)) { subject = val; break; }
+    }
+
+    // Soru numarası tespiti
+    // Önce tam "N." veya "N)" olan öğeleri bul
+    let qMarkers = [];
+    for (const item of items) {
+        const m = item.str.match(/^(\d{1,2})[.)]\s*$/);
+        if (m) {
+            const num = parseInt(m[1]);
+            if (num >= 1 && num <= 50) {
+                qMarkers.push({ num, cx: item.cx, cy: item.cy, fontSize: Math.max(item.fontSize, 8) });
+            }
+        }
+    }
+
+    // Yeterli marker bulunamadıysa "N. metin..." formatını da dene
+    if (qMarkers.length < 2) {
+        for (const item of items) {
+            const m = item.str.match(/^(\d{1,2})[.)]\s+\S/);
+            if (m) {
+                const num = parseInt(m[1]);
+                if (num >= 1 && num <= 50 && !qMarkers.find(q => q.num === num)) {
+                    qMarkers.push({ num, cx: item.cx, cy: item.cy, fontSize: Math.max(item.fontSize, 8) });
+                }
+            }
+        }
+    }
+
+    if (qMarkers.length === 0) return { subject, questions: [] };
+
+    // İki sütun tespiti
+    const midX = W / 2;
+    const leftMarkers  = qMarkers.filter(m => m.cx < midX);
+    const rightMarkers = qMarkers.filter(m => m.cx >= midX);
+    const isTwoColumn  = leftMarkers.length > 0 && rightMarkers.length > 0;
+
+    const questions = [];
+
+    const processColumn = (markers, xStart, xEnd) => {
+        const sorted = [...markers].sort((a, b) => a.cy - b.cy);
+        sorted.forEach((marker, idx) => {
+            const pad  = marker.fontSize * 1.5;
+            const yTop = Math.max(0, marker.cy - pad);
+            const yBot = idx < sorted.length - 1
+                ? sorted[idx + 1].cy - marker.fontSize * 0.5
+                : H - 5;
+
+            const box = {
+                xmin: Math.round((Math.max(0, xStart) / W) * 1000),
+                xmax: Math.round((Math.min(W, xEnd) / W) * 1000),
+                ymin: Math.round((Math.max(0, yTop) / H) * 1000),
+                ymax: Math.round((Math.min(H, yBot) / H) * 1000)
+            };
+
+            // Sınır kontrol
+            box.xmin = Math.max(0, Math.min(999, box.xmin));
+            box.xmax = Math.max(box.xmin + 1, Math.min(1000, box.xmax));
+            box.ymin = Math.max(0, Math.min(999, box.ymin));
+            box.ymax = Math.max(box.ymin + 1, Math.min(1000, box.ymax));
+
+            if (box.ymax - box.ymin > 15 && box.xmax - box.xmin > 50) {
+                questions.push({ num: marker.num, topic: 'Genel', difficulty: 'orta', box });
+            }
+        });
+    };
+
+    if (isTwoColumn) {
+        processColumn(leftMarkers, 0, midX);
+        processColumn(rightMarkers, midX, W);
+    } else {
+        processColumn(qMarkers, 0, W);
+    }
+
+    questions.sort((a, b) => a.num - b.num);
+    log(`📝 Metin: ${isTwoColumn ? '2 sütun' : '1 sütun'} · ${questions.length} soru · ${subject}`, 'ok');
+    return { subject, questions };
+}
+
+// ─── METİN TABANLI CEVAP ANAHTARI ────────────────────────────────────────
+async function extractAnswerKeyTextBased(pageObj) {
+    const tc = await pageObj.pdfPage.getTextContent();
+    const fullText = tc.items.map(i => i.str).join(' ');
+
+    const answers = {};
+    // "1. A", "1) A", "1 A" gibi formatları yakala
+    const pattern = /(\d{1,2})\s*[.)]\s*([ABCDE])\b/g;
+    let match;
+    while ((match = pattern.exec(fullText)) !== null) {
+        const num = parseInt(match[1]);
+        if (num >= 1 && num <= 100) answers[String(num)] = match[2];
+    }
+
+    log(`📝 Metin cevap anahtarı: ${Object.keys(answers).length} cevap`, 'ok');
+    return { answers };
+}
+
+// ─── GEMINI API ──────────────────────────────────────────────────────────
+const REQUEST_GAP_MS = 4500;
+
+async function callGemini(base64DataUrl, promptText) {
     const apiKey = els.geminiKey.value;
-    const base64 = base64Image.split(',')[1];
+    const base64 = base64DataUrl.split(',')[1];
     const body   = {
         contents: [{ parts: [{ text: promptText }, { inlineData: { mimeType: 'image/jpeg', data: base64 } }] }],
         generationConfig: { response_mime_type: 'application/json', temperature: 0.05 }
     };
-    const model = els.geminiModel ? els.geminiModel.value : 'gemini-2.0-flash-lite';
+    const model = els.geminiModel.value;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
     const MAX_RETRIES = 3;
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -731,60 +860,43 @@ async function callGemini(base64Image, promptText) {
             const errBody = await res.json().catch(() => ({}));
             const errMsg  = errBody?.error?.message || '';
             const errStatus = errBody?.error?.status || '';
-
-            // Günlük kota bittiyse beklemenin faydası yok
             if (errStatus === 'RESOURCE_EXHAUSTED' || errMsg.toLowerCase().includes('quota')) {
                 log(`🚫 KOTA BİTTİ: ${errMsg}`, 'err');
                 throw new Error('KOTA_BITTI');
             }
-
-            if (attempt >= MAX_RETRIES) {
-                log(`🚫 ${MAX_RETRIES} deneme başarısız. Son hata: ${errMsg}`, 'err');
-                throw new Error('KOTA_BITTI');
-            }
-
-            // RPM aşımı → 65sn bekle
-            const waitSec = 65;
-            log(`⏳ ${res.status} — ${errMsg || 'Hız sınırı'} → ${waitSec}sn bekleniyor... (${attempt}/${MAX_RETRIES})`, 'warn');
-            await new Promise(r => setTimeout(r, waitSec * 1000));
+            if (attempt >= MAX_RETRIES) throw new Error('KOTA_BITTI');
+            log(`⏳ ${res.status} — Hız sınırı → 65sn bekleniyor... (${attempt}/${MAX_RETRIES})`, 'warn');
+            await new Promise(r => setTimeout(r, 65000));
             continue;
         }
 
         if (!res.ok) {
             const errBody = await res.json().catch(() => ({}));
-            const errMsg  = errBody?.error?.message || res.statusText;
-            log(`❌ HTTP ${res.status}: ${errMsg}`, 'err');
-            throw new Error(`API Hatası ${res.status}: ${errMsg}`);
+            throw new Error(`API Hatası ${res.status}: ${errBody?.error?.message || res.statusText}`);
         }
 
         const data = await res.json();
         if (data.usageMetadata) updateStats(data.usageMetadata.totalTokenCount || 0);
 
-        // Güvenlik filtresi kontrolü
         const candidate = data.candidates?.[0];
-        if (!candidate) {
-            const blockReason = data.promptFeedback?.blockReason || 'Bilinmiyor';
-            throw new Error(`İçerik engellendi: ${blockReason}`);
-        }
-        if (candidate.finishReason === 'SAFETY') throw new Error('Güvenlik filtresi tetiklendi');
+        if (!candidate) throw new Error(`İçerik engellendi: ${data.promptFeedback?.blockReason || 'Bilinmiyor'}`);
+        if (candidate.finishReason === 'SAFETY') throw new Error('Güvenlik filtresi');
 
         const text = candidate?.content?.parts?.[0]?.text;
         if (!text) throw new Error('Boş API yanıtı');
 
-        const raw = text.replace(/```json|```/g, '').trim();
         try {
-            return JSON.parse(raw);
+            return JSON.parse(text.replace(/```json|```/g, '').trim());
         } catch {
-            throw new Error(`JSON parse hatası. Ham yanıt: ${raw.slice(0, 100)}`);
+            throw new Error(`JSON parse hatası: ${text.slice(0, 100)}`);
         }
     }
 }
 
-// İstekler arası bekleme yardımcısı
 function gap() { return new Promise(r => setTimeout(r, REQUEST_GAP_MS)); }
 
 // ─── API TEST ─────────────────────────────────────────────────────────────
-document.getElementById('test-api-btn').addEventListener('click', async () => {
+$('test-api-btn').addEventListener('click', async () => {
     const key = els.geminiKey.value.trim();
     if (!key) return alert('Önce API anahtarı girin.');
     const model = els.geminiModel.value;
@@ -797,9 +909,7 @@ document.getElementById('test-api-btn').addEventListener('click', async () => {
         });
         const data = await res.json();
         if (!res.ok) {
-            const msg = data?.error?.message || res.statusText;
-            const status = data?.error?.status || '';
-            log(`❌ HATA [${res.status}] ${status}: ${msg}`, 'err');
+            log(`❌ HATA [${res.status}]: ${data?.error?.message || res.statusText}`, 'err');
         } else {
             const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || '?';
             log(`✅ API çalışıyor! Yanıt: "${reply.trim()}"`, 'ok');
@@ -810,11 +920,14 @@ document.getElementById('test-api-btn').addEventListener('click', async () => {
 });
 
 // ─── ANA ANALİZ ───────────────────────────────────────────────────────────
-els.startBtn.addEventListener('click', async () => {
-    if (!els.geminiKey.value) return alert('Gemini API anahtarı gerekli.');
+$('start-analysis-btn').addEventListener('click', async () => {
+    const hasScannedPages = state.pages.some(p => !p.isTextBased && !p.deleted);
+    if (hasScannedPages && !els.geminiKey.value) {
+        return alert('Taranmış sayfalar var. Gemini API anahtarı gerekli.\n\nYalnızca metin tabanlı PDF yüklediyseniz anahtar gerekmez.');
+    }
 
     els.startBtn.disabled = true;
-    state.croppedImages   = [];
+    state.croppedImages = [];
     state.extractedData.questions  = [];
     state.extractedData.answerKey  = {};
     state.extractedData.publisher  = els.publisher.value.trim() || 'Bilinmiyor';
@@ -823,76 +936,100 @@ els.startBtn.addEventListener('click', async () => {
     els.actionsPanel.style.display = 'none';
     els.folderPreview.style.display = 'none';
 
-    const cvpPages  = state.pages.filter(p => p.isCvp && !p.deleted);
-    const qPages    = state.pages.filter(p => !p.isCvp && !p.deleted);
-    const total     = cvpPages.length + qPages.length;
+    // Wake Lock: ekranı açık tut
+    let wakeLock = null;
+    try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        log('🔒 Ekran kilidi aktif (telefonu indirebilirsiniz)', 'ok');
+    } catch (e) {
+        log('⚠ Wake Lock desteklenmiyor, ekranı kapatmayın', 'warn');
+    }
+
+    const cvpPages = state.pages.filter(p => p.isCvp && !p.deleted);
+    const qPages   = state.pages.filter(p => !p.isCvp && !p.deleted);
+    const total    = cvpPages.length + qPages.length;
     let done = 0;
 
-    log(`━━━ Analiz başladı: ${qPages.length} soru + ${cvpPages.length} CVP sayfası ━━━`, 'info');
+    const textQ  = qPages.filter(p => p.isTextBased).length;
+    const aiQ    = qPages.filter(p => !p.isTextBased).length;
+    log(`━━━ Analiz başladı: ${qPages.length} soru + ${cvpPages.length} CVP ━━━`, 'info');
+    log(`📊 Metin tabanlı: ${textQ} sayfa | AI: ${aiQ} sayfa`, 'info');
 
-    // 1) CEVAP ANAHTARI
+    // ── 1) CEVAP ANAHTARI ─────────────────────────────────────────────────
     for (const page of cvpPages) {
-        log(`📋 S${page.id} → Cevap anahtarı okunuyor...`);
+        log(`📋 S${page.id} → Cevap anahtarı okunuyor... (${page.isTextBased ? '📝 Metin' : '🤖 AI'})`);
         try {
-            const res = await callGemini(
-                page.dataUrl,
-                `Bu sayfadaki cevap anahtarını oku. Yalnızca JSON döndür:
-{"answers": {"1":"A","2":"B",...}}
-Cevap yoksa: {"answers":{}}`
-            );
+            let res;
+            if (page.isTextBased) {
+                res = await extractAnswerKeyTextBased(page);
+            } else {
+                const { canvas: hiRes } = await getHiResCanvas(page, 2.0);
+                const dataUrl = hiRes.toDataURL('image/jpeg', 0.9);
+                res = await callGemini(dataUrl, `Bu sayfadaki cevap anahtarını oku. Yalnızca JSON döndür:\n{"answers": {"1":"A","2":"B",...}}\nCevap yoksa: {"answers":{}}`);
+                await gap();
+            }
             if (res.answers) Object.assign(state.extractedData.answerKey, res.answers);
             log(`✅ ${Object.keys(res.answers || {}).length} cevap okundu`, 'ok');
         } catch (e) {
-            if (e.message === 'KOTA_BITTI') { log('🚫 API kotası doldu! Farklı model seçin veya yarın tekrar deneyin.', 'err'); break; }
+            if (e.message === 'KOTA_BITTI') { log('🚫 API kotası doldu!', 'err'); break; }
             log(`⚠ CVP hatası: ${e.message}`, 'err');
         }
         done++;
         setProgress((done / total) * 100);
-        await gap();
     }
 
-    // 2) SORULAR
+    // ── 2) SORULAR ────────────────────────────────────────────────────────
     for (const page of qPages) {
-        log(`🔎 S${page.id} → Sorular analiz ediliyor...`);
-        const prompt = `Bu görselde sınav soruları varsa hepsini tespit et.
-Yayımcı ve ders bilgisi olmasa bile görselden ders/konuyu sen belirle.
-Yalnızca JSON döndür, başka hiçbir şey yazma:
+        log(`🔎 S${page.id} → ${page.isTextBased ? '📝 Metin analizi' : '🤖 AI analizi'}...`);
+        try {
+            let questions, subject;
+
+            // Her iki yol için yüksek çözünürlüklü render
+            const scale = page.isTextBased ? 2.5 : 2.0;
+            const { canvas: hiRes, viewport } = await getHiResCanvas(page, scale);
+
+            if (page.isTextBased) {
+                const result = await analyzePageTextBased(page, hiRes, viewport);
+                questions = result.questions;
+                subject   = result.subject;
+            } else {
+                const dataUrl = hiRes.toDataURL('image/jpeg', 0.92);
+                const prompt = `Bu görselde sınav soruları varsa hepsini tespit et.
+Yalnızca JSON döndür:
 {
   "subject": "Biyoloji",
   "questions": [
-    {
-      "num": 1,
-      "topic": "Canlıların Ortak Özellikleri",
-      "difficulty": "kolay",
-      "box": {"xmin": 0, "ymin": 0, "xmax": 1000, "ymax": 500}
-    }
+    {"num": 1, "topic": "Canlıların Ortak Özellikleri", "difficulty": "kolay", "box": {"xmin":0,"ymin":0,"xmax":500,"ymax":500}}
   ]
 }
-Önemli kurallar:
-- "subject": Türkçe ders adı (örn: Biyoloji, Matematik, Fizik)
-- "topic": Konunun tam adı, kısaltma yok
-- "difficulty": sadece "kolay", "orta" veya "zor"
-- "box": 0-1000 arası koordinatlar (tüm sayfayı 1000x1000 kabul et)
-- Sayfada soru yoksa "questions": [] döndür`;
+Kurallar:
+- subject: Türkçe ders adı
+- topic: konunun tam adı
+- difficulty: "kolay", "orta" veya "zor"
+- box: 0-1000 arası (tüm sayfayı 1000x1000 kabul et)
+- Soru yoksa questions: []`;
+                const res = await callGemini(dataUrl, prompt);
+                questions = res.questions || [];
+                subject   = res.subject || 'Genel';
+                await gap();
+            }
 
-        try {
-            const res = await callGemini(page.dataUrl, prompt);
-            const questions = res.questions || [];
             if (questions.length === 0) {
                 log(`ℹ S${page.id}: Soru bulunamadı, atlandı`, 'warn');
             } else {
-                log(`✅ S${page.id}: ${questions.length} soru bulundu (${res.subject})`, 'ok');
-                await cropQuestions(page, questions, res.subject || 'Genel');
+                log(`✅ S${page.id}: ${questions.length} soru (${subject})`, 'ok');
+                // cropQuestions için sayfa boyutunu hi-res canvas boyutuna göre ayarla
+                const hiResPageObj = { ...page, canvas: hiRes, width: hiRes.width, height: hiRes.height };
+                await cropQuestions(hiResPageObj, questions, subject);
             }
         } catch (e) {
-            if (e.message === 'KOTA_BITTI') { log('🚫 API kotası doldu! Farklı model seçin veya yarın tekrar deneyin.', 'err'); break; }
+            if (e.message === 'KOTA_BITTI') { log('🚫 API kotası doldu!', 'err'); break; }
             log(`⚠ S${page.id} hatası: ${e.message}`, 'err');
         }
 
         done++;
         setProgress((done / total) * 100);
         els.qCount.textContent = state.croppedImages.length;
-        await gap();
     }
 
     setProgress(100);
@@ -900,29 +1037,31 @@ Yalnızca JSON döndür, başka hiçbir şey yazma:
     buildFolderPreview();
     els.actionsPanel.style.display = 'flex';
     els.startBtn.disabled = false;
+
+    if (wakeLock) { await wakeLock.release(); wakeLock = null; log('🔓 Ekran kilidi serbest', 'info'); }
 });
 
 // ─── SORU KIRPMA ─────────────────────────────────────────────────────────
 async function cropQuestions(page, questions, subject) {
     for (const q of questions) {
-        const b  = q.box;
-        const x  = (b.xmin / 1000) * page.width;
-        const y  = (b.ymin / 1000) * page.height;
-        const w  = ((b.xmax - b.xmin) / 1000) * page.width;
-        const h  = ((b.ymax - b.ymin) / 1000) * page.height;
+        const b = q.box;
+        const x = (b.xmin / 1000) * page.width;
+        const y = (b.ymin / 1000) * page.height;
+        const w = ((b.xmax - b.xmin) / 1000) * page.width;
+        const h = ((b.ymax - b.ymin) / 1000) * page.height;
 
-        if (w < 20 || h < 20) continue; // Çok küçük kutuyu atla
+        if (w < 20 || h < 20) continue;
 
-        const pad    = 30;
-        const crop   = document.createElement('canvas');
-        crop.width   = Math.max(w + pad * 2, 50);
-        crop.height  = Math.max(h + pad * 2, 50);
-        const ctx    = crop.getContext('2d');
+        const pad  = 28;
+        const crop = document.createElement('canvas');
+        crop.width  = Math.max(w + pad * 2, 50);
+        crop.height = Math.max(h + pad * 2, 50);
+        const ctx   = crop.getContext('2d');
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, crop.width, crop.height);
         ctx.drawImage(page.canvas, x - pad, y - pad, w + pad * 2, h + pad * 2, 0, 0, crop.width, crop.height);
 
-        const blob     = await new Promise(r => crop.toBlob(r, 'image/jpeg', 0.92));
+        const blob     = await new Promise(r => crop.toBlob(r, 'image/jpeg', 0.95));
         const answer   = state.extractedData.answerKey[String(q.num)] || 'X';
         const diff     = (q.difficulty || 'orta').toLowerCase();
         const topic    = sanitize(q.topic || 'Genel');
@@ -958,15 +1097,12 @@ function sanitize(str) {
 function buildFolderPreview() {
     const tree = {};
     for (const img of state.croppedImages) {
-        const pub  = img.publisher;
-        const area = img.area;
-        const subj = img.subject;
-        const top  = img.topic;
+        const { publisher: pub, area, subject: subj, topic } = img;
         if (!tree[pub]) tree[pub] = {};
         if (!tree[pub][area]) tree[pub][area] = {};
         if (!tree[pub][area][subj]) tree[pub][area][subj] = {};
-        if (!tree[pub][area][subj][top]) tree[pub][area][subj][top] = [];
-        tree[pub][area][subj][top].push(img.filename);
+        if (!tree[pub][area][subj][topic]) tree[pub][area][subj][topic] = [];
+        tree[pub][area][subj][topic].push(img.filename);
     }
 
     let html = '';
@@ -995,13 +1131,11 @@ els.btnZip.onclick = async () => {
     if (!state.croppedImages.length) return alert('Önce analiz yapın.');
     log('📦 ZIP hazırlanıyor...');
     const zip = new JSZip();
-
     for (const img of state.croppedImages) {
         const path = `${img.publisher}/${img.area}/${img.subject}/${img.topic}/${img.filename}`;
         zip.file(path, img.blob);
     }
     zip.file('metadata.json', JSON.stringify(state.extractedData, null, 2));
-
     const content = await zip.generateAsync({ type: 'blob' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(content);
@@ -1032,18 +1166,15 @@ async function uploadToDrive() {
             headers: { ...headers(state.oauthToken), 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder', parents: parentId ? [parentId] : [] })
         });
-        const d = await r.json();
-        return d.id;
+        return (await r.json()).id;
     }
 
-    // Klasör ağacını oluştur
-    const folderCache = {}; // key: "pub/area/subj/topic"
-
+    const folderCache = {};
     async function getOrCreateFolder(parts, parentId) {
         const key = parts.join('/');
         if (folderCache[key]) return folderCache[key];
-        const pid  = parts.length > 1 ? await getOrCreateFolder(parts.slice(0, -1), parentId) : parentId;
-        const id   = await mkFolder(parts[parts.length - 1], pid);
+        const pid = parts.length > 1 ? await getOrCreateFolder(parts.slice(0, -1), parentId) : parentId;
+        const id  = await mkFolder(parts[parts.length - 1], pid);
         folderCache[key] = id;
         return id;
     }
