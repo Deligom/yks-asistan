@@ -698,29 +698,47 @@ function deletePage(e, id) {
 }
 
 // ─── GEMINI API ──────────────────────────────────────────────────────────
+const GEMINI_MODEL = 'gemini-2.0-flash'; // flash-lite çok kısıtlı, flash kullan
+const REQUEST_GAP_MS = 2000; // İstekler arası minimum bekleme (429 önleyici)
+
 async function callGemini(base64Image, promptText) {
-    const apiKey   = els.geminiKey.value;
-    const base64   = base64Image.split(',')[1];
-    const body     = {
+    const apiKey = els.geminiKey.value;
+    const base64 = base64Image.split(',')[1];
+    const body   = {
         contents: [{ parts: [{ text: promptText }, { inlineData: { mimeType: 'image/jpeg', data: base64 } }] }],
         generationConfig: { response_mime_type: 'application/json', temperature: 0.05 }
     };
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
 
-    while (true) {
+    const MAX_RETRIES = 5;
+    let waitMs = 20000; // İlk bekleme 20sn
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+
         if (res.status === 429) {
-            log('⏳ Hız sınırı (429) — 15 sn bekleniyor...', 'warn');
-            await new Promise(r => setTimeout(r, 15000));
+            if (attempt >= MAX_RETRIES) throw new Error(`429 — ${MAX_RETRIES} denemeden sonra vazgeçildi`);
+            log(`⏳ Hız sınırı (429) — ${waitMs/1000}sn bekleniyor... (${attempt}/${MAX_RETRIES})`, 'warn');
+            await new Promise(r => setTimeout(r, waitMs));
+            waitMs = Math.min(waitMs * 1.8, 120000); // Üstel artış, max 2dk
             continue;
         }
+
+        if (!res.ok) {
+            const errBody = await res.json().catch(() => ({}));
+            throw new Error(`API Hatası ${res.status}: ${errBody?.error?.message || res.statusText}`);
+        }
+
         const data = await res.json();
         if (data.usageMetadata) updateStats(data.usageMetadata.totalTokenCount || 0);
-        if (!data.candidates?.[0]?.content?.parts?.[0]?.text) throw new Error('Geçersiz API yanıtı');
+        if (!data.candidates?.[0]?.content?.parts?.[0]?.text) throw new Error('Boş API yanıtı');
         const raw = data.candidates[0].content.parts[0].text.replace(/```json|```/g, '').trim();
         return JSON.parse(raw);
     }
 }
+
+// İstekler arası bekleme yardımcısı
+function gap() { return new Promise(r => setTimeout(r, REQUEST_GAP_MS)); }
 
 // ─── ANA ANALİZ ───────────────────────────────────────────────────────────
 els.startBtn.addEventListener('click', async () => {
@@ -758,6 +776,7 @@ Cevap yoksa: {"answers":{}}`
         } catch (e) { log(`⚠ CVP okuma hatası: ${e.message}`, 'err'); }
         done++;
         setProgress((done / total) * 100);
+        await gap();
     }
 
     // 2) SORULAR
@@ -798,6 +817,7 @@ Yalnızca JSON döndür, başka hiçbir şey yazma:
         done++;
         setProgress((done / total) * 100);
         els.qCount.textContent = state.croppedImages.length;
+        await gap();
     }
 
     setProgress(100);
