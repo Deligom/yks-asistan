@@ -458,8 +458,9 @@
                 <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite — eski yedek</option>
             </select>
         </div>
-        <p style="font-size:0.7rem; color:var(--muted); font-family:'JetBrains Mono',monospace; margin-top:0.25rem;">
-            💡 Ders adı ve konu AI tarafından otomatik tespit edilir. &nbsp;|&nbsp; Ücretsiz kota: günde ~1500 istek.
+        <p style="font-size:0.7rem; color:var(--muted); font-family:'JetBrains Mono',monospace; margin-top:0.25rem; display:flex; gap:1rem; align-items:center; flex-wrap:wrap;">
+            <span>💡 Ders adı ve konu AI tarafından otomatik tespit edilir. &nbsp;|&nbsp; Ücretsiz kota: günde ~1500 istek.</span>
+            <button class="btn btn-outline" id="test-api-btn" style="font-size:0.7rem; padding:0.3rem 0.8rem;">🔌 API Test</button>
         </p>
     </div>
 
@@ -726,30 +727,87 @@ async function callGemini(base64Image, promptText) {
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 
-        if (res.status === 429) {
-            if (attempt >= MAX_RETRIES) throw new Error('KOTA_BITTI');
-            // RPM aşımı: 1 dakika bekle (pencere sıfırlanır)
+        if (res.status === 429 || res.status === 503) {
+            const errBody = await res.json().catch(() => ({}));
+            const errMsg  = errBody?.error?.message || '';
+            const errStatus = errBody?.error?.status || '';
+
+            // Günlük kota bittiyse beklemenin faydası yok
+            if (errStatus === 'RESOURCE_EXHAUSTED' || errMsg.toLowerCase().includes('quota')) {
+                log(`🚫 KOTA BİTTİ: ${errMsg}`, 'err');
+                throw new Error('KOTA_BITTI');
+            }
+
+            if (attempt >= MAX_RETRIES) {
+                log(`🚫 ${MAX_RETRIES} deneme başarısız. Son hata: ${errMsg}`, 'err');
+                throw new Error('KOTA_BITTI');
+            }
+
+            // RPM aşımı → 65sn bekle
             const waitSec = 65;
-            log(`⏳ RPM aşıldı — ${waitSec}sn bekleniyor (dakika sıfırlanacak)... (${attempt}/${MAX_RETRIES})`, 'warn');
+            log(`⏳ ${res.status} — ${errMsg || 'Hız sınırı'} → ${waitSec}sn bekleniyor... (${attempt}/${MAX_RETRIES})`, 'warn');
             await new Promise(r => setTimeout(r, waitSec * 1000));
             continue;
         }
 
         if (!res.ok) {
             const errBody = await res.json().catch(() => ({}));
-            throw new Error(`API Hatası ${res.status}: ${errBody?.error?.message || res.statusText}`);
+            const errMsg  = errBody?.error?.message || res.statusText;
+            log(`❌ HTTP ${res.status}: ${errMsg}`, 'err');
+            throw new Error(`API Hatası ${res.status}: ${errMsg}`);
         }
 
         const data = await res.json();
         if (data.usageMetadata) updateStats(data.usageMetadata.totalTokenCount || 0);
-        if (!data.candidates?.[0]?.content?.parts?.[0]?.text) throw new Error('Boş API yanıtı');
-        const raw = data.candidates[0].content.parts[0].text.replace(/```json|```/g, '').trim();
-        return JSON.parse(raw);
+
+        // Güvenlik filtresi kontrolü
+        const candidate = data.candidates?.[0];
+        if (!candidate) {
+            const blockReason = data.promptFeedback?.blockReason || 'Bilinmiyor';
+            throw new Error(`İçerik engellendi: ${blockReason}`);
+        }
+        if (candidate.finishReason === 'SAFETY') throw new Error('Güvenlik filtresi tetiklendi');
+
+        const text = candidate?.content?.parts?.[0]?.text;
+        if (!text) throw new Error('Boş API yanıtı');
+
+        const raw = text.replace(/```json|```/g, '').trim();
+        try {
+            return JSON.parse(raw);
+        } catch {
+            throw new Error(`JSON parse hatası. Ham yanıt: ${raw.slice(0, 100)}`);
+        }
     }
 }
 
 // İstekler arası bekleme yardımcısı
 function gap() { return new Promise(r => setTimeout(r, REQUEST_GAP_MS)); }
+
+// ─── API TEST ─────────────────────────────────────────────────────────────
+document.getElementById('test-api-btn').addEventListener('click', async () => {
+    const key = els.geminiKey.value.trim();
+    if (!key) return alert('Önce API anahtarı girin.');
+    const model = els.geminiModel.value;
+    log(`🔌 API test ediliyor... (${model})`, 'info');
+    try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: 'Sadece "OK" yaz.' }] }] })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            const msg = data?.error?.message || res.statusText;
+            const status = data?.error?.status || '';
+            log(`❌ HATA [${res.status}] ${status}: ${msg}`, 'err');
+        } else {
+            const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || '?';
+            log(`✅ API çalışıyor! Yanıt: "${reply.trim()}"`, 'ok');
+        }
+    } catch (e) {
+        log(`❌ Bağlantı hatası: ${e.message}`, 'err');
+    }
+});
 
 // ─── ANA ANALİZ ───────────────────────────────────────────────────────────
 els.startBtn.addEventListener('click', async () => {
