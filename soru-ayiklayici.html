@@ -213,7 +213,7 @@ a{color:var(--primary2)}
     <div class="stat-box"><div class="stat-num" id="r-topics" style="color:var(--teal)">0</div><div class="stat-lbl">Konu</div></div>
   </div>
   <!-- Answer Key -->
-  <div style="margin-top:14px" id="answer-key-section" style="display:none">
+  <div style="margin-top:14px;display:none" id="answer-key-section">
     <div class="card-title">🗝️ Cevap Anahtarı <span id="answer-key-badge" style="font-size:.65rem;font-weight:400;text-transform:none;color:var(--text3)"></span></div>
     <div id="answer-key-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(56px,1fr));gap:6px;margin-bottom:8px"></div>
   </div>
@@ -448,7 +448,19 @@ async function runAnalysisLoop(key, ders, sinav) {
     new Notification('Soru Ayıklayıcı', { body: questions.length + ' soru analiz tamamlandı!', icon: '/icon-192.png' });
   }
   toast('Analiz tamamlandı! ' + questions.length + ' soru bulundu.', 'ok');
-  showResult();
+  try {
+    showResult();
+  } catch(err) {
+    log('showResult hatası: ' + err.message, 'err');
+    // Fallback: force show result card and download button
+    document.getElementById('result-card').style.display = 'block';
+    document.getElementById('dl-btn').style.display = 'flex';
+    document.getElementById('r-total').textContent = questions.length;
+    if (driveToken) {
+      document.getElementById('drive-upload-btn').style.display = 'flex';
+      document.getElementById('result-drive-btn').style.display = 'flex';
+    }
+  }
 }
 
 async function startAnalysis() {
@@ -660,6 +672,10 @@ function showResult() {
   }
   log(`Bitti! ${total} soru, ${Object.keys(topics).length} konu`, 'ok');
   toast(`${total} soru ayıklandı!`, 'ok');
+  updateTokenDisplay();
+  renderAnswerKey();
+  // Scroll to result
+  document.getElementById('result-card').scrollIntoView({behavior:'smooth'});
 }
 
 // ── ZIP ──
