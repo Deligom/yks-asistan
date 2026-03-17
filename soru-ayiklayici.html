@@ -49,6 +49,10 @@ body{background:var(--bg);color:var(--text1);font-family:'Space Grotesk',sans-se
 .pthumb.processing{border-color:var(--yellow)}
 .pthumb.done{border-color:var(--teal)}
 .pthumb.err{border-color:var(--red)}
+.pthumb.cvp-marked{border-color:#a78bfa;background:rgba(167,139,250,.1)}
+.cvp-btn{position:absolute;bottom:3px;right:3px;background:rgba(0,0,0,.6);border:none;border-radius:4px;color:#fff;font-size:.6rem;padding:2px 4px;cursor:pointer;opacity:.5}
+.pthumb.cvp-marked .cvp-btn{opacity:1;background:rgba(167,139,250,.8)}
+.cvp-label{position:absolute;top:3px;left:3px;background:#a78bfa;color:#000;font-size:.55rem;font-weight:800;padding:2px 5px;border-radius:4px}
 .prog-wrap{background:var(--surface2);border-radius:99px;height:8px;margin:10px 0;overflow:hidden}
 .prog-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--primary),var(--teal));transition:width .3s}
 .log-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:10px 12px;font-family:'Fira Code',monospace;font-size:.72rem;color:var(--text3);height:160px;overflow-y:auto;margin-top:8px}
@@ -237,6 +241,7 @@ a{color:var(--primary2)}
 
 <script>
 let pages = [];
+let answerKeyPages = new Set(); // page ids marked as answer key
 let wakeLock = null;
 let analysisRunning = false;
 let currentPageIdx = 0;
@@ -318,14 +323,23 @@ async function addPdf(file) {
 async function addFiles(files) {
   await handleFiles(files);
 }
-function removePage(id) { pages = pages.filter(p => p.id !== id); renderThumbs(); checkAnalyzeBtn(); }
+function removePage(id) { pages = pages.filter(p => p.id !== id); answerKeyPages.delete(id); renderThumbs(); checkAnalyzeBtn(); }
+function toggleCvp(id) {
+  if (answerKeyPages.has(id)) answerKeyPages.delete(id);
+  else answerKeyPages.add(id);
+  renderThumbs();
+}
 function renderThumbs() {
-  document.getElementById('pages-grid').innerHTML = pages.map((p, i) => `
-    <div class="pthumb" id="pt-${p.id}">
+  document.getElementById('pages-grid').innerHTML = pages.map((p, i) => {
+    const isCvp = answerKeyPages.has(p.id);
+    return `<div class="pthumb${isCvp?' cvp-marked':''}" id="pt-${p.id}">
       <img src="${p.dataUrl}"/>
       <span class="pnum">S${i+1}</span>
+      <button class="cvp-btn" onclick="toggleCvp(${p.id})" title="Cevap anahtarı olarak işaretle">${isCvp?'📋':'📋'}</button>
       <button class="prem" onclick="removePage(${p.id})">✕</button>
-    </div>`).join('');
+      ${isCvp?'<div class="cvp-label">CVP</div>':''}
+    </div>`;
+  }).join('');
   const ab = document.getElementById('action-bar');
   ab.style.display = pages.length ? 'flex' : 'none';
   document.getElementById('page-count-lbl').textContent = pages.length ? `${pages.length} sayfa` : '';
@@ -401,6 +415,13 @@ async function runAnalysisLoop(key, ders, sinav) {
     const page = pages[i];
     setProgress(Math.round(i / pages.length * 100), `Sayfa ${i+1}/${pages.length}…`);
     document.getElementById('pt-' + page.id)?.classList.add('processing');
+    // Manually marked as answer key — extract answers, skip question detection
+    if (answerKeyPages.has(page.id)) {
+      log(`Sayfa ${i+1}: Cevap anahtarı sayfası — cevaplar çıkarılıyor…`, 'info');
+      try { await detectAnswerKey(page, key); } catch {}
+      document.getElementById('pt-' + page.id)?.classList.replace('processing','done');
+      continue;
+    }
     try {
       const qs = await analyzeWithGemini(page, ders, sinav, key);
       log(`Sayfa ${i+1}: ${qs.length} soru tespit edildi`, 'ok');
@@ -416,19 +437,18 @@ async function runAnalysisLoop(key, ders, sinav) {
     }
   }
 
-  // Loop completed normally
-  if (!analysisPaused) {
-    analysisRunning = false;
-    currentPageIdx = 0;
-    setProgress(100, 'Tamamlandı!');
-    document.getElementById('stat-row').style.display = 'grid';
-    await releaseWakeLock();
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('Soru Ayıklayıcı', { body: questions.length + ' soru analiz tamamlandı!', icon: '/icon-192.png' });
-    }
-    toast('Analiz tamamlandı! ' + questions.length + ' soru bulundu.', 'ok');
-    showResult();
+  // Loop completed — all pages processed
+  analysisRunning = false;
+  analysisPaused = false;
+  currentPageIdx = 0;
+  setProgress(100, 'Tamamlandı!');
+  document.getElementById('stat-row').style.display = 'grid';
+  await releaseWakeLock();
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification('Soru Ayıklayıcı', { body: questions.length + ' soru analiz tamamlandı!', icon: '/icon-192.png' });
   }
+  toast('Analiz tamamlandı! ' + questions.length + ' soru bulundu.', 'ok');
+  showResult();
 }
 
 async function startAnalysis() {
@@ -497,26 +517,11 @@ async function analyzeWithGemini(page, ders, sinav, key) {
   const base64 = page.dataUrl.split(',')[1];
   const mimeType = page.dataUrl.split(';')[0].split(':')[1];
 
-  // Check if answer key page (only last 30% of pages)
-  const pageIdx = pages.indexOf(page);
-  if (pageIdx >= pages.length * 0.7) {
-    const isAK = await detectAnswerKey(page, key);
-    if (isAK) { log('Cevap anahtari sayfasi bulundu', 'ok'); return []; }
-  }
-
   const prompt = `Bu bir ${ders} ${sinav} sinavi sayfasi.
-
-Her soruyu tespit et. Her soru icin su JSON alanlari:
-- num: soru numarasi (integer)
-- topic: konusu, Turkce, spesifik
-- difficulty: "kolay" / "orta" / "zor"
-- x: sol kenar (sayfa genisliginin yuzdesi 0-100)
-- y: ust kenar (sayfa yuksekliginin yuzdesi 0-100)
-- w: genislik yuzdesi
-- h: yukseklik yuzdesi
-
-SADECE JSON array don:
-[{"num":1,"topic":"...","difficulty":"kolay","x":2,"y":4,"w":47,"h":18}]`;
+Her soruyu tespit et. Her soru icin JSON alanlari: num (integer), topic (Turkce konu adi), difficulty (kolay/orta/zor), x (sol kenar %), y (ust kenar %), w (genislik %), h (yukseklik %).
+Eger sayfada hic soru yoksa bos array don.
+KRITIK: Sadece gecerli JSON array don. Markdown, kod blogu, aciklama YAZMA.
+Ornek: [{"num":1,"topic":"Canlilar","difficulty":"orta","x":2,"y":5,"w":47,"h":20}]`;
 
   const data = await geminiRequest(key, mimeType, base64, prompt, 3000);
   if (data.usageMetadata) {
@@ -527,8 +532,16 @@ SADECE JSON array don:
   }
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
   const clean = text.replace(/```json|```/g,'').trim();
-  try { return JSON.parse(clean); }
-  catch { const m = clean.match(/\[\s\S]*?\]/s); if (m) return JSON.parse(m[0]); throw new Error('JSON parse hatasi'); }
+  // Multiple parse attempts
+  try { return JSON.parse(clean); } catch {}
+  // Try extracting array from anywhere in text
+  const m1 = clean.match(/\[\s*\{[\s\S]*?\}\s*\]/);
+  if (m1) { try { return JSON.parse(m1[0]); } catch {} }
+  // If empty array signal
+  if (clean.includes('[]') || clean.trim() === '') return [];
+  // Log raw response for debugging
+  log('Ham yanit: ' + clean.slice(0, 100), 'err');
+  return []; // Return empty instead of throwing, don't block other pages
 }
 
 async function detectAnswerKey(page, key) {
@@ -777,7 +790,7 @@ function log(msg, type='info') {
 }
 function san(s) { return (s||'').replace(/[\/\\:*?"<>|]/g,'_').trim().slice(0,50); }
 function resetAll() {
-  pages=[]; questions=[]; answerKey={}; tokenStats={inputTokens:0,outputTokens:0,calls:0}; currentPageIdx=0; analysisRunning=false; analysisPaused=false;
+  pages=[]; questions=[]; answerKey={}; answerKeyPages=new Set(); tokenStats={inputTokens:0,outputTokens:0,calls:0}; currentPageIdx=0; analysisRunning=false; analysisPaused=false;
   document.getElementById('pages-grid').innerHTML='';
   document.getElementById('log-box').innerHTML='';
   document.getElementById('progress-card').style.display='none';
