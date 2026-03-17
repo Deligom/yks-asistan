@@ -250,21 +250,6 @@ let questions = [];
 let answerKey = {}; // {num: 'A'/'B'/'C'/'D'/'E'}
 let driveToken = null;
 let tokenStats = { inputTokens: 0, outputTokens: 0, calls: 0 };
-const requestTimestamps = []; // Rate limiter: dakikada maks 14 istek
-const MAX_RPM = 14;
-
-async function rateLimit() {
-  const now = Date.now();
-  while (requestTimestamps.length && now - requestTimestamps[0] > 60000) requestTimestamps.shift();
-  if (requestTimestamps.length >= MAX_RPM) {
-    const waitMs = 60000 - (Date.now() - requestTimestamps[0]) + 1000;
-    const waitSec = Math.ceil(waitMs / 1000);
-    log(`⏱️ Rate limit koruması: ${requestTimestamps.length}/${MAX_RPM} istek/dk — ${waitSec}s bekleniyor…`, 'info');
-    await countdown(waitSec);
-    return rateLimit();
-  }
-  requestTimestamps.push(Date.now());
-}
 
 window.onload = () => {
   const gk = localStorage.getItem('gemini_key_sq');
@@ -430,9 +415,10 @@ async function runAnalysisLoop(key, ders, sinav) {
     const page = pages[i];
     setProgress(Math.round(i / pages.length * 100), `Sayfa ${i+1}/${pages.length}…`);
     document.getElementById('pt-' + page.id)?.classList.add('processing');
-    // Manually marked as answer key — skip AI processing
+    // Manually marked as answer key — extract answers, skip question detection
     if (answerKeyPages.has(page.id)) {
-      log(`Sayfa ${i+1}: Cevap anahtarı sayfası (işaretlendi) — atlanıyor`, 'info');
+      log(`Sayfa ${i+1}: Cevap anahtarı sayfası — cevaplar çıkarılıyor…`, 'info');
+      try { await detectAnswerKey(page, key); } catch {}
       document.getElementById('pt-' + page.id)?.classList.replace('processing','done');
       continue;
     }
@@ -505,7 +491,6 @@ async function startAnalysis() {
 }
 
 async function geminiRequest(key, mimeType, base64, prompt, maxTokens, retryCount=0) {
-  await rateLimit();
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=' + key;
   const body = JSON.stringify({
     contents:[{ parts:[{ inline_data:{ mime_type:mimeType, data:base64 } }, { text:prompt }]}],
@@ -821,7 +806,7 @@ function log(msg, type='info') {
 }
 function san(s) { return (s||'').replace(/[\/\\:*?"<>|]/g,'_').trim().slice(0,50); }
 function resetAll() {
-  pages=[]; questions=[]; answerKey={}; answerKeyPages=new Set(); tokenStats={inputTokens:0,outputTokens:0,calls:0}; currentPageIdx=0; analysisRunning=false; analysisPaused=false; requestTimestamps.length=0;
+  pages=[]; questions=[]; answerKey={}; answerKeyPages=new Set(); tokenStats={inputTokens:0,outputTokens:0,calls:0}; currentPageIdx=0; analysisRunning=false; analysisPaused=false;
   document.getElementById('pages-grid').innerHTML='';
   document.getElementById('log-box').innerHTML='';
   document.getElementById('progress-card').style.display='none';
