@@ -4974,7 +4974,15 @@ STRİKT KURALLAR:
     s = s.replace(/√/g, '<span class="math-sym">√</span>');
     s = s.replace(/[Δδ]/g, m => `<span class="math-sym">${m}</span>`);
     s = s.replace(/[αβθγλωΩ]/g, m => `<span class="math-sym">${m}</span>`);
-    s = s.replace(/[≥≤≠≈∞→]/g, m => `<span class="math-sym">${m}</span>`);
+    s = s.replace(/[≥≤≠≈∞]/g, m => `<span class="math-sym">${m}</span>`);
+
+    // → : chip'e yapışık göster — "chip →" birimi hiç bölünmez
+    // <span class="math-inline">...</span> → şeklindeki her kombinasyonu nowrap'e al
+    s = s.replace(/(<span class="math-inline">[\s\S]*?<\/span>)\s*→/g,
+      '<span style="white-space:nowrap">$1\u00A0<span class="math-sym">→</span></span>');
+    // Geriye kalan serbest → işaretleri
+    s = s.replace(/→/g, '<span class="math-sym">→</span>');
+
     s = s.replace(/·/g, '<span class="math-dot">·</span>');
 
     return s;
@@ -8509,14 +8517,27 @@ const GeminiAI = (() => {
 
   async function _loadKeyFromFirestore() {
     if (_cachedKey) return _cachedKey;
+    // 1. localStorage'dan anında yükle
+    const lsKey = localStorage.getItem(STORAGE_KEY) || '';
+    if (lsKey) { _cachedKey = lsKey; return _cachedKey; }
+    // 2. Firestore'dan yükle — max 5 saniye timeout
     try {
-      const fb = window._FB || await new Promise(res => {
+      const fbReady = new Promise(res => {
         if (window._FB) return res(window._FB);
         window.addEventListener('fb-ready', () => res(window._FB), {once:true});
       });
+      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000));
+      const fb = await Promise.race([fbReady, timeout]);
       const snap = await fb.getDoc(fb.doc(fb.db, 'config', 'secrets'));
-      if (snap.exists()) { _cachedKey = snap.data().geminiKey || ''; return _cachedKey; }
-    } catch(e) { console.warn('Firestore key error:', e); }
+      if (snap.exists()) {
+        const k = snap.data().geminiKey || '';
+        if (k) {
+          _cachedKey = k;
+          localStorage.setItem(STORAGE_KEY, k);  // bir sonraki açılış için sakla
+        }
+        return _cachedKey;
+      }
+    } catch(e) { console.warn('Firestore key load:', e.message); }
     return '';
   }
   async function getKey() { return _cachedKey || await _loadKeyFromFirestore(); }
