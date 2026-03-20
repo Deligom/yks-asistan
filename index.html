@@ -4974,15 +4974,7 @@ STRİKT KURALLAR:
     s = s.replace(/√/g, '<span class="math-sym">√</span>');
     s = s.replace(/[Δδ]/g, m => `<span class="math-sym">${m}</span>`);
     s = s.replace(/[αβθγλωΩ]/g, m => `<span class="math-sym">${m}</span>`);
-    s = s.replace(/[≥≤≠≈∞]/g, m => `<span class="math-sym">${m}</span>`);
-
-    // → : chip'e yapışık göster — "chip →" birimi hiç bölünmez
-    // <span class="math-inline">...</span> → şeklindeki her kombinasyonu nowrap'e al
-    s = s.replace(/(<span class="math-inline">[\s\S]*?<\/span>)\s*→/g,
-      '<span style="white-space:nowrap">$1\u00A0<span class="math-sym">→</span></span>');
-    // Geriye kalan serbest → işaretleri
-    s = s.replace(/→/g, '<span class="math-sym">→</span>');
-
+    s = s.replace(/[≥≤≠≈∞→]/g, m => `<span class="math-sym">${m}</span>`);
     s = s.replace(/·/g, '<span class="math-dot">·</span>');
 
     return s;
@@ -4999,26 +4991,59 @@ STRİKT KURALLAR:
       return `<div class="fc-answer-plain">${renderMath(s)}</div>`;
     }
 
+    // Flow satırı: "[f]...[/f] → [f]...[/f]" zinciri → flex-wrap chip sırası
+    function renderFlowLine(line) {
+      // → ile böl, her parçayı chip olarak sar
+      const parts = line.split(/\s*→\s*/);
+      const items = parts.map((p, i) => {
+        const trimmed = p.trim().replace(/\.$/, '');
+        const html = renderMath(trimmed);
+        const arrow = i < parts.length - 1
+          ? `<span class="math-sym" style="flex-shrink:0">→</span>` : '';
+        return `<span style="white-space:nowrap;display:inline-flex;align-items:center;gap:4px">${html}${arrow}</span>`;
+      });
+      return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px 4px">${items.join('')}</div>`;
+    }
+
+    function isFlowLine(line) {
+      // En az 2 tane [f]...[/f] chip'i ve → işareti olan satır
+      const chipCount = (line.match(/\[f\]/g) || []).length;
+      return chipCount >= 2 && line.includes('→');
+    }
+
     return lines.map((line, idx) => {
       // Numaralı madde: "1." "2." vb.
       const numMatch = line.match(/^(\d+)[.)]\s*(.+)/);
       if (numMatch) {
+        const content = isFlowLine(numMatch[2])
+          ? renderFlowLine(numMatch[2])
+          : `<div class="fc-answer-text">${renderMath(numMatch[2])}</div>`;
         return `<div class="fc-answer-line" style="animation-delay:${idx*0.05}s">
           <div class="fc-answer-num">${numMatch[1]}</div>
-          <div class="fc-answer-text">${renderMath(numMatch[2])}</div>
+          ${content}
         </div>`;
       }
       // Tire veya madde imi
       const bulletMatch = line.match(/^[-•*]\s*(.+)/);
       if (bulletMatch) {
+        const content = isFlowLine(bulletMatch[1])
+          ? renderFlowLine(bulletMatch[1])
+          : `<div class="fc-answer-text">${renderMath(bulletMatch[1])}</div>`;
         return `<div class="fc-answer-line" style="animation-delay:${idx*0.05}s">
           <div class="fc-answer-num bullet">•</div>
-          <div class="fc-answer-text">${renderMath(bulletMatch[1])}</div>
+          ${content}
         </div>`;
       }
       // Başlık gibi satır
       if (line === line.toUpperCase() && line.length < 60 && /[A-ZÇĞİÖŞÜ]/.test(line)) {
         return `<div style="font-size:.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin:10px 0 5px;padding-left:4px">${renderMath(line)}</div>`;
+      }
+      // Flow satırı (numarasız)
+      if (isFlowLine(line)) {
+        return `<div class="fc-answer-line" style="animation-delay:${idx*0.05}s">
+          <div class="fc-answer-num dash">—</div>
+          <div style="flex:1">${renderFlowLine(line)}</div>
+        </div>`;
       }
       // Normal satır
       return `<div class="fc-answer-line" style="animation-delay:${idx*0.05}s">
