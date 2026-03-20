@@ -170,7 +170,7 @@
   #ai-empty-state p { font-size:.8rem; line-height:1.5; margin:0; max-width:260px; }
   #ai-setup-overlay { position:absolute; inset:0; background:var(--bg); z-index:10; display:flex; align-items:center; justify-content:center; padding:24px; }
   #ai-setup-box { background:var(--card); border-radius:var(--radius); padding:28px 24px; width:100%; max-width:380px; border:1px solid var(--border); }
-  .ai-card-preview { background:var(--bg2); border-radius:var(--radius-sm); padding:12px 14px; font-family:monospace; font-size:.75rem; color:var(--teal2); white-space:pre-wrap; word-break:break-all; max-height:220px; overflow-y:auto; border:1px solid var(--border); margin-bottom:14px; }
+  .ai-card-preview { background:var(--bg2); border-radius:var(--radius-sm); padding:12px 14px; font-family:monospace; font-size:.75rem; color:var(--teal2); white-space:pre-wrap; word-break:break-word; overflow-wrap:anywhere; max-height:220px; overflow-y:auto; border:1px solid var(--border); margin-bottom:14px; }
   #ai-card-modal .modal-sheet { max-height:85vh; overflow-y:auto; }
   .friend-card { background: var(--card); border-radius: 14px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
   .friend-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--accent)); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; color: #fff; flex-shrink: 0; }
@@ -9146,12 +9146,6 @@ const GeminiAI = (() => {
       if (!Array.isArray(cards)) cards = [cards];
       if (!cards.length) throw new Error('Geçerli kart üretilemedi');
 
-      // Sohbette fotoğraf varsa karta ekle
-      const photoMsg = _history.slice().reverse().find(m => m.role === 'user' && m._photoDataUrl);
-      if (photoMsg?._photoDataUrl) {
-        cards = cards.map(c => ({ ...c, photo: photoMsg._photoDataUrl }));
-      }
-
       _pendingCards = cards;
       showCardModal(cards);
     } catch(e) {
@@ -9169,6 +9163,11 @@ const GeminiAI = (() => {
       return;
     }
     await createCard();
+    // createCard tamamlanınca _pendingCards'a fotoğrafı ekle ve modal'ı yenile
+    if (_pendingCards && _pendingCards.length > 0 && photoMsg._photoDataUrl) {
+      _pendingCards = _pendingCards.map(c => ({ ...c, photo: photoMsg._photoDataUrl }));
+      showCardModal(_pendingCards);
+    }
   }
 
   function _buildCardPrompt() {
@@ -9315,11 +9314,10 @@ ANSWER FORMATI - ZORUNLU:
       let cardData = _safeParseJSON(raw);
       if (Array.isArray(cardData)) cardData = cardData[0];
       setBusy(false);
-      if (typeof App !== 'undefined' && typeof App.importFotoCardFromAI === 'function') {
-        App.importFotoCardFromAI(cardData, photoMsg._photoDataUrl);
-      } else {
-        toast('❌ Kaydetme fonksiyonu bulunamadı.', 'err');
-      }
+      // Direkt kaydetmek yerine onaylama modal'ı göster
+      const soruCard = { ...cardData, type: 'foto', photo: photoMsg._photoDataUrl };
+      _pendingCards = [soruCard];
+      showCardModal([soruCard]);
     } catch(e) {
       setBusy(false);
       if (window.toast) toast('Soru kartı hatası: ' + e.message, 'err');
@@ -9364,24 +9362,31 @@ ANSWER FORMATI - ZORUNLU:
     let saved = 0;
     for (const c of cards) {
       try {
-        await dbPut({
-          type:           c.type || 'hap',
-          hapSubType:     c.hapSubType || 'note',
-          category:       c.category || 'TYT',
-          subject:        c.subject  || 'Genel',
-          topic:          c.topic    || '',
-          question:       c.question || '',
-          answer:         c.answer   || '',
-          photo:          c.photo    || null,
-          nextReviewDate: Date.now(),
-          interval:       0,
-          createdAt:      Date.now()
-        });
-        saved++;
+        if (c.type === 'foto' && c.photo) {
+          // Soru kartı: App.importFotoCardFromAI ile kaydet (activityPut dahil)
+          if (typeof App !== 'undefined' && typeof App.importFotoCardFromAI === 'function') {
+            await App.importFotoCardFromAI(c, c.photo);
+          }
+        } else {
+          await dbPut({
+            type:           c.type || 'hap',
+            hapSubType:     c.hapSubType || 'note',
+            category:       c.category || 'TYT',
+            subject:        c.subject  || 'Genel',
+            topic:          c.topic    || '',
+            question:       c.question || '',
+            answer:         c.answer   || '',
+            photo:          c.photo    || null,
+            nextReviewDate: Date.now(),
+            interval:       0,
+            createdAt:      Date.now()
+          });
+          saved++;
+        }
       } catch(e) { console.warn('Kart kaydedilemedi:', e); }
     }
-    if (window.toast) toast(`✅ ${saved} kart kaydedildi!`, 'ok');
-    if (window.App) App.renderHome && App.renderHome();
+    if (saved > 0 && window.toast) toast(`✅ ${saved} kart kaydedildi!`, 'ok');
+    if (saved > 0 && window.App) App.renderHome && App.renderHome();
   }
 
   // ── Lifecycle ─────────────────────────────────────────
