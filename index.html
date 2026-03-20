@@ -3436,10 +3436,11 @@ function optimizeImage(file, maxW = 800) {
 let addType     = 'hap';
 let hapSubType  = 'qa';   // 'qa' | 'note'
 let photoBase64 = null;
-let studyMode   = 'hap';
-let studyQueue  = [];
-let studyIdx    = 0;
-let studyCfg    = { cat: 'all', subjects: [], count: '10', order: 'random' };
+let studyMode     = 'hap';
+let studyQueue    = [];
+let studyIdx      = 0;
+let _maxStudyIdx  = 0;   // İleri butonu için: ulaşılan en yüksek index
+let studyCfg      = { cat: 'all', subjects: [], count: '10', order: 'random' };
 let schedType   = 'interval';
 let selectedDays = [];
 let selMode     = false;
@@ -3605,7 +3606,7 @@ const App = (() => {
 
     studyMode  = 'mixed'; // hem hap hem foto
     studyQueue = due;
-    studyIdx   = 0;
+    studyIdx = 0; _maxStudyIdx = 0;
     studyCfg   = { cat: 'all', subjects: [], count: 'all', order: 'due', topic: null };
 
     document.getElementById('study-mode-title').textContent = '🔔 Günlük Tekrar';
@@ -3903,7 +3904,7 @@ const App = (() => {
     }
 
     studyQueue = filtered;
-    studyIdx   = 0;
+    studyIdx = 0; _maxStudyIdx = 0;
 
     const topicLabel = studyCfg.topic ? ` · ${studyCfg.topic}` : '';
     const modeLabel  = studyMode === 'hap' ? '⚡ Hap Bilgi' : studyMode === 'foto' ? '📸 Soru Bankası' : '📚 Karışık';
@@ -3972,7 +3973,11 @@ const App = (() => {
         ${questionHTML}
         <div id="fc-answer-section"></div>
       </div>
-      ${studyIdx > 0 ? `<button class="btn" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);margin-bottom:8px" onclick="App.studyGoBack()"><i class="fa-solid fa-arrow-left"></i> Geri</button>` : ''}
+      ${(studyIdx > 0 || studyIdx < _maxStudyIdx) ? `
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        ${studyIdx > 0 ? `<button class="btn" style="flex:1;background:var(--surface2);color:var(--text2);border:1px solid var(--border)" onclick="App.studyGoBack()"><i class="fa-solid fa-arrow-left"></i> Geri</button>` : '<div style="flex:1"></div>'}
+        ${studyIdx < _maxStudyIdx ? `<button class="btn" style="flex:1;background:var(--surface2);color:var(--text2);border:1px solid var(--border)" onclick="App.studyGoForward()">İleri <i class="fa-solid fa-arrow-right"></i></button>` : '<div style="flex:1"></div>'}
+      </div>` : ''}
       <button class="btn btn-primary btn-lg" id="show-ans-btn" onclick="App.showAnswer()">
         <i class="fa-solid fa-eye"></i> Cevabı / Çözümü Göster
       </button>`;
@@ -4056,12 +4061,20 @@ const App = (() => {
       });
     }
     studyIdx++;
+    if (studyIdx > _maxStudyIdx) _maxStudyIdx = studyIdx;
     renderStudyCard();
   }
 
   function studyGoBack() {
     if (studyIdx > 0) {
       studyIdx--;
+      renderStudyCard();
+    }
+  }
+
+  function studyGoForward() {
+    if (studyIdx < _maxStudyIdx && studyIdx < studyQueue.length - 1) {
+      studyIdx++;
       renderStudyCard();
     }
   }
@@ -4126,7 +4139,7 @@ const App = (() => {
       return;
     }
     studyQueue = queue;
-    studyIdx   = 0;
+    studyIdx = 0; _maxStudyIdx = 0;
     studyMode  = 'mixed';
     document.getElementById('study-mode-title').textContent = `📚 ${subject}`;
     document.getElementById('study-mode-sub').textContent   = `${queue.length} kart · Rastgele`;
@@ -4145,7 +4158,7 @@ const App = (() => {
       return;
     }
     studyQueue = queue;
-    studyIdx   = 0;
+    studyIdx = 0; _maxStudyIdx = 0;
     studyMode  = 'mixed';
     document.getElementById('study-mode-title').textContent = '🔥 Zorlanılan Kartlar';
     document.getElementById('study-mode-sub').textContent   = `${queue.length} kart · En zor önce`;
@@ -5335,7 +5348,7 @@ STRİKT KURALLAR:
     const notDue     = filtered.filter(c => c.lastReviewed && c.nextReviewDate > now).sort((a,b) => (a.easeFactor||2.5) - (b.easeFactor||2.5));
 
     studyQueue = [...overdue, ...dueToday, ...newCards, ...notDue];
-    studyIdx   = 0;
+    studyIdx = 0; _maxStudyIdx = 0;
     studyMode  = 'mixed';
     studyCfg   = { cat: r.category, subjects: [r.subject], count: 'all', order: 'smart', topic: r.topic || null };
 
@@ -6053,7 +6066,7 @@ STRİKT KURALLAR:
     previewPhoto, removePhoto,
     toggleHapPhoto, previewHapPhoto, removeHapPhoto, saveCard,
     openConfig, closeConfig, cfgChip, toggleSubChip, startStudy, startDailyReview,
-    showAnswer, rate, studyGoBack,
+    showAnswer, rate, studyGoBack, studyGoForward,
     renderRecords, deleteCard, clearAll, toggleRecords, recGoPage, _updateRecTopicFilter,
     toggleSelMode, toggleCardSelect, onRecordCardClick, bulkDelete, bulkShare, selectAll,
     openEdit, closeEdit, saveEdit, updateEditSubjects,
@@ -6226,6 +6239,13 @@ const StreakTracker = (() => {
     const today = _today();
     const { count, last } = get();
     if (last === today) return;                    // zaten sayıldı
+    if (last !== _yesterday()) {
+      // Seri bozuldu → sıfırla, çalışma süresini de temizle
+      localStorage.setItem(KEY_STREAK, '0');
+      localStorage.setItem(KEY_LAST,   today);
+      // StudyTimer'ı sıfırla
+      if (typeof StudyTimer !== 'undefined') StudyTimer.resetToday();
+    }
     const newCount = last === _yesterday() ? count + 1 : 1;
     localStorage.setItem(KEY_STREAK, String(newCount));
     localStorage.setItem(KEY_LAST,   today);
@@ -6240,9 +6260,15 @@ const StreakTracker = (() => {
     const numEl  = document.getElementById('streak-num');
     const lblEl  = document.getElementById('streak-label');
     if (!chip) return;
-    if (numEl) numEl.textContent = count;
-    if (lblEl) lblEl.textContent = count === 1 ? 'günlük seri' : 'gün serisi';
-    chip.classList.toggle('zero', count === 0 || !active);
+    // Seri bozulmuşsa storage'ı da sıfırla
+    if (!active && count > 0) {
+      localStorage.setItem(KEY_STREAK, '0');
+      if (typeof StudyTimer !== 'undefined') StudyTimer.resetToday();
+    }
+    const displayCount = active ? count : 0;
+    if (numEl) numEl.textContent = displayCount;
+    if (lblEl) lblEl.textContent = displayCount === 1 ? 'günlük seri' : 'gün serisi';
+    chip.classList.toggle('zero', displayCount === 0);
   }
 
   return { record, updateUI, get };
@@ -6313,7 +6339,14 @@ const StudyTimer = (() => {
     }
   }
 
-  return { start, stop, updateUI };
+  function resetToday() {
+    localStorage.removeItem(KEY_DATE);
+    localStorage.removeItem(KEY_SECS);
+    _sessionStart = null;
+    updateUI();
+  }
+
+  return { start, stop, updateUI, resetToday };
 })();
 
 
@@ -9329,19 +9362,23 @@ ANSWER FORMATI - ZORUNLU:
     const count   = document.getElementById('ai-card-count');
     if (count) count.textContent = `${cards.length} kart oluşturuldu`;
     if (preview) {
-      preview.innerHTML = cards.map((c, i) => {
+      preview.innerHTML = cards.map((c) => {
         const photoThumb = c.photo
-          ? `<img src="${c.photo}" style="width:100%;max-height:120px;object-fit:cover;border-radius:8px;margin-bottom:8px;display:block">`
+          ? `<img src="${c.photo}" style="width:100%;max-height:100px;object-fit:cover;border-radius:8px;margin-bottom:10px;display:block">`
           : '';
-        const title = c.question && c.question !== 'Bilgi Notu'
-          ? c.question.slice(0, 80) + (c.question.length > 80 ? '…' : '')
-          : c.topic || 'Bilgi Notu';
-        const preview = (c.answer || '').slice(0, 100) + ((c.answer||'').length > 100 ? '…' : '');
-        return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px">
+        const isNote = !c.question || c.question === 'Bilgi Notu';
+        const title = isNote ? (c.topic || 'Bilgi Notu') : c.question.slice(0, 70) + (c.question.length > 70 ? '…' : '');
+        // Cevabı satır satır göster, tag'leri koru
+        const ansLines = (c.answer || '').split(/\\n|\n/).slice(0, 3);
+        const ansHTML = ansLines.map(l => `<div style="margin-bottom:2px">${_escHtml(l)}</div>`).join('');
+        const typeIcon = c.type === 'foto' ? '📸' : '⚡';
+        const typeColor = c.type === 'foto' ? 'var(--accent2)' : 'var(--teal2)';
+        return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:13px;margin-bottom:10px">
           ${photoThumb}
-          <div style="font-size:.7rem;color:var(--text3);margin-bottom:4px">${c.category||''} · ${c.subject||''} · ${c.topic||''}</div>
-          <div style="font-size:.85rem;font-weight:600;color:var(--text);margin-bottom:4px">${_escHtml(title)}</div>
-          <div style="font-size:.75rem;color:var(--text2);line-height:1.5">${_escHtml(preview)}</div>
+          <div style="font-size:.7rem;color:${typeColor};font-weight:700;margin-bottom:2px">${typeIcon} ${_escHtml(c.category||'')} · ${_escHtml(c.subject||'')}</div>
+          <div style="font-size:.7rem;color:var(--text3);margin-bottom:7px">${_escHtml(c.topic||'')}</div>
+          <div style="font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:6px;line-height:1.35">${_escHtml(title)}</div>
+          <div style="font-size:.75rem;color:var(--text2);line-height:1.6;border-top:1px solid var(--border);padding-top:7px">${ansHTML}</div>
         </div>`;
       }).join('');
     }
