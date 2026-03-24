@@ -6320,7 +6320,10 @@ STRİKT KURALLAR:
     }
     if (info) {
       const last = localStorage.getItem(_AB_LAST);
-      info.textContent = last ? ('Son yedek: ' + last) : '';
+      // Eski buggy koddan 'true' kalmış olabilir — sadece geçerli tarih göster
+      const validDate = last && /^\d{4}-\d{2}-\d{2}/.test(last);
+      if (!validDate && last) localStorage.removeItem(_AB_LAST); // temizle
+      info.textContent = validDate ? ('Son yedek: ' + last) : '';
     }
   }
 
@@ -6348,11 +6351,17 @@ STRİKT KURALLAR:
     }
     try {
       const handle = await window.showDirectoryPicker({ mode: 'readwrite', startIn: 'documents' });
+      // Seçimden hemen sonra test yazısı yap — izin geçerliyken
+      const testFile = await handle.getFileHandle('.yks-test', { create: true });
+      const w = await testFile.createWritable();
+      await w.write('ok'); await w.close();
+      await handle.removeEntry('.yks-test').catch(() => {});
       await settingsPut('backupDirHandle', handle);
       await _updateFolderLabel();
       toast('✅ Klasör seçildi: ' + handle.name, 'ok');
     } catch(e) {
-      if (e.name !== 'AbortError') toast('Klasör seçilemedi: ' + e.message, 'err');
+      if (e.name === 'AbortError') return;
+      toast('Klasör erişim hatası: ' + e.message, 'err');
     }
   }
 
@@ -6395,33 +6404,37 @@ STRİKT KURALLAR:
       const backup = { version: 1, exportedAt: now2.toISOString(), cards, routines, activities };
       const json   = JSON.stringify(backup, null, 2);
 
-      // Önce seçili klasöre yazmayı dene
+      // Önce seçili klasöre yaz (requestPermission YOK — seçimde zaten izin verildi)
       let usedFolder = false;
       try {
         const dirHandle = await settingsGet('backupDirHandle');
         if (dirHandle) {
-          const perm = await dirHandle.requestPermission({ mode: 'readwrite' });
-          if (perm === 'granted') {
-            const fileHandle = await dirHandle.getFileHandle(fname, { create: true });
-            const writable   = await fileHandle.createWritable();
-            await writable.write(json);
-            await writable.close();
-            usedFolder = true;
-          }
+          const fileHandle = await dirHandle.getFileHandle(fname, { create: true });
+          const writable   = await fileHandle.createWritable();
+          await writable.write(json);
+          await writable.close();
+          usedFolder = true;
         }
       } catch(fe) {
         console.warn('Klasöre yazılamadı, fallback:', fe);
+        // İzin kalıcı olarak düştüyse handle'ı sil, kullanıcı tekrar seçsin
+        if (fe.name === 'NotAllowedError') {
+          await settingsDel('backupDirHandle').catch(() => {});
+          await _updateFolderLabel();
+        }
       }
 
-      // Fallback: normal download
+      // Fallback: kullanıcı gesture ile tetiklediyse download, timer'dan çalışmaz
       if (!usedFolder) {
-        const blob = new Blob([json], { type: 'application/json' });
-        const url  = URL.createObjectURL(blob);
-        const a    = document.createElement('a');
-        a.href = url; a.download = fname;
-        document.body.appendChild(a); a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        try {
+          const blob = new Blob([json], { type: 'application/json' });
+          const url  = URL.createObjectURL(blob);
+          const a    = document.createElement('a');
+          a.href = url; a.download = fname;
+          document.body.appendChild(a); a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        } catch(_) {}
       }
 
       localStorage.setItem(_AB_LAST, today);
