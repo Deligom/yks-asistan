@@ -5924,16 +5924,18 @@ STRİKT KURALLAR:
       const cards      = await dbGetAll();
       const routines   = await routineGetAll();
       const activities = await activityGetAll();
+      const now3   = new Date();
+      const hhmm3  = now3.toTimeString().slice(0, 5).replace(':', '');
       const backup = {
         version: 1,
-        exportedAt: new Date().toISOString(),
+        exportedAt: now3.toISOString(),
         cards, routines, activities
       };
       const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
       a.href     = url;
-      a.download = `yks-asistan-yedek-${new Date().toISOString().slice(0,10)}.json`;
+      a.download = `yks-asistan-yedek-${now3.toISOString().slice(0,10)}-${hhmm3}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -6291,11 +6293,11 @@ STRİKT KURALLAR:
     const next = !isCurrentlyOn;
     localStorage.setItem(_AB_KEY, next ? 'true' : 'false');
     _applyAutoBackupUI(next);
+    // _AB_LAST'ı ASLA silme — silince aynı günde tekrar indirmeye çalışır
     if (next) {
       toast('✅ Otomatik yedekleme açıldı. Gece yarısı çalışacak.', 'ok');
     } else {
-      localStorage.removeItem(_AB_LAST); // sonraki açılışta temiz başlasın
-      toast('Otomatik yedekleme kapatıldı.', 'ok');
+      toast('💾 Otomatik yedekleme kapatıldı.', 'ok');
     }
   }
 
@@ -6318,12 +6320,15 @@ STRİKT KURALLAR:
       const cards      = await dbGetAll();
       const routines   = await routineGetAll();
       const activities = await activityGetAll();
-      const backup = { version: 1, exportedAt: new Date().toISOString(), cards, routines, activities };
+      const now2   = new Date();
+      const today  = now2.toISOString().slice(0, 10);
+      const hhmm   = now2.toTimeString().slice(0, 5).replace(':', '');
+      const backup = { version: 1, exportedAt: now2.toISOString(), cards, routines, activities };
       const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
       a.href     = url;
-      a.download = `yks-yedek-${today}.json`;
+      a.download = `yks-yedek-${today}-${hhmm}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
