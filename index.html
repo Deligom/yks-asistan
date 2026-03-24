@@ -2147,7 +2147,7 @@ select option{background:var(--surface2);color:var(--text)}
     <div style="border-top:1px solid var(--border);padding-top:14px;display:flex;align-items:center;justify-content:space-between">
       <div>
         <div style="font-size:.9rem;font-weight:700;color:var(--text)">Otomatik Yedekleme</div>
-        <div id="auto-backup-label" style="font-size:.75rem;color:var(--text3);margin-top:2px">Her gün uygulama açılınca &amp; gece yarısı</div>
+        <div style="font-size:.75rem;color:var(--text3);margin-top:2px">Gece yarısı seçili klasöre kaydeder</div>
       </div>
       <button id="auto-backup-toggle-btn" onclick="App.toggleAutoBackup()"
         style="display:flex;align-items:center;gap:10px;background:var(--surface2);border:1.5px solid var(--border);border-radius:30px;padding:6px 16px;cursor:pointer;transition:all .25s;color:var(--text);font-size:.85rem;font-weight:600">
@@ -2158,7 +2158,15 @@ select option{background:var(--surface2);color:var(--text)}
         </div>
       </button>
     </div>
-    <div id="last-backup-info" style="font-size:.72rem;color:var(--teal);margin-top:-4px;min-height:1em"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:10px">
+      <div style="flex:1;min-width:0">
+        <div id="backup-folder-name" style="font-size:.78rem;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📁 Klasör seçilmedi — İndirilenler kullanılır</div>
+        <div id="last-backup-info" style="font-size:.72rem;color:var(--teal);margin-top:2px;min-height:1em"></div>
+      </div>
+      <button onclick="App.pickBackupFolder()" style="flex-shrink:0;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:7px 13px;color:var(--primary);font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap">
+        📂 Klasör Seç
+      </button>
+    </div>
 
     <hr style="border:none;border-top:1px solid var(--border);margin:4px 0"/>
     <button class="btn" id="reset-btn-page" onclick="App.resetTap()"
@@ -3301,10 +3309,11 @@ const SUBJECTS = {
 //  INDEXEDDB
 // ─────────────────────────────────────
 const DB_NAME    = 'yks_asistan_db';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE      = 'cards';
 const STORE_ROUTINES   = 'routines';
 const STORE_ACTIVITIES = 'activities';
+const STORE_SETTINGS   = 'settings';
 let db = null;
 
 function initDB() {
@@ -3326,8 +3335,34 @@ function initDB() {
         const as = d.createObjectStore(STORE_ACTIVITIES, { keyPath: 'id', autoIncrement: true });
         as.createIndex('date', 'date', { unique: false });
       }
+      if (!d.objectStoreNames.contains(STORE_SETTINGS)) {
+        d.createObjectStore(STORE_SETTINGS, { keyPath: 'key' });
+      }
     };
     req.onsuccess = e => { db = e.target.result; resolve(db); };
+    req.onerror   = e => reject(e.target.error);
+  });
+}
+
+// STORE_SETTINGS helpers — FileSystemDirectoryHandle burada saklanır
+function settingsGet(key) {
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(STORE_SETTINGS, 'readonly').objectStore(STORE_SETTINGS).get(key);
+    req.onsuccess = e => resolve(e.target.result ? e.target.result.value : null);
+    req.onerror   = e => reject(e.target.error);
+  });
+}
+function settingsPut(key, value) {
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(STORE_SETTINGS, 'readwrite').objectStore(STORE_SETTINGS).put({ key, value });
+    req.onsuccess = () => resolve();
+    req.onerror   = e => reject(e.target.error);
+  });
+}
+function settingsDel(key) {
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(STORE_SETTINGS, 'readwrite').objectStore(STORE_SETTINGS).delete(key);
+    req.onsuccess = () => resolve();
     req.onerror   = e => reject(e.target.error);
   });
 }
@@ -6194,6 +6229,7 @@ STRİKT KURALLAR:
     toggleAutoBackup,
     initAutoBackup,
     checkAutoBackup,
+    pickBackupFolder,
     startHardStudy,
     launchSubjectStudy,
     renderWeakTopics
@@ -6279,12 +6315,44 @@ STRİKT KURALLAR:
       if (thumb) { thumb.style.background = '#fff'; thumb.style.left = '18px'; }
     } else {
       if (text)  text.textContent = 'Kapalı';
-      if (track) { track.style.background = ''; }
+      if (track) track.style.background = '';
       if (thumb) { thumb.style.background = ''; thumb.style.left = '2px'; }
     }
     if (info) {
       const last = localStorage.getItem(_AB_LAST);
-      info.textContent = last ? `Son otomatik yedek: ${last}` : '';
+      info.textContent = last ? ('Son yedek: ' + last) : '';
+    }
+  }
+
+  async function _updateFolderLabel() {
+    const el = document.getElementById('backup-folder-name');
+    if (!el) return;
+    try {
+      const handle = await settingsGet('backupDirHandle');
+      if (handle) {
+        el.textContent = '📁 ' + handle.name;
+        el.style.color = 'var(--teal)';
+      } else {
+        el.textContent = '📁 Klasör seçilmedi — İndirilenler kullanılır';
+        el.style.color = '';
+      }
+    } catch(e) {
+      el.textContent = '📁 Klasör seçilmedi — İndirilenler kullanılır';
+      el.style.color = '';
+    }
+  }
+
+  async function pickBackupFolder() {
+    if (!window.showDirectoryPicker) {
+      toast('Bu tarayıcı klasör seçimini desteklemiyor.', 'err'); return;
+    }
+    try {
+      const handle = await window.showDirectoryPicker({ mode: 'readwrite', startIn: 'documents' });
+      await settingsPut('backupDirHandle', handle);
+      await _updateFolderLabel();
+      toast('✅ Klasör seçildi: ' + handle.name, 'ok');
+    } catch(e) {
+      if (e.name !== 'AbortError') toast('Klasör seçilemedi: ' + e.message, 'err');
     }
   }
 
@@ -6293,7 +6361,6 @@ STRİKT KURALLAR:
     const next = !isCurrentlyOn;
     localStorage.setItem(_AB_KEY, next ? 'true' : 'false');
     _applyAutoBackupUI(next);
-    // _AB_LAST'ı ASLA silme — silince aynı günde tekrar indirmeye çalışır
     if (next) {
       toast('✅ Otomatik yedekleme açıldı. Gece yarısı çalışacak.', 'ok');
     } else {
@@ -6303,6 +6370,7 @@ STRİKT KURALLAR:
 
   function initAutoBackup() {
     _applyAutoBackupUI(localStorage.getItem(_AB_KEY) === 'true');
+    _updateFolderLabel();
     // Gece yarısı scheduler — sayfa açıkken çalışır
     const now = new Date();
     const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5) - now;
@@ -6314,25 +6382,48 @@ STRİKT KURALLAR:
 
   async function checkAutoBackup() {
     if (localStorage.getItem(_AB_KEY) !== 'true') return;
-    const today = new Date().toISOString().slice(0, 10);
+    const now2  = new Date();
+    const today = now2.toISOString().slice(0, 10);
     if (localStorage.getItem(_AB_LAST) === today) return;
+
     try {
       const cards      = await dbGetAll();
       const routines   = await routineGetAll();
       const activities = await activityGetAll();
-      const now2   = new Date();
-      const today  = now2.toISOString().slice(0, 10);
       const hhmm   = now2.toTimeString().slice(0, 5).replace(':', '');
+      const fname  = 'yks-yedek-' + today + '-' + hhmm + '.json';
       const backup = { version: 1, exportedAt: now2.toISOString(), cards, routines, activities };
-      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href     = url;
-      a.download = `yks-yedek-${today}-${hhmm}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      const json   = JSON.stringify(backup, null, 2);
+
+      // Önce seçili klasöre yazmayı dene
+      let usedFolder = false;
+      try {
+        const dirHandle = await settingsGet('backupDirHandle');
+        if (dirHandle) {
+          const perm = await dirHandle.requestPermission({ mode: 'readwrite' });
+          if (perm === 'granted') {
+            const fileHandle = await dirHandle.getFileHandle(fname, { create: true });
+            const writable   = await fileHandle.createWritable();
+            await writable.write(json);
+            await writable.close();
+            usedFolder = true;
+          }
+        }
+      } catch(fe) {
+        console.warn('Klasöre yazılamadı, fallback:', fe);
+      }
+
+      // Fallback: normal download
+      if (!usedFolder) {
+        const blob = new Blob([json], { type: 'application/json' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url; a.download = fname;
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
       localStorage.setItem(_AB_LAST, today);
       _applyAutoBackupUI(true);
       if (window.toast) toast('💾 Otomatik yedek alındı! (' + today + ')', 'ok');
