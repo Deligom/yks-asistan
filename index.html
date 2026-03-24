@@ -2143,6 +2143,23 @@ select option{background:var(--surface2);color:var(--text)}
       <i class="fa-solid fa-circle-info" style="color:var(--primary2)"></i>
       Yedekleme tüm kartlarını, rutinlerini ve aktivite loglarını tek bir .json dosyasına kaydeder.
     </p>
+    <!-- OTO YEDEKLEME -->
+    <div style="border-top:1px solid var(--border);padding-top:14px;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:.9rem;font-weight:700;color:var(--text)">Otomatik Yedekleme</div>
+        <div id="auto-backup-label" style="font-size:.75rem;color:var(--text3);margin-top:2px">Her gün uygulama açılınca &amp; gece yarısı</div>
+      </div>
+      <button id="auto-backup-toggle-btn" onclick="App.toggleAutoBackup()"
+        style="display:flex;align-items:center;gap:10px;background:var(--surface2);border:1.5px solid var(--border);border-radius:30px;padding:6px 16px;cursor:pointer;transition:all .25s;color:var(--text);font-size:.85rem;font-weight:600">
+        <span id="auto-backup-icon" style="font-size:1.1rem">💾</span>
+        <span id="auto-backup-text">Kapalı</span>
+        <div id="auto-backup-track" style="width:38px;height:22px;border-radius:11px;background:var(--surface3);border:1.5px solid var(--border);position:relative;transition:background .25s;flex-shrink:0">
+          <div id="auto-backup-thumb" style="position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--text3);transition:all .25s"></div>
+        </div>
+      </button>
+    </div>
+    <div id="last-backup-info" style="font-size:.72rem;color:var(--teal);margin-top:-4px;min-height:1em"></div>
+
     <hr style="border:none;border-top:1px solid var(--border);margin:4px 0"/>
     <button class="btn" id="reset-btn-page" onclick="App.resetTap()"
       style="background:transparent;border:1.5px solid #ff4d6d;color:#ff4d6d;transition:all .2s">
@@ -6172,6 +6189,9 @@ STRİKT KURALLAR:
     initTheme,
     toggleAdvisor,
     initAdvisor,
+    toggleAutoBackup,
+    initAutoBackup,
+    checkAutoBackup,
     startHardStudy,
     launchSubjectStudy,
     renderWeakTopics
@@ -6240,6 +6260,75 @@ STRİKT KURALLAR:
 
   function initAdvisor() {
     _applyAdvisorUI(localStorage.getItem('yk_advisor_enabled') !== 'false');
+  }
+
+  // ── OTO YEDEKLEME ──
+  const _AB_KEY   = 'auto_backup_enabled';
+  const _AB_LAST  = 'last_auto_backup_date';
+
+  function _applyAutoBackupUI(enabled) {
+    const text  = document.getElementById('auto-backup-text');
+    const track = document.getElementById('auto-backup-track');
+    const thumb = document.getElementById('auto-backup-thumb');
+    const info  = document.getElementById('last-backup-info');
+    if (enabled) {
+      if (text)  text.textContent = 'Açık';
+      if (track) track.style.background = '#6c63ff';
+      if (thumb) { thumb.style.background = '#fff'; thumb.style.left = '18px'; }
+    } else {
+      if (text)  text.textContent = 'Kapalı';
+      if (track) { track.style.background = ''; }
+      if (thumb) { thumb.style.background = ''; thumb.style.left = '2px'; }
+    }
+    if (info) {
+      const last = localStorage.getItem(_AB_LAST);
+      info.textContent = last ? `Son otomatik yedek: ${last}` : '';
+    }
+  }
+
+  function toggleAutoBackup() {
+    const next = localStorage.getItem(_AB_KEY) !== 'true';
+    localStorage.setItem(_AB_KEY, next ? 'true' : 'false');
+    _applyAutoBackupUI(next);
+    if (next) { toast('✅ Otomatik yedekleme açıldı', 'ok'); checkAutoBackup(); }
+    else toast('Otomatik yedekleme kapatıldı', 'ok');
+  }
+
+  function initAutoBackup() {
+    _applyAutoBackupUI(localStorage.getItem(_AB_KEY) === 'true');
+    // Gece yarısı scheduler — sayfa açıkken çalışır
+    const now = new Date();
+    const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5) - now;
+    setTimeout(function _midnightCheck() {
+      checkAutoBackup();
+      setTimeout(_midnightCheck, 24 * 60 * 60 * 1000);
+    }, msUntilMidnight);
+  }
+
+  async function checkAutoBackup() {
+    if (localStorage.getItem(_AB_KEY) !== 'true') return;
+    const today = new Date().toISOString().slice(0, 10);
+    if (localStorage.getItem(_AB_LAST) === today) return;
+    try {
+      const cards      = await dbGetAll();
+      const routines   = await routineGetAll();
+      const activities = await activityGetAll();
+      const backup = { version: 1, exportedAt: new Date().toISOString(), cards, routines, activities };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `yks-yedek-${today}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      localStorage.setItem(_AB_LAST, today);
+      _applyAutoBackupUI(true);
+      if (window.toast) toast('💾 Otomatik yedek alındı! (' + today + ')', 'ok');
+    } catch(e) {
+      console.warn('Auto backup failed:', e);
+    }
   }
 })();
 
@@ -8418,6 +8507,8 @@ const Social = (() => {
     App.go('home');
     App.initTheme();
     App.initAdvisor();
+    App.initAutoBackup();
+    App.checkAutoBackup();
     App.initSuperScript();
     StreakTracker.updateUI();
     StudyTimer.updateUI();
