@@ -6348,6 +6348,8 @@ STRİKT KURALLAR:
     }
     try {
       const handle = await window.showDirectoryPicker({ mode: 'readwrite', startIn: 'documents' });
+      // Kullanıcı gesturü aktifken izni hemen iste — gece yarısı queryPermission 'granted' dönsün
+      await handle.requestPermission({ mode: 'readwrite' });
       await settingsPut('backupDirHandle', handle);
       await _updateFolderLabel();
       toast('✅ Klasör seçildi: ' + handle.name, 'ok');
@@ -6400,20 +6402,24 @@ STRİKT KURALLAR:
       try {
         const dirHandle = await settingsGet('backupDirHandle');
         if (dirHandle) {
-          const perm = await dirHandle.requestPermission({ mode: 'readwrite' });
+          // requestPermission gesture gerektirir; otomatik yedekte queryPermission kullan
+          const perm = await dirHandle.queryPermission({ mode: 'readwrite' });
           if (perm === 'granted') {
             const fileHandle = await dirHandle.getFileHandle(fname, { create: true });
             const writable   = await fileHandle.createWritable();
             await writable.write(json);
             await writable.close();
             usedFolder = true;
+          } else {
+            // İzin henüz verilmemiş — yedek alınamadı, tarih işaretleme
+            console.warn('Klasör izni yok (queryPermission: ' + perm + '). Kullanıcının uygulamayı açması ve klasörü onaylaması gerekiyor.');
           }
         }
       } catch(fe) {
-        console.warn('Klasöre yazılamadı, fallback:', fe);
+        console.warn('Klasöre yazılamadı:', fe);
       }
 
-      // Fallback: normal download
+      // Fallback: normal download (yalnızca klasör yoksa veya izin verilmişse)
       if (!usedFolder) {
         const blob = new Blob([json], { type: 'application/json' });
         const url  = URL.createObjectURL(blob);
@@ -6424,9 +6430,14 @@ STRİKT KURALLAR:
         URL.revokeObjectURL(url);
       }
 
-      localStorage.setItem(_AB_LAST, today);
-      _applyAutoBackupUI(true);
-      if (window.toast) toast('💾 Otomatik yedek alındı! (' + today + ')', 'ok');
+      // Yalnızca gerçekten yazıldıysa tarihi işaretle
+      if (usedFolder) {
+        localStorage.setItem(_AB_LAST, today);
+        _applyAutoBackupUI(true);
+        if (window.toast) toast('💾 Otomatik yedek alındı! (' + today + ')', 'ok');
+      } else {
+        if (window.toast) toast('⚠️ Otomatik yedek alınamadı — uygulamayı açık tutarak klasörü yeniden seç.', 'err');
+      }
     } catch(e) {
       console.warn('Auto backup failed:', e);
     }
