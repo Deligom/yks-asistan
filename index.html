@@ -10201,9 +10201,19 @@ window.SubPlan = (() => {
   }
   async function _getUid() {
     if (_uid) return _uid;
-    const auth = window._firebaseAuth;
-    if (auth?.currentUser) { _uid = auth.currentUser.uid; return _uid; }
-    // current_user key'i yoksa social_code'dan al (uygulamanın kendi auth sistemi)
+    // Firebase Auth state'i kesin olarak belirlenene kadar bekle (race condition önlemi)
+    const fb = await _fb();
+    if (fb?.auth && fb?.onAuthStateChanged) {
+      await new Promise(res => {
+        const unsub = fb.onAuthStateChanged(fb.auth, user => {
+          unsub();
+          if (user) _uid = user.uid;
+          res();
+        });
+      });
+    }
+    if (_uid) return _uid;
+    // Firebase'de oturum yoksa uygulamanın kendi auth sistemine bak
     const u = localStorage.getItem('current_user');
     if (u) { try { _uid = JSON.parse(u).uid || JSON.parse(u).username; } catch(e){} }
     if (!_uid) _uid = localStorage.getItem('social_code') || null;
@@ -10217,9 +10227,19 @@ window.SubPlan = (() => {
       const fb = await _fb();
       const snap = await fb.getDoc(fb.doc(fb.db,'users',uid));
       if (snap.exists()) _plan = snap.data().plan || 'free';
-      const balSnap = await fb.getDoc(fb.doc(fb.db,'tokenBalance',uid));
-      if (balSnap.exists()) _extraTokens = balSnap.data().extra || 0;
       const month = _monthKey();
+      const balRef = fb.doc(fb.db,'tokenBalance',uid);
+      const balSnap = await fb.getDoc(balRef);
+      if (balSnap.exists()) {
+        const balData = balSnap.data();
+        // Ay değiştiyse ekstra tokenları sıfırla
+        if (balData.resetMonth !== month) {
+          await fb.setDoc(balRef, { extra: 0, resetMonth: month }, { merge: true });
+          _extraTokens = 0;
+        } else {
+          _extraTokens = balData.extra || 0;
+        }
+      }
       const usageSnap = await fb.getDoc(fb.doc(fb.db,'usage',`${uid}_${month}`));
       _usageDoc = usageSnap.exists() ? usageSnap.data() : {tokens:0,flashDaily:{},proWeekly:{},proDaily:{}};
     } catch(e) { console.warn('SubPlan.loadPlan:',e); }
