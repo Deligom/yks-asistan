@@ -6370,23 +6370,75 @@ STRİKT KURALLAR:
     }
   }
 
+  // BUG-3 FIX: UTC yerine yerel tarihi döndürür (TR = UTC+3 kayması engellenir)
+  function _localDateStr(d) {
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+  }
+
+  // BUG-2 FIX: Klasör içinde bugüne ait yks-yedek-YYYY-MM-DD-*.json dosyası var mı kontrol eder
+  async function _folderHasBackupForDate(dirHandle, dateStr) {
+    try {
+      for await (const [name] of dirHandle) {
+        if (name.startsWith('yks-yedek-' + dateStr + '-') && name.endsWith('.json')) {
+          return true;
+        }
+      }
+    } catch(e) {
+      console.warn('Klasör listelenemedi:', e);
+    }
+    return false;
+  }
+
   function initAutoBackup() {
     _applyAutoBackupUI(localStorage.getItem(_AB_KEY) === 'true');
     _updateFolderLabel();
-    // Gece yarısı scheduler — sayfa açıkken çalışır
-    const now = new Date();
-    const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5) - now;
-    setTimeout(function _midnightCheck() {
-      checkAutoBackup();
-      setTimeout(_midnightCheck, 24 * 60 * 60 * 1000);
-    }, msUntilMidnight);
+
+    // BUG-1 FIX: Startup'ta hemen kontrol et — kullanıcı gece yarısında açık olmasa bile
+    // geciken yedeği yakalar (örn. sabah 08:00'de açılırsa dünkü/bugünkü yedek alınır)
+    checkAutoBackup();
+
+    // BUG-5 FIX: Her döngüde gece yarısını yeniden hesapla (uyku/throttle kaymasını önler)
+    function scheduleNextMidnight() {
+      const now = new Date();
+      const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5) - now;
+      setTimeout(function() {
+        checkAutoBackup();
+        scheduleNextMidnight(); // bir sonraki gece yarısını taze hesapla
+      }, msUntilMidnight);
+    }
+    scheduleNextMidnight();
   }
 
   async function checkAutoBackup() {
     if (localStorage.getItem(_AB_KEY) !== 'true') return;
     const now2  = new Date();
-    const today = now2.toISOString().slice(0, 10);
+    // BUG-3 FIX: toISOString() UTC döndürür; yerel tarih fonksiyonu kullan
+    const today = _localDateStr(now2);
+
+    // Önce localStorage'ı kontrol et (hızlı yol)
     if (localStorage.getItem(_AB_LAST) === today) return;
+
+    // BUG-2 FIX: localStorage boş/temizlenmiş olabilir — klasördeki dosyaları da tara
+    try {
+      const dirHandle = await settingsGet('backupDirHandle');
+      if (dirHandle) {
+        const perm = await dirHandle.queryPermission({ mode: 'readwrite' });
+        if (perm === 'granted') {
+          const alreadyInFolder = await _folderHasBackupForDate(dirHandle, today);
+          if (alreadyInFolder) {
+            // Klasörde bu güne ait yedek var; localStorage'ı senkronize et ve çık
+            localStorage.setItem(_AB_LAST, today);
+            _applyAutoBackupUI(true);
+            console.info('Bugüne ait yedek zaten klasörde mevcut, atlanıyor:', today);
+            return;
+          }
+        }
+      }
+    } catch(e) {
+      console.warn('Klasör ön-kontrol hatası:', e);
+    }
 
     try {
       const cards      = await dbGetAll();
@@ -6411,7 +6463,6 @@ STRİKT KURALLAR:
             await writable.close();
             usedFolder = true;
           } else {
-            // İzin henüz verilmemiş — yedek alınamadı, tarih işaretleme
             console.warn('Klasör izni yok (queryPermission: ' + perm + '). Kullanıcının uygulamayı açması ve klasörü onaylaması gerekiyor.');
           }
         }
@@ -6419,7 +6470,7 @@ STRİKT KURALLAR:
         console.warn('Klasöre yazılamadı:', fe);
       }
 
-      // Fallback: normal download (yalnızca klasör yoksa veya izin verilmişse)
+      // Fallback: normal download (klasör yoksa veya izin verilmemişse)
       if (!usedFolder) {
         const blob = new Blob([json], { type: 'application/json' });
         const url  = URL.createObjectURL(blob);
@@ -6430,13 +6481,13 @@ STRİKT KURALLAR:
         URL.revokeObjectURL(url);
       }
 
-      // Yalnızca gerçekten yazıldıysa tarihi işaretle
+      // BUG-4 FIX: Klasör veya fallback download — her iki durumda da tarihi kaydet
+      localStorage.setItem(_AB_LAST, today);
+      _applyAutoBackupUI(true);
       if (usedFolder) {
-        localStorage.setItem(_AB_LAST, today);
-        _applyAutoBackupUI(true);
         if (window.toast) toast('💾 Otomatik yedek alındı! (' + today + ')', 'ok');
       } else {
-        if (window.toast) toast('⚠️ Otomatik yedek alınamadı — uygulamayı açık tutarak klasörü yeniden seç.', 'err');
+        if (window.toast) toast('💾 Yedek indirildi (klasör izni yok, İndirilenler kullanıldı).', 'ok');
       }
     } catch(e) {
       console.warn('Auto backup failed:', e);
