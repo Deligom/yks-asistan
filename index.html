@@ -2130,43 +2130,54 @@ select option{background:var(--surface2);color:var(--text)}
   <!-- YEDEKLEME -->
   <div class="section-title">💾 Yedekleme & Geri Yükleme</div>
   <div class="card" style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px">
+
+    <!-- Manuel yedek: Drive'a yükle -->
     <button class="btn btn-teal" onclick="App.backupData()">
-      <i class="fa-solid fa-download"></i> Verileri Yedekle (.json)
+      <i class="fa-solid fa-cloud-arrow-up"></i> Google Drive'a Yedekle
     </button>
-    <div style="position:relative">
-      <button class="btn btn-primary" onclick="document.getElementById('restore-file-input').click()">
-        <i class="fa-solid fa-upload"></i> Yedekten Geri Yükle
+
+    <!-- Manuel yedek: yerel JSON indir (fallback) -->
+    <button class="btn" onclick="App.backupDataLocal()"
+      style="background:var(--surface2);border:1.5px solid var(--border);color:var(--text2);font-size:.82rem">
+      <i class="fa-solid fa-download"></i> Yerel JSON İndir (yedek)
+    </button>
+
+    <!-- Geri yükleme -->
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" style="flex:1" onclick="App.restoreFromDrive()">
+        <i class="fa-solid fa-cloud-arrow-down"></i> Drive'dan Geri Yükle
       </button>
-      <input type="file" id="restore-file-input" accept=".json" style="display:none" onchange="App.restoreData(event)"/>
+      <button class="btn" onclick="document.getElementById('restore-file-input').click()"
+        style="flex:1;background:var(--surface2);border:1.5px solid var(--border);color:var(--text2);font-size:.82rem">
+        <i class="fa-solid fa-upload"></i> Dosyadan Yükle
+      </button>
     </div>
+    <input type="file" id="restore-file-input" accept=".json" style="display:none" onchange="App.restoreData(event)"/>
+
+    <!-- Drive yedek durumu -->
+    <div id="drive-backup-status" style="display:none;padding:9px 12px;border-radius:10px;background:rgba(108,99,255,.1);border:1.5px solid rgba(108,99,255,.25);font-size:.76rem;color:var(--text2);line-height:1.5"></div>
+
     <p style="font-size:.78rem;color:var(--text3);line-height:1.5;margin-top:2px">
       <i class="fa-solid fa-circle-info" style="color:var(--primary2)"></i>
-      Yedekleme tüm kartlarını, rutinlerini ve aktivite loglarını tek bir .json dosyasına kaydeder.
+      Yedekler Google Drive'a kaydedilir. Telefon değişse bile verilerini kaybetmezsin.
     </p>
+
     <!-- OTO YEDEKLEME -->
     <div style="border-top:1px solid var(--border);padding-top:14px;display:flex;align-items:center;justify-content:space-between">
       <div>
         <div style="font-size:.9rem;font-weight:700;color:var(--text)">Otomatik Yedekleme</div>
-        <div style="font-size:.75rem;color:var(--text3);margin-top:2px">Gece yarısı seçili klasöre kaydeder</div>
+        <div style="font-size:.75rem;color:var(--text3);margin-top:2px">Günde bir kez Drive'a otomatik kaydeder</div>
       </div>
       <button id="auto-backup-toggle-btn" onclick="App.toggleAutoBackup()"
         style="display:flex;align-items:center;gap:10px;background:var(--surface2);border:1.5px solid var(--border);border-radius:30px;padding:6px 16px;cursor:pointer;transition:all .25s;color:var(--text);font-size:.85rem;font-weight:600">
-        <span id="auto-backup-icon" style="font-size:1.1rem">💾</span>
+        <span id="auto-backup-icon" style="font-size:1.1rem">☁️</span>
         <span id="auto-backup-text">Kapalı</span>
         <div id="auto-backup-track" style="width:38px;height:22px;border-radius:11px;background:var(--surface3);border:1.5px solid var(--border);position:relative;transition:background .25s;flex-shrink:0">
           <div id="auto-backup-thumb" style="position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--text3);transition:all .25s"></div>
         </div>
       </button>
     </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:10px">
-      <div style="flex:1;min-width:0">
-        <div id="backup-folder-name" style="font-size:.78rem;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📁 Klasör seçilmedi — İndirilenler kullanılır</div>
-        <div id="last-backup-info" style="font-size:.72rem;color:var(--teal);margin-top:2px;min-height:1em"></div>
-      </div>
-      <button onclick="App.pickBackupFolder()" style="flex-shrink:0;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:7px 13px;color:var(--primary);font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap">
-        📂 Klasör Seç
-      </button>
-    </div>
+    <div id="last-backup-info" style="font-size:.72rem;color:var(--teal);min-height:1em"></div>
 
     <hr style="border:none;border-top:1px solid var(--border);margin:4px 0"/>
     <button class="btn" id="reset-btn-page" onclick="App.resetTap()"
@@ -5985,44 +5996,12 @@ STRİKT KURALLAR:
     const file = event.target.files[0];
     if (!file) return;
     event.target.value = '';
-
     if (!confirm('Geri yükleme mevcut tüm verilerin üzerine yazacak. Devam etmek istediğine emin misin?')) return;
-
     try {
       const text = await file.text();
       const data = JSON.parse(text);
-
-      if (!data.cards || !Array.isArray(data.cards)) {
-        toast('❌ Geçersiz yedek dosyası!', 'err'); return;
-      }
-
-      // Clear and restore cards
-      await dbClear();
-      for (const c of data.cards) await dbPut(c);
-
-      // Restore routines
-      if (data.routines && Array.isArray(data.routines)) {
-        await new Promise((res, rej) => {
-          const tx = db.transaction(STORE_ROUTINES, 'readwrite');
-          tx.objectStore(STORE_ROUTINES).clear();
-          tx.oncomplete = res; tx.onerror = rej;
-        });
-        for (const r of data.routines) await routinePut(r);
-      }
-
-      // Restore activities
-      if (data.activities && Array.isArray(data.activities)) {
-        await new Promise((res, rej) => {
-          const tx = db.transaction(STORE_ACTIVITIES, 'readwrite');
-          tx.objectStore(STORE_ACTIVITIES).clear();
-          tx.oncomplete = res; tx.onerror = rej;
-        });
-        for (const a of data.activities) await activityPut(a);
-      }
-
-      closeBackupModal();
-      toast(`✅ Geri yükleme tamamlandı! (${data.cards.length} kart)`, 'ok');
-      renderHome();
+      const count = await _applyRestoreData(data);
+      toast(`✅ Geri yükleme tamamlandı! (${count} kart)`, 'ok');
     } catch(e) {
       toast('❌ Geri yükleme başarısız: ' + e.message, 'err');
     }
@@ -6174,7 +6153,7 @@ STRİKT KURALLAR:
     // Day modal
     openDayModal, closeDayModal,
     // Backup
-    openBackupModal, closeBackupModal, backupData, restoreData,
+    openBackupModal, closeBackupModal, backupData, backupDataLocal, restoreData, restoreFromDrive, _confirmNewDeviceRestore,
     resetTap, closeResetConfirm, confirmReset, selectResetType,
     // Social wrappers
     socialOpenChat: (code, name) => Social.openChat(code, name),
@@ -6229,7 +6208,6 @@ STRİKT KURALLAR:
     toggleAutoBackup,
     initAutoBackup,
     checkAutoBackup,
-    pickBackupFolder,
     startHardStudy,
     launchSubjectStudy,
     renderWeakTopics
@@ -6300,10 +6278,53 @@ STRİKT KURALLAR:
     _applyAdvisorUI(localStorage.getItem('yk_advisor_enabled') !== 'false');
   }
 
-  // ── OTO YEDEKLEME ──
+  // ── DRIVE BACKUP ─────────────────────────────────────────────────────────────
   var _AB_KEY   = 'auto_backup_enabled';
   var _AB_LAST  = 'last_auto_backup_date';
+  var _DRIVE_API = '/api/gdrive-backup';
 
+  // Yerel tarih string'i (UTC değil, TR saatiyle uyumlu)
+  function _localDateStr(d) {
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+  }
+
+  // Giriş yapmış kullanıcının uid'ini döndürür
+  function _getUid() {
+    return localStorage.getItem('social_code') || null;
+  }
+
+  // Drive'a yedek gönder (Vercel endpoint üzerinden)
+  async function _driveUpload(uid, dateStr, data) {
+    const res = await fetch(_DRIVE_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'save', uid, date: dateStr, data }),
+    });
+    if (!res.ok) throw new Error('Drive upload başarısız: HTTP ' + res.status);
+    return res.json();
+  }
+
+  // Drive'dan en son yedeği çek
+  async function _driveLoadLatest(uid) {
+    const res = await fetch(`${_DRIVE_API}?action=latest&uid=${encodeURIComponent(uid)}`);
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error('Drive load başarısız: HTTP ' + res.status);
+    const date = res.headers.get('X-Backup-Date');
+    const data = await res.json();
+    return { date, data };
+  }
+
+  // Durum banner'ını güncelle
+  function _updateDriveStatus(msg, color) {
+    const el = document.getElementById('drive-backup-status');
+    if (!el) return;
+    if (msg) { el.style.display = 'block'; el.style.color = color || 'var(--text2)'; el.innerHTML = msg; }
+    else      { el.style.display = 'none'; }
+  }
+
+  // Toggle UI güncelle
   function _applyAutoBackupUI(enabled) {
     const text  = document.getElementById('auto-backup-text');
     const track = document.getElementById('auto-backup-track');
@@ -6320,178 +6341,188 @@ STRİKT KURALLAR:
     }
     if (info) {
       const last = localStorage.getItem(_AB_LAST);
-      info.textContent = last ? ('Son yedek: ' + last) : '';
+      info.textContent = last ? ('☁️ Son yedek: ' + last) : '';
     }
   }
 
-  async function _updateFolderLabel() {
-    const el = document.getElementById('backup-folder-name');
-    if (!el) return;
+  // ── Manuel: Drive'a yedekle ───────────────────────────────────────────────
+  async function backupData() {
+    const uid = _getUid();
+    if (!uid) { toast('Drive yedeği için giriş yapman gerekiyor.', 'err'); return; }
     try {
-      const handle = await settingsGet('backupDirHandle');
-      if (handle) {
-        el.textContent = '📁 ' + handle.name;
-        el.style.color = 'var(--teal)';
-      } else {
-        el.textContent = '📁 Klasör seçilmedi — İndirilenler kullanılır';
-        el.style.color = '';
+      _updateDriveStatus('☁️ Drive\'a yükleniyor...', 'var(--text3)');
+      const cards      = await dbGetAll();
+      const routines   = await routineGetAll();
+      const activities = await activityGetAll();
+      const today      = _localDateStr(new Date());
+      await _driveUpload(uid, today, { version: 1, exportedAt: new Date().toISOString(), cards, routines, activities });
+      localStorage.setItem(_AB_LAST, today);
+      _applyAutoBackupUI(localStorage.getItem(_AB_KEY) === 'true');
+      _updateDriveStatus('✅ Drive\'a yüklendi! (' + today + ')', 'var(--teal)');
+      toast('✅ Google Drive\'a yedeklendi!', 'ok');
+    } catch(e) {
+      _updateDriveStatus('❌ Yedekleme başarısız: ' + e.message, '#ff4d6d');
+      toast('❌ Drive yedekleme hatası: ' + e.message, 'err');
+    }
+  }
+
+  // ── Manuel: yerel JSON indir (internet yoksa fallback) ───────────────────
+  async function backupDataLocal() {
+    try {
+      const cards      = await dbGetAll();
+      const routines   = await routineGetAll();
+      const activities = await activityGetAll();
+      const now3   = new Date();
+      const hhmm3  = now3.toTimeString().slice(0, 5).replace(':', '');
+      const backup = { version: 1, exportedAt: now3.toISOString(), cards, routines, activities };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `yks-asistan-yedek-${now3.toISOString().slice(0,10)}-${hhmm3}.json`;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast('✅ Yedek indirildi!', 'ok');
+    } catch(e) {
+      toast('❌ Yedekleme başarısız: ' + e.message, 'err');
+    }
+  }
+
+  // ── Drive'dan en son yedeği geri yükle ───────────────────────────────────
+  async function restoreFromDrive() {
+    const uid = _getUid();
+    if (!uid) { toast('Geri yükleme için giriş yapman gerekiyor.', 'err'); return; }
+    try {
+      _updateDriveStatus('☁️ Drive\'dan indiriliyor...', 'var(--text3)');
+      const result = await _driveLoadLatest(uid);
+      if (!result) { _updateDriveStatus('', ''); toast('Drive\'da yedek bulunamadı.', 'err'); return; }
+      const { date, data } = result;
+      if (!confirm(`${date} tarihli yedek bulundu. Mevcut verilerinin üzerine yazılacak. Devam edilsin mi?`)) {
+        _updateDriveStatus('', ''); return;
       }
+      const count = await _applyRestoreData(data);
+      _updateDriveStatus('✅ ' + date + ' yedeği geri yüklendi. (' + count + ' kart)', 'var(--teal)');
+      toast(`✅ Drive yedeği geri yüklendi! (${date})`, 'ok');
     } catch(e) {
-      el.textContent = '📁 Klasör seçilmedi — İndirilenler kullanılır';
-      el.style.color = '';
+      _updateDriveStatus('❌ Geri yükleme başarısız: ' + e.message, '#ff4d6d');
+      toast('❌ Drive geri yükleme hatası: ' + e.message, 'err');
     }
   }
 
-  async function pickBackupFolder() {
-    if (!window.showDirectoryPicker) {
-      toast('Bu tarayıcı klasör seçimini desteklemiyor.', 'err'); return;
+  // ── Ortak geri yükleme mantığı (dosyadan ve Drive'dan) ───────────────────
+  async function _applyRestoreData(data) {
+    if (!data.cards || !Array.isArray(data.cards)) throw new Error('Geçersiz yedek formatı');
+    await dbClear();
+    for (const c of data.cards) await dbPut(c);
+    if (data.routines && Array.isArray(data.routines)) {
+      await new Promise((res, rej) => {
+        const tx = db.transaction(STORE_ROUTINES, 'readwrite');
+        tx.objectStore(STORE_ROUTINES).clear();
+        tx.oncomplete = res; tx.onerror = rej;
+      });
+      for (const r of data.routines) await routinePut(r);
     }
-    try {
-      const handle = await window.showDirectoryPicker({ mode: 'readwrite', startIn: 'documents' });
-      // Kullanıcı gesturü aktifken izni hemen iste — gece yarısı queryPermission 'granted' dönsün
-      await handle.requestPermission({ mode: 'readwrite' });
-      await settingsPut('backupDirHandle', handle);
-      await _updateFolderLabel();
-      toast('✅ Klasör seçildi: ' + handle.name, 'ok');
-    } catch(e) {
-      if (e.name !== 'AbortError') toast('Klasör seçilemedi: ' + e.message, 'err');
+    if (data.activities && Array.isArray(data.activities)) {
+      await new Promise((res, rej) => {
+        const tx = db.transaction(STORE_ACTIVITIES, 'readwrite');
+        tx.objectStore(STORE_ACTIVITIES).clear();
+        tx.oncomplete = res; tx.onerror = rej;
+      });
+      for (const a of data.activities) await activityPut(a);
     }
+    closeBackupModal();
+    renderHome();
+    return data.cards.length;
   }
 
+  // ── Otomatik yedekleme toggle ─────────────────────────────────────────────
   function toggleAutoBackup() {
     const isCurrentlyOn = localStorage.getItem(_AB_KEY) === 'true';
     const next = !isCurrentlyOn;
     localStorage.setItem(_AB_KEY, next ? 'true' : 'false');
     _applyAutoBackupUI(next);
-    if (next) {
-      toast('✅ Otomatik yedekleme açıldı. Gece yarısı çalışacak.', 'ok');
-    } else {
-      toast('💾 Otomatik yedekleme kapatıldı.', 'ok');
-    }
+    if (next) toast('✅ Otomatik yedekleme açıldı. Her gün Drive\'a kaydedilecek.', 'ok');
+    else      toast('☁️ Otomatik yedekleme kapatıldı.', 'ok');
   }
 
-  // BUG-3 FIX: UTC yerine yerel tarihi döndürür (TR = UTC+3 kayması engellenir)
-  function _localDateStr(d) {
-    return d.getFullYear() + '-' +
-      String(d.getMonth() + 1).padStart(2, '0') + '-' +
-      String(d.getDate()).padStart(2, '0');
-  }
-
-  // BUG-2 FIX: Klasör içinde bugüne ait yks-yedek-YYYY-MM-DD-*.json dosyası var mı kontrol eder
-  async function _folderHasBackupForDate(dirHandle, dateStr) {
-    try {
-      for await (const [name] of dirHandle) {
-        if (name.startsWith('yks-yedek-' + dateStr + '-') && name.endsWith('.json')) {
-          return true;
-        }
-      }
-    } catch(e) {
-      console.warn('Klasör listelenemedi:', e);
-    }
-    return false;
-  }
-
+  // ── Startup ───────────────────────────────────────────────────────────────
   function initAutoBackup() {
     _applyAutoBackupUI(localStorage.getItem(_AB_KEY) === 'true');
-    _updateFolderLabel();
 
-    // BUG-1 FIX: Startup'ta hemen kontrol et — kullanıcı gece yarısında açık olmasa bile
-    // geciken yedeği yakalar (örn. sabah 08:00'de açılırsa dünkü/bugünkü yedek alınır)
+    // Hemen kontrol et (gece yarısı açık olmasa bile geciken yedeği yakalar)
     checkAutoBackup();
 
-    // BUG-5 FIX: Her döngüde gece yarısını yeniden hesapla (uyku/throttle kaymasını önler)
+    // Her döngüde gece yarısını taze hesapla (uyku/throttle drift önlenir)
     function scheduleNextMidnight() {
       const now = new Date();
-      const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5) - now;
-      setTimeout(function() {
-        checkAutoBackup();
-        scheduleNextMidnight(); // bir sonraki gece yarısını taze hesapla
-      }, msUntilMidnight);
+      const ms = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5) - now;
+      setTimeout(function() { checkAutoBackup(); scheduleNextMidnight(); }, ms);
     }
     scheduleNextMidnight();
+
+    // Yeni cihaz tespiti: yerel veri yok ama Drive'da yedek var → kullanıcıya sor
+    _checkNewDeviceRestore();
   }
 
+  // ── Otomatik yedek (giriş yapılmışsa Drive'a, yoksa sessizce atla) ────────
   async function checkAutoBackup() {
     if (localStorage.getItem(_AB_KEY) !== 'true') return;
-    const now2  = new Date();
-    // BUG-3 FIX: toISOString() UTC döndürür; yerel tarih fonksiyonu kullan
-    const today = _localDateStr(now2);
+    const uid = _getUid();
+    if (!uid) return;
 
-    // Önce localStorage'ı kontrol et (hızlı yol)
+    const today = _localDateStr(new Date());
     if (localStorage.getItem(_AB_LAST) === today) return;
-
-    // BUG-2 FIX: localStorage boş/temizlenmiş olabilir — klasördeki dosyaları da tara
-    try {
-      const dirHandle = await settingsGet('backupDirHandle');
-      if (dirHandle) {
-        const perm = await dirHandle.queryPermission({ mode: 'readwrite' });
-        if (perm === 'granted') {
-          const alreadyInFolder = await _folderHasBackupForDate(dirHandle, today);
-          if (alreadyInFolder) {
-            // Klasörde bu güne ait yedek var; localStorage'ı senkronize et ve çık
-            localStorage.setItem(_AB_LAST, today);
-            _applyAutoBackupUI(true);
-            console.info('Bugüne ait yedek zaten klasörde mevcut, atlanıyor:', today);
-            return;
-          }
-        }
-      }
-    } catch(e) {
-      console.warn('Klasör ön-kontrol hatası:', e);
-    }
 
     try {
       const cards      = await dbGetAll();
       const routines   = await routineGetAll();
       const activities = await activityGetAll();
-      const hhmm   = now2.toTimeString().slice(0, 5).replace(':', '');
-      const fname  = 'yks-yedek-' + today + '-' + hhmm + '.json';
-      const backup = { version: 1, exportedAt: now2.toISOString(), cards, routines, activities };
-      const json   = JSON.stringify(backup, null, 2);
-
-      // Önce seçili klasöre yazmayı dene
-      let usedFolder = false;
-      try {
-        const dirHandle = await settingsGet('backupDirHandle');
-        if (dirHandle) {
-          // requestPermission gesture gerektirir; otomatik yedekte queryPermission kullan
-          const perm = await dirHandle.queryPermission({ mode: 'readwrite' });
-          if (perm === 'granted') {
-            const fileHandle = await dirHandle.getFileHandle(fname, { create: true });
-            const writable   = await fileHandle.createWritable();
-            await writable.write(json);
-            await writable.close();
-            usedFolder = true;
-          } else {
-            console.warn('Klasör izni yok (queryPermission: ' + perm + '). Kullanıcının uygulamayı açması ve klasörü onaylaması gerekiyor.');
-          }
-        }
-      } catch(fe) {
-        console.warn('Klasöre yazılamadı:', fe);
-      }
-
-      // Fallback: normal download (klasör yoksa veya izin verilmemişse)
-      if (!usedFolder) {
-        const blob = new Blob([json], { type: 'application/json' });
-        const url  = URL.createObjectURL(blob);
-        const a    = document.createElement('a');
-        a.href = url; a.download = fname;
-        document.body.appendChild(a); a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }
-
-      // BUG-4 FIX: Klasör veya fallback download — her iki durumda da tarihi kaydet
+      await _driveUpload(uid, today, { version: 1, exportedAt: new Date().toISOString(), cards, routines, activities });
       localStorage.setItem(_AB_LAST, today);
       _applyAutoBackupUI(true);
-      if (usedFolder) {
-        if (window.toast) toast('💾 Otomatik yedek alındı! (' + today + ')', 'ok');
-      } else {
-        if (window.toast) toast('💾 Yedek indirildi (klasör izni yok, İndirilenler kullanıldı).', 'ok');
-      }
+      if (window.toast) toast('☁️ Otomatik yedek Drive\'a kaydedildi!', 'ok');
     } catch(e) {
       console.warn('Auto backup failed:', e);
+      // Sessizce başarısız ol — bir sonraki açılışta tekrar dener
     }
+  }
+
+  // ── Yeni cihaz tespiti ────────────────────────────────────────────────────
+  async function _checkNewDeviceRestore() {
+    try {
+      const uid = _getUid();
+      if (!uid) return;
+      const cards = await dbGetAll();
+      if (cards.length > 0) return; // zaten veri var
+
+      const result = await _driveLoadLatest(uid);
+      if (!result) return;
+
+      setTimeout(() => {
+        const existing = document.getElementById('new-device-restore-banner');
+        if (existing) return;
+        const banner = document.createElement('div');
+        banner.id = 'new-device-restore-banner';
+        banner.style.cssText = 'position:fixed;bottom:80px;left:12px;right:12px;z-index:9999;padding:14px 16px;border-radius:14px;background:var(--surface2);border:1.5px solid var(--primary);box-shadow:0 4px 24px rgba(0,0,0,.4);display:flex;align-items:center;gap:12px';
+        banner.innerHTML = `
+          <div style="flex:1;font-size:.82rem;color:var(--text);line-height:1.5">
+            ☁️ <b>Drive'da yedeğin var!</b><br>
+            <span style="color:var(--text3)">${result.date} tarihli yedek bulundu.</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <button onclick="App._confirmNewDeviceRestore()" style="background:var(--primary);border:none;border-radius:8px;padding:7px 13px;color:#fff;font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap">✅ Yükle</button>
+            <button onclick="document.getElementById('new-device-restore-banner').remove()" style="background:var(--surface3);border:none;border-radius:8px;padding:5px 10px;color:var(--text3);font-size:.74rem;cursor:pointer">Hayır</button>
+          </div>`;
+        document.body.appendChild(banner);
+      }, 2000);
+    } catch(e) { /* sessizce atla */ }
+  }
+
+  async function _confirmNewDeviceRestore() {
+    const banner = document.getElementById('new-device-restore-banner');
+    if (banner) banner.remove();
+    await restoreFromDrive();
   }
 })();
 
