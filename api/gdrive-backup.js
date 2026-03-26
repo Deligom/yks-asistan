@@ -73,10 +73,33 @@ async function getOrCreateUserFolder(token, uid) {
   return createData.id;
 }
 
-// ── Multipart upload (yeni oluştur VEYA üzerine yaz) ──────────────────────────
-async function driveMultipartUpload(token, { folderId, fileName, mimeType, content, existingFileId }) {
+// ── Dosya yükle: yeni oluştur (multipart) VEYA üzerine yaz (simple media) ─────
+async function driveUpload(token, { folderId, fileName, mimeType, content, existingFileId }) {
+
+  // Mevcut dosyayı güncelle → simple media upload (PATCH)
+  // Multipart PATCH, Drive API'de 405 döndürebiliyor; simple media güvenli.
+  if (existingFileId) {
+    const upRes = await fetch(
+      `https://www.googleapis.com/upload/drive/v3/files/${existingFileId}?uploadType=media`,
+      {
+        method : 'PATCH',
+        headers: {
+          Authorization : `Bearer ${token}`,
+          'Content-Type': mimeType,
+        },
+        body: content,
+      }
+    );
+    if (!upRes.ok) {
+      const err = await upRes.text();
+      throw new Error(`Drive upload hatası (${upRes.status}): ${err}`);
+    }
+    return upRes.json();
+  }
+
+  // Yeni dosya oluştur → multipart upload (POST)
   const boundary = 'BOUNDARY_YKS_BACKUP_2026';
-  const metadata = existingFileId ? '{}' : JSON.stringify({ name: fileName, mimeType, parents: [folderId] });
+  const metadata = JSON.stringify({ name: fileName, mimeType, parents: [folderId] });
 
   const body = [
     `--${boundary}`,
@@ -90,19 +113,17 @@ async function driveMultipartUpload(token, { folderId, fileName, mimeType, conte
     `--${boundary}--`,
   ].join('\r\n');
 
-  const url    = existingFileId
-    ? `https://www.googleapis.com/upload/drive/v3/files/${existingFileId}?uploadType=multipart`
-    : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-  const method = existingFileId ? 'PATCH' : 'POST';
-
-  const upRes = await fetch(url, {
-    method,
-    headers: {
-      Authorization : `Bearer ${token}`,
-      'Content-Type': `multipart/related; boundary="${boundary}"`,
-    },
-    body,
-  });
+  const upRes = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+    {
+      method : 'POST',
+      headers: {
+        Authorization : `Bearer ${token}`,
+        'Content-Type': `multipart/related; boundary="${boundary}"`,
+      },
+      body,
+    }
+  );
 
   if (!upRes.ok) {
     const err = await upRes.text();
@@ -161,7 +182,7 @@ module.exports = async function handler(req, res) {
       const existing       = await listFiles(token, folderId, fname);
       const existingFileId = existing.length > 0 ? existing[0].id : null;
 
-      await driveMultipartUpload(token, { folderId, fileName: fname, mimeType: 'application/json', content: json, existingFileId });
+      await driveUpload(token, { folderId, fileName: fname, mimeType: 'application/json', content: json, existingFileId });
 
       return res.status(200).json({ ok: true, date: d });
     }
