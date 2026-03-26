@@ -39,15 +39,6 @@ async function getOrCreateUserFolder(drive, uid) {
   return created.data.id;
 }
 
-// ── Yardımcılar ───────────────────────────────────────────────────────────────
-const { Readable } = require('stream');
-function stringToStream(str) {
-  const s = new Readable();
-  s.push(str);
-  s.push(null);
-  return s;
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -84,7 +75,7 @@ module.exports = async function handler(req, res) {
         // Güncelle
         await drive.files.update({
           fileId: existing.data.files[0].id,
-          media: { mimeType: 'application/json', body: stringToStream(json) },
+          media: { mimeType: 'application/json', body: json },
         });
       } else {
         // Yeni oluştur
@@ -94,7 +85,7 @@ module.exports = async function handler(req, res) {
             mimeType: 'application/json',
             parents: [folderId],
           },
-          media: { mimeType: 'application/json', body: stringToStream(json) },
+          media: { mimeType: 'application/json', body: json },
           fields: 'id',
         });
       }
