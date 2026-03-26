@@ -6297,12 +6297,22 @@ STRİKT KURALLAR:
 
   // Drive'a yedek gönder (Vercel endpoint üzerinden)
   async function _driveUpload(uid, dateStr, data) {
-    const res = await fetch(_DRIVE_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'save', uid, date: dateStr, data }),
-    });
-    if (!res.ok) throw new Error('Drive upload başarısız: HTTP ' + res.status);
+    let res;
+    try {
+      res = await fetch(_DRIVE_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save', uid, date: dateStr, data }),
+      });
+    } catch(networkErr) {
+      throw new Error('Sunucuya ulaşılamadı (ığ hatası): ' + networkErr.message);
+    }
+    if (!res.ok) {
+      let detail = '';
+      try { const body = await res.json(); detail = body.detail || body.error || JSON.stringify(body); }
+      catch(_) { try { detail = await res.text(); } catch(__) {} }
+      throw new Error('Drive upload başarısız: HTTP ' + res.status + ' — ' + detail);
+    }
     return res.json();
   }
 
