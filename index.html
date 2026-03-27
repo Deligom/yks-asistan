@@ -5965,32 +5965,7 @@ STRİKT KURALLAR:
     document.getElementById('backup-modal').classList.remove('open');
   }
 
-  async function backupData() {
-    try {
-      const cards      = await dbGetAll();
-      const routines   = await routineGetAll();
-      const activities = await activityGetAll();
-      const now3   = new Date();
-      const hhmm3  = now3.toTimeString().slice(0, 5).replace(':', '');
-      const backup = {
-        version: 1,
-        exportedAt: now3.toISOString(),
-        cards, routines, activities
-      };
-      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href     = url;
-      a.download = `yks-asistan-yedek-${now3.toISOString().slice(0,10)}-${hhmm3}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast('✅ Yedek indirildi!', 'ok');
-    } catch(e) {
-      toast('❌ Yedekleme başarısız: ' + e.message, 'err');
-    }
-  }
+  // (eski backupData kaldırıldı — Drive versiyonu aşağıda)
 
   async function restoreData(event) {
     const file = event.target.files[0];
@@ -6297,30 +6272,31 @@ STRİKT KURALLAR:
 
   // Drive'a yedek gönder (Vercel endpoint üzerinden)
   async function _driveUpload(uid, dateStr, data) {
-    // DEBUG: URL'i göster
-    console.log('[DEBUG] POST gönderiliyor:', _DRIVE_API, 'uid:', uid);
+    const DRIVE_URL = 'https://yks-asistan.vercel.app/api/gdrive-backup';
+    console.log('[DEBUG] POST gönderiliyor:', DRIVE_URL, 'uid:', uid);
     let res;
     try {
-      res = await fetch(_DRIVE_API, {
+      res = await fetch(DRIVE_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'save', uid, date: dateStr, data }),
       });
     } catch(networkErr) {
-      throw new Error('Ağ hatası → ' + _DRIVE_API + ': ' + networkErr.message);
+      throw new Error('Ağ hatası → ' + DRIVE_URL + ': ' + networkErr.message);
     }
     if (!res.ok) {
       let detail = '';
       try { const body = await res.json(); detail = body.detail || body.error || JSON.stringify(body); }
       catch(_) { try { detail = await res.text(); } catch(__) {} }
-      throw new Error('POST ' + _DRIVE_API + ' → HTTP ' + res.status + (detail ? ' — ' + detail : ''));
+      throw new Error('POST ' + DRIVE_URL + ' → HTTP ' + res.status + (detail ? ' — ' + detail : ''));
     }
     return res.json();
   }
 
   // Drive'dan en son yedeği çek
   async function _driveLoadLatest(uid) {
-    const res = await fetch(`${_DRIVE_API}?action=latest&uid=${encodeURIComponent(uid)}`);
+    const DRIVE_URL2 = 'https://yks-asistan.vercel.app/api/gdrive-backup';
+    const res = await fetch(`${DRIVE_URL2}?action=latest&uid=${encodeURIComponent(uid)}`);
     if (res.status === 404) return null;
     if (!res.ok) throw new Error('Drive load başarısız: HTTP ' + res.status);
     const date = res.headers.get('X-Backup-Date');
