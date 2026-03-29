@@ -6,7 +6,12 @@
 // ── JWT ile service-account access token al ───────────────────────────────────
 async function getAccessToken() {
   const email  = process.env.GDRIVE_CLIENT_EMAIL;
-  const rawKey = (process.env.GDRIVE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
+  // PEM formatını normalize et: \n → satır sonu, başlık/bitiş satırları düzelt
+  let rawKey = (process.env.GDRIVE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
+  // Eğer BEGIN ile içerik arasında satır sonu yoksa ekle
+  rawKey = rawKey
+    .replace(/-----BEGIN PRIVATE KEY-----([^\n])/g, '-----BEGIN PRIVATE KEY-----\n$1')
+    .replace(/([^\n])-----END PRIVATE KEY-----/g, '$1\n-----END PRIVATE KEY-----');
 
   // jsonwebtoken ile RS256 imzalama (Node 18+ OpenSSL 3 uyumlu)
   const jwt_lib = require('jsonwebtoken');
