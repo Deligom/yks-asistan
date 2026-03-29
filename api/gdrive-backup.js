@@ -1,49 +1,25 @@
 // api/gdrive-backup.js
 // Google Drive'a kullanıcı başına yedek yaz / oku / listele
-// Env vars: GDRIVE_CLIENT_EMAIL, GDRIVE_PRIVATE_KEY, GDRIVE_FOLDER_ID
-// NOT: googleapis paketi KULLANILMIYOR — saf fetch + built-in crypto ile Drive REST API
+// Env vars: GDRIVE_CLIENT_ID, GDRIVE_CLIENT_SECRET, GDRIVE_REFRESH_TOKEN, GDRIVE_FOLDER_ID
 
-// ── JWT ile service-account access token al ───────────────────────────────────
+// ── OAuth2 access token al (refresh token ile) ────────────────────────────────
 async function getAccessToken() {
-  const email  = process.env.GDRIVE_CLIENT_EMAIL;
-  // PEM formatını normalize et: \n → satır sonu, başlık/bitiş satırları düzelt
-  let rawKey = (process.env.GDRIVE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
-  // Eğer BEGIN ile içerik arasında satır sonu yoksa ekle
-  rawKey = rawKey
-    .replace(/-----BEGIN PRIVATE KEY-----([^\n])/g, '-----BEGIN PRIVATE KEY-----\n$1')
-    .replace(/([^\n])-----END PRIVATE KEY-----/g, '$1\n-----END PRIVATE KEY-----');
-
-  // jsonwebtoken ile RS256 imzalama (Node 18+ OpenSSL 3 uyumlu)
-  const jwt_lib = require('jsonwebtoken');
-  const now     = Math.floor(Date.now() / 1000);
-
-  const jwt = jwt_lib.sign(
-    {
-      iss  : email,
-      scope: 'https://www.googleapis.com/auth/drive',
-      aud  : 'https://oauth2.googleapis.com/token',
-      iat  : now,
-      exp  : now + 3600,
-    },
-    rawKey,
-    { algorithm: 'RS256' }
-  );
-
-  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+  const res = await fetch('https://oauth2.googleapis.com/token', {
     method : 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body   : new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion : jwt,
+      client_id    : process.env.GDRIVE_CLIENT_ID,
+      client_secret: process.env.GDRIVE_CLIENT_SECRET,
+      refresh_token: process.env.GDRIVE_REFRESH_TOKEN,
+      grant_type   : 'refresh_token',
     }),
   });
-
-  if (!tokenRes.ok) {
-    const err = await tokenRes.text();
+  if (!res.ok) {
+    const err = await res.text();
     throw new Error('Token alınamadı: ' + err);
   }
-  const tokenData = await tokenRes.json();
-  return tokenData.access_token;
+  const data = await res.json();
+  return data.access_token;
 }
 
 // ── Kullanıcıya ait alt klasörü bul veya oluştur ──────────────────────────────
@@ -56,10 +32,8 @@ async function getOrCreateUserFolder(token, uid) {
     { headers: { Authorization: `Bearer ${token}` } }
   );
   const listData = await listRes.json();
-
   if (listData.files && listData.files.length > 0) return listData.files[0].id;
 
-  // Klasör oluştur
   const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
     method : 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -73,7 +47,7 @@ async function getOrCreateUserFolder(token, uid) {
   return createData.id;
 }
 
-// ── Multipart upload (yeni oluştur VEYA üzerine yaz) ──────────────────────────
+// ── Multipart upload ──────────────────────────────────────────────────────────
 async function driveMultipartUpload(token, { folderId, fileName, mimeType, content, existingFileId }) {
   const boundary = 'BOUNDARY_YKS_BACKUP_2026';
   const metadata = existingFileId ? '{}' : JSON.stringify({ name: fileName, mimeType, parents: [folderId] });
@@ -191,7 +165,7 @@ module.exports = async function handler(req, res) {
       const files    = await listFiles(token, folderId);
       if (files.length === 0) return res.status(404).json({ error: 'Yedek yok' });
 
-      const latest  = files[0]; // orderBy name desc → en yeni tarih üstte
+      const latest  = files[0];
       const content = await downloadFile(token, latest.id);
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('X-Backup-Date', latest.name.replace('.json', ''));
