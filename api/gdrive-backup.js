@@ -6,35 +6,23 @@
 // ── JWT ile service-account access token al ───────────────────────────────────
 async function getAccessToken() {
   const email  = process.env.GDRIVE_CLIENT_EMAIL;
-  const rawKey = (process.env.GDRIVE_PRIVATE_KEY || '').replace(/\\n/g, '\n').replace(/\r/g, '');
+  const rawKey = (process.env.GDRIVE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
 
-  const b64 = (obj) => Buffer.from(JSON.stringify(obj)).toString('base64url');
-  const now  = Math.floor(Date.now() / 1000);
+  // jsonwebtoken ile RS256 imzalama (Node 18+ OpenSSL 3 uyumlu)
+  const jwt_lib = require('jsonwebtoken');
+  const now     = Math.floor(Date.now() / 1000);
 
-  const header  = { alg: 'RS256', typ: 'JWT' };
-  const payload = {
-    iss  : email,
-    scope: 'https://www.googleapis.com/auth/drive',
-    aud  : 'https://oauth2.googleapis.com/token',
-    iat  : now,
-    exp  : now + 3600,
-  };
-
-  const signingInput = `${b64(header)}.${b64(payload)}`;
-
-  const crypto = require('crypto');
-
-  // OpenSSL 3 (Node 18+) uyumlu: önce key objesine parse et
-  const privateKey = crypto.createPrivateKey({
-    key   : rawKey,
-    format: 'pem',
-    type  : 'pkcs8',
-  });
-  const sign = crypto.createSign('RSA-SHA256');
-  sign.update(signingInput);
-  const signature = sign.sign(privateKey, 'base64url');
-
-  const jwt = `${signingInput}.${signature}`;
+  const jwt = jwt_lib.sign(
+    {
+      iss  : email,
+      scope: 'https://www.googleapis.com/auth/drive',
+      aud  : 'https://oauth2.googleapis.com/token',
+      iat  : now,
+      exp  : now + 3600,
+    },
+    rawKey,
+    { algorithm: 'RS256' }
+  );
 
   const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
     method : 'POST',
