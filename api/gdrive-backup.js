@@ -3,7 +3,6 @@
 // Env vars: GDRIVE_CLIENT_ID, GDRIVE_CLIENT_SECRET, GDRIVE_REFRESH_TOKEN
 // Opsiyonel: GDRIVE_FOLDER_ID (yoksa Drive root'una yazar)
 
-// ── OAuth2 access token al (refresh token ile) ────────────────────────────────
 async function getAccessToken() {
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method : 'POST',
@@ -23,12 +22,9 @@ async function getAccessToken() {
   return data.access_token;
 }
 
-// ── Kullanıcıya ait alt klasörü bul veya oluştur ──────────────────────────────
 async function getOrCreateUserFolder(token, uid) {
-  // GDRIVE_FOLDER_ID yoksa root'a yaz
   const parentId = process.env.GDRIVE_FOLDER_ID || 'root';
 
-  // Var mı kontrol et
   const q = `'${parentId}' in parents and name='${uid}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
   const listRes = await fetch(
     `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)&spaces=drive`,
@@ -41,7 +37,6 @@ async function getOrCreateUserFolder(token, uid) {
   const listData = await listRes.json();
   if (listData.files && listData.files.length > 0) return listData.files[0].id;
 
-  // Yoksa oluştur
   const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
     method : 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -60,7 +55,6 @@ async function getOrCreateUserFolder(token, uid) {
   return createData.id;
 }
 
-// ── Multipart upload ──────────────────────────────────────────────────────────
 async function driveMultipartUpload(token, { folderId, fileName, mimeType, content, existingFileId }) {
   const boundary = 'BOUNDARY_YKS_BACKUP_2026';
   const metadata = existingFileId ? '{}' : JSON.stringify({ name: fileName, mimeType, parents: [folderId] });
@@ -98,7 +92,6 @@ async function driveMultipartUpload(token, { folderId, fileName, mimeType, conte
   return upRes.json();
 }
 
-// ── Dosya listele ─────────────────────────────────────────────────────────────
 async function listFiles(token, folderId, fileName = null) {
   let q = `'${folderId}' in parents and trashed=false`;
   if (fileName) q += ` and name='${fileName}'`;
@@ -111,7 +104,6 @@ async function listFiles(token, folderId, fileName = null) {
   return data.files || [];
 }
 
-// ── Dosya içeriğini indir ─────────────────────────────────────────────────────
 async function downloadFile(token, fileId) {
   const res = await fetch(
     `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
@@ -121,17 +113,31 @@ async function downloadFile(token, fileId) {
   return res.text();
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-module.exports = async function handler(req, res) {
+// ── ESM export (send-push.js ile aynı format) ─────────────────────────────────
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Expose-Headers', 'X-Backup-Date');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { action, uid, date } = req.method === 'POST'
-    ? (req.body || {})
-    : req.query;
+  // Body parse — Vercel ESM'de req.body otomatik gelmeyebilir
+  let body = {};
+  if (req.method === 'POST') {
+    try {
+      const raw = await new Promise((resolve, reject) => {
+        let data = '';
+        req.on('data', chunk => data += chunk);
+        req.on('end', () => resolve(data));
+        req.on('error', reject);
+      });
+      body = raw ? JSON.parse(raw) : {};
+    } catch {
+      body = req.body || {};
+    }
+  }
+
+  const { action, uid, date } = req.method === 'POST' ? body : req.query;
 
   if (!uid) return res.status(400).json({ error: 'uid gerekli' });
 
@@ -140,18 +146,16 @@ module.exports = async function handler(req, res) {
 
     // ── POST { action:'save', uid, date, data } ──────────────────────────────
     if (req.method === 'POST' && action === 'save') {
-      const { date: d, data } = req.body;
+      const { date: d, data } = body;
       if (!d || !data) return res.status(400).json({ error: 'date ve data gerekli' });
 
-      const folderId = await getOrCreateUserFolder(token, uid);
-      const fname    = `${d}.json`;
-      const json     = JSON.stringify(data);
-
+      const folderId       = await getOrCreateUserFolder(token, uid);
+      const fname          = `${d}.json`;
+      const json           = JSON.stringify(data);
       const existing       = await listFiles(token, folderId, fname);
       const existingFileId = existing.length > 0 ? existing[0].id : null;
 
       await driveMultipartUpload(token, { folderId, fileName: fname, mimeType: 'application/json', content: json, existingFileId });
-
       return res.status(200).json({ ok: true, date: d, filename: fname });
     }
 
@@ -162,7 +166,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ files });
     }
 
-    // ── GET ?action=load&uid=...&filename=2026-03-30_14-23.json ─────────────
+    // ── GET ?action=load ─────────────────────────────────────────────────────
     if (action === 'load') {
       const { filename } = req.query;
       const fname = filename || (date ? `${date}.json` : null);
@@ -196,4 +200,4 @@ module.exports = async function handler(req, res) {
     console.error('[gdrive-backup]', e);
     return res.status(500).json({ error: 'Drive işlemi başarısız', detail: e.message });
   }
-};
+}
