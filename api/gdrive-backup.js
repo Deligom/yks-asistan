@@ -22,65 +22,18 @@ async function getAccessToken() {
   return data.access_token;
 }
 
-// ── Ana YKS klasörünü doğrula veya root'ta oluştur ────────────────────────────
-async function _getValidParentId(token) {
-  const envId = process.env.GDRIVE_FOLDER_ID;
-
-  // Env var yoksa root kullan
-  if (!envId) return 'root';
-
-  // Env var varsa klasörün gerçekten erişilebilir olduğunu kontrol et
-  const checkRes = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${envId}?fields=id`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-  if (checkRes.ok) return envId; // Klasör erişilebilir, kullan
-
-  // 404 veya başka hata → root'ta "YKS-Asistan-Backups" klasörü bul veya oluştur
-  console.warn(`[gdrive-backup] GDRIVE_FOLDER_ID erişilemiyor (${checkRes.status}), root'a fallback yapılıyor.`);
-
-  const q       = `'root' in parents and name='YKS-Asistan-Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
-  const listRes = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)&spaces=drive`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-  if (listRes.ok) {
-    const listData = await listRes.json();
-    if (listData.files && listData.files.length > 0) return listData.files[0].id;
-  }
-
-  // Root'ta da yoksa oluştur
-  const mkRes = await fetch('https://www.googleapis.com/drive/v3/files', {
-    method : 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body   : JSON.stringify({ name: 'YKS-Asistan-Backups', mimeType: 'application/vnd.google-apps.folder' }),
-  });
-  if (!mkRes.ok) {
-    const err = await mkRes.text();
-    throw new Error(`Root klasör oluşturulamadı (${mkRes.status}): ${err}`);
-  }
-  const mkData = await mkRes.json();
-  return mkData.id;
-}
-
 // ── Kullanıcıya ait alt klasörü bul veya oluştur ──────────────────────────────
 async function getOrCreateUserFolder(token, uid) {
-  const parentId = await _getValidParentId(token);
+  const parentId = process.env.GDRIVE_FOLDER_ID;
 
-  // Var mı kontrol et
   const q      = `'${parentId}' in parents and name='${uid}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
   const listRes = await fetch(
     `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)&spaces=drive`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
-  if (!listRes.ok) {
-    const err = await listRes.text();
-    throw new Error(`Klasör arama hatası (${listRes.status}): ${err}`);
-  }
   const listData = await listRes.json();
   if (listData.files && listData.files.length > 0) return listData.files[0].id;
 
-  // Yoksa oluştur
   const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
     method : 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -90,12 +43,7 @@ async function getOrCreateUserFolder(token, uid) {
       parents : [parentId],
     }),
   });
-  if (!createRes.ok) {
-    const err = await createRes.text();
-    throw new Error(`Klasör oluşturma hatası (${createRes.status}): ${err}`);
-  }
   const createData = await createRes.json();
-  if (!createData.id) throw new Error('Klasör ID alınamadı: ' + JSON.stringify(createData));
   return createData.id;
 }
 
@@ -165,7 +113,6 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Access-Control-Expose-Headers', 'X-Backup-Date');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { action, uid, date } = req.method === 'POST'
@@ -182,17 +129,15 @@ module.exports = async function handler(req, res) {
       const { date: d, data } = req.body;
       if (!d || !data) return res.status(400).json({ error: 'date ve data gerekli' });
 
-      const folderId = await getOrCreateUserFolder(token, uid);
-      const fname    = `${d}.json`;  // örn: 2026-03-30_14-23.json
-      const json     = JSON.stringify(data);
-
-      // Aynı isimde varsa üzerine yaz (saat içerdiği için pratikte hep yeni)
+      const folderId       = await getOrCreateUserFolder(token, uid);
+      const fname          = `${d}.json`;
+      const json           = JSON.stringify(data);
       const existing       = await listFiles(token, folderId, fname);
       const existingFileId = existing.length > 0 ? existing[0].id : null;
 
       await driveMultipartUpload(token, { folderId, fileName: fname, mimeType: 'application/json', content: json, existingFileId });
 
-      return res.status(200).json({ ok: true, date: d, filename: fname });
+      return res.status(200).json({ ok: true, date: d });
     }
 
     // ── GET ?action=list ─────────────────────────────────────────────────────
@@ -202,19 +147,15 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ files });
     }
 
-    // ── GET ?action=load&uid=...&date=2026-03-30_14-23 ───────────────────────
-    // date parametresi tam dosya adının .json'suz hali
+    // ── GET ?action=load&date=2026-03-25 ─────────────────────────────────────
     if (action === 'load') {
-      const { filename } = req.query;
-      const fname = filename || (date ? `${date}.json` : null);
-      if (!fname) return res.status(400).json({ error: 'filename veya date gerekli' });
+      if (!date) return res.status(400).json({ error: 'date gerekli' });
       const folderId = await getOrCreateUserFolder(token, uid);
-      const found    = await listFiles(token, folderId, fname.endsWith('.json') ? fname : fname + '.json');
+      const found    = await listFiles(token, folderId, `${date}.json`);
       if (found.length === 0) return res.status(404).json({ error: 'Yedek bulunamadı' });
 
       const content = await downloadFile(token, found[0].id);
       res.setHeader('Content-Type', 'application/json');
-      res.setHeader('X-Backup-Filename', found[0].name);
       return res.status(200).send(content);
     }
 
