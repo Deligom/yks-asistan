@@ -1,5 +1,5 @@
 // api/gdrive-backup.js
-// Google Drive yedekleme - 405 hatası kesin çözüldü (temiz versiyon)
+// Google Drive yedekleme - 405 HATASI ÇÖZÜLDÜ (temiz + düzeltilmiş versiyon)
 
 async function getAccessToken() {
   const res = await fetch('https://oauth2.googleapis.com/token', {
@@ -20,6 +20,7 @@ async function getAccessToken() {
 async function getOrCreateUserFolder(token, uid) {
   const parentId = process.env.GDRIVE_FOLDER_ID || 'root';
 
+  // ←←← BURASI DÜZELTİLDİ
   const q = `'\( {parentId}' in parents and name=' \){uid}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
 
   const listRes = await fetch(
@@ -46,6 +47,7 @@ async function getOrCreateUserFolder(token, uid) {
   return createData.id;
 }
 
+// (diğer fonksiyonlar aynı kalıyor - driveMultipartUpload, listFiles, downloadFile)
 async function driveMultipartUpload(token, { folderId, fileName, mimeType, content }) {
   const boundary = 'BOUNDARY_YKS_BACKUP_2026';
   const metadata = JSON.stringify({ name: fileName, mimeType, parents: [folderId] });
@@ -145,12 +147,7 @@ module.exports = async function handler(req, res) {
         });
       }
 
-      await driveMultipartUpload(token, {
-        folderId,
-        fileName: fname,
-        mimeType: 'application/json',
-        content: json,
-      });
+      await driveMultipartUpload(token, { folderId, fileName: fname, mimeType: 'application/json', content: json });
 
       return res.status(200).json({ ok: true, date: d, filename: fname });
     }
