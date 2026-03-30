@@ -5965,7 +5965,32 @@ STRİKT KURALLAR:
     document.getElementById('backup-modal').classList.remove('open');
   }
 
-  // (eski backupData kaldırıldı — Drive versiyonu aşağıda)
+  async function backupData() {
+    try {
+      const cards      = await dbGetAll();
+      const routines   = await routineGetAll();
+      const activities = await activityGetAll();
+      const now3   = new Date();
+      const hhmm3  = now3.toTimeString().slice(0, 5).replace(':', '');
+      const backup = {
+        version: 1,
+        exportedAt: now3.toISOString(),
+        cards, routines, activities
+      };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `yks-asistan-yedek-${now3.toISOString().slice(0,10)}-${hhmm3}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast('✅ Yedek indirildi!', 'ok');
+    } catch(e) {
+      toast('❌ Yedekleme başarısız: ' + e.message, 'err');
+    }
+  }
 
   async function restoreData(event) {
     const file = event.target.files[0];
@@ -6128,7 +6153,7 @@ STRİKT KURALLAR:
     // Day modal
     openDayModal, closeDayModal,
     // Backup
-    openBackupModal, closeBackupModal, backupData, backupDataLocal, restoreData, restoreFromDrive, _confirmNewDeviceRestore,
+    openBackupModal, closeBackupModal, backupData, backupDataLocal, restoreData, restoreFromDrive, _restoreDriveFile, closeDriveRestoreModal, _confirmNewDeviceRestore,
     resetTap, closeResetConfirm, confirmReset, selectResetType,
     // Social wrappers
     socialOpenChat: (code, name) => Social.openChat(code, name),
@@ -6256,7 +6281,7 @@ STRİKT KURALLAR:
   // ── DRIVE BACKUP ─────────────────────────────────────────────────────────────
   var _AB_KEY   = 'auto_backup_enabled';
   var _AB_LAST  = 'last_auto_backup_date';
-  var _DRIVE_API = 'https://yks-asistan.vercel.app/api/gdrive-backup';
+  var _DRIVE_API = '/api/gdrive-backup';
 
   // Yerel tarih string'i (UTC değil, TR saatiyle uyumlu)
   function _localDateStr(d) {
@@ -6272,31 +6297,35 @@ STRİKT KURALLAR:
 
   // Drive'a yedek gönder (Vercel endpoint üzerinden)
   async function _driveUpload(uid, dateStr, data) {
-    const DRIVE_URL = 'https://yks-asistan.vercel.app/api/gdrive-backup';
-    console.log('[DEBUG] POST gönderiliyor:', DRIVE_URL, 'uid:', uid);
-    let res;
-    try {
-      res = await fetch(DRIVE_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'save', uid, date: dateStr, data }),
-      });
-    } catch(networkErr) {
-      throw new Error('Ağ hatası → ' + DRIVE_URL + ': ' + networkErr.message);
-    }
-    if (!res.ok) {
-      let detail = '';
-      try { const body = await res.json(); detail = body.detail || body.error || JSON.stringify(body); }
-      catch(_) { try { detail = await res.text(); } catch(__) {} }
-      throw new Error('POST ' + DRIVE_URL + ' → HTTP ' + res.status + (detail ? ' — ' + detail : ''));
-    }
+    const res = await fetch(_DRIVE_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'save', uid, date: dateStr, data }),
+    });
+    if (!res.ok) throw new Error('Drive upload başarısız: HTTP ' + res.status);
     return res.json();
+  }
+
+  // Drive'dan yedek listesini çek
+  async function _driveListBackups(uid) {
+    const res = await fetch(`${_DRIVE_API}?action=list&uid=${encodeURIComponent(uid)}`);
+    if (!res.ok) throw new Error('Liste alınamadı: HTTP ' + res.status);
+    const json = await res.json();
+    return json.files || [];
+  }
+
+  // Drive'dan belirli bir dosyayı çek
+  async function _driveLoadByFilename(uid, filename) {
+    const res = await fetch(`${_DRIVE_API}?action=load&uid=${encodeURIComponent(uid)}&filename=${encodeURIComponent(filename)}`);
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error('Drive load başarısız: HTTP ' + res.status);
+    const data = await res.json();
+    return { date: filename.replace('.json',''), data };
   }
 
   // Drive'dan en son yedeği çek
   async function _driveLoadLatest(uid) {
-    const DRIVE_URL2 = 'https://yks-asistan.vercel.app/api/gdrive-backup';
-    const res = await fetch(`${DRIVE_URL2}?action=latest&uid=${encodeURIComponent(uid)}`);
+    const res = await fetch(`${_DRIVE_API}?action=latest&uid=${encodeURIComponent(uid)}`);
     if (res.status === 404) return null;
     if (!res.ok) throw new Error('Drive load başarısız: HTTP ' + res.status);
     const date = res.headers.get('X-Backup-Date');
@@ -6342,11 +6371,13 @@ STRİKT KURALLAR:
       const cards      = await dbGetAll();
       const routines   = await routineGetAll();
       const activities = await activityGetAll();
-      const today      = _localDateStr(new Date());
-      await _driveUpload(uid, today, { version: 1, exportedAt: new Date().toISOString(), cards, routines, activities });
-      localStorage.setItem(_AB_LAST, today);
+      const now        = new Date();
+      const hhmm       = String(now.getHours()).padStart(2,'0') + '-' + String(now.getMinutes()).padStart(2,'0');
+      const dateStr    = _localDateStr(now) + '_' + hhmm;  // örn: 2026-03-30_14-23
+      await _driveUpload(uid, dateStr, { version: 1, exportedAt: now.toISOString(), cards, routines, activities });
+      localStorage.setItem(_AB_LAST, dateStr);
       _applyAutoBackupUI(localStorage.getItem(_AB_KEY) === 'true');
-      _updateDriveStatus('✅ Drive\'a yüklendi! (' + today + ')', 'var(--teal)');
+      _updateDriveStatus('✅ Drive\'a yüklendi! (' + dateStr + ')', 'var(--teal)');
       toast('✅ Google Drive\'a yedeklendi!', 'ok');
     } catch(e) {
       _updateDriveStatus('❌ Yedekleme başarısız: ' + e.message, '#ff4d6d');
@@ -6377,21 +6408,66 @@ STRİKT KURALLAR:
     }
   }
 
-  // ── Drive'dan en son yedeği geri yükle ───────────────────────────────────
+  // ── Drive yedek listesi modalını aç ─────────────────────────────────────
   async function restoreFromDrive() {
     const uid = _getUid();
     if (!uid) { toast('Geri yükleme için giriş yapman gerekiyor.', 'err'); return; }
+    const modal = document.getElementById('drive-restore-modal');
+    const list  = document.getElementById('drive-restore-list');
+    // Modalı aç
+    modal.style.display = 'flex';
+    setTimeout(() => modal.style.opacity = '1', 10);
+    list.innerHTML = '<div style="text-align:center;color:var(--text3);padding:20px;font-size:.85rem">⏳ Yedekler yükleniyor...</div>';
+    try {
+      _updateDriveStatus('☁️ Yedek listesi alınıyor...', 'var(--text3)');
+      const files = await _driveListBackups(uid);
+      if (!files.length) {
+        list.innerHTML = '<div style="text-align:center;color:var(--text3);padding:20px;font-size:.85rem">Drive\'da henüz yedek yok.</div>';
+        _updateDriveStatus('', '');
+        return;
+      }
+      // Dosyaları listele (en yeni üstte)
+      list.innerHTML = files.map(f => {
+        const name    = f.name.replace('.json','');
+        const [date, time] = name.split('_');
+        const label   = time ? `${date} · ${time.replace('-',':')}` : date;
+        const size    = f.size ? Math.round(f.size/1024) + ' KB' : '';
+        return `<button onclick="App._restoreDriveFile('${f.name}')"
+          style="display:flex;justify-content:space-between;align-items:center;
+            background:var(--surface2);border:1.5px solid var(--border);
+            border-radius:12px;padding:12px 14px;cursor:pointer;width:100%;
+            color:var(--text);font-size:.85rem;transition:background .15s"
+          onmouseover="this.style.background='var(--surface3)'"
+          onmouseout="this.style.background='var(--surface2)'">
+          <span>📅 ${label}</span>
+          <span style="color:var(--text3);font-size:.75rem">${size}</span>
+        </button>`;
+      }).join('');
+      _updateDriveStatus('', '');
+    } catch(e) {
+      list.innerHTML = `<div style="color:#ff4d6d;padding:12px;font-size:.82rem">❌ ${e.message}</div>`;
+      _updateDriveStatus('❌ Liste alınamadı: ' + e.message, '#ff4d6d');
+    }
+  }
+
+  function closeDriveRestoreModal() {
+    const modal = document.getElementById('drive-restore-modal');
+    modal.style.opacity = '0';
+    setTimeout(() => modal.style.display = 'none', 250);
+  }
+
+  // Seçilen yedek dosyasını yükle
+  async function _restoreDriveFile(filename) {
+    const uid = _getUid();
+    closeDriveRestoreModal();
+    if (!confirm(`"${filename.replace('.json','')}" yedeği yüklenecek. Mevcut verilerinin üzerine yazılacak. Devam edilsin mi?`)) return;
     try {
       _updateDriveStatus('☁️ Drive\'dan indiriliyor...', 'var(--text3)');
-      const result = await _driveLoadLatest(uid);
-      if (!result) { _updateDriveStatus('', ''); toast('Drive\'da yedek bulunamadı.', 'err'); return; }
-      const { date, data } = result;
-      if (!confirm(`${date} tarihli yedek bulundu. Mevcut verilerinin üzerine yazılacak. Devam edilsin mi?`)) {
-        _updateDriveStatus('', ''); return;
-      }
-      const count = await _applyRestoreData(data);
-      _updateDriveStatus('✅ ' + date + ' yedeği geri yüklendi. (' + count + ' kart)', 'var(--teal)');
-      toast(`✅ Drive yedeği geri yüklendi! (${date})`, 'ok');
+      const result = await _driveLoadByFilename(uid, filename);
+      if (!result) { toast('Yedek bulunamadı.', 'err'); return; }
+      const count = await _applyRestoreData(result.data);
+      _updateDriveStatus('✅ ' + result.date + ' yedeği geri yüklendi. (' + count + ' kart)', 'var(--teal)');
+      toast(`✅ Drive yedeği geri yüklendi! (${result.date})`, 'ok');
     } catch(e) {
       _updateDriveStatus('❌ Geri yükleme başarısız: ' + e.message, '#ff4d6d');
       toast('❌ Drive geri yükleme hatası: ' + e.message, 'err');
@@ -6459,15 +6535,20 @@ STRİKT KURALLAR:
     const uid = _getUid();
     if (!uid) return;
 
-    const today = _localDateStr(new Date());
-    if (localStorage.getItem(_AB_LAST) === today) return;
+    // Bugün zaten yedeklendi mi? (_AB_LAST tarih kısmına bak)
+    const todayDate = _localDateStr(new Date());
+    const last      = localStorage.getItem(_AB_LAST) || '';
+    if (last.startsWith(todayDate)) return;
 
     try {
       const cards      = await dbGetAll();
       const routines   = await routineGetAll();
       const activities = await activityGetAll();
-      await _driveUpload(uid, today, { version: 1, exportedAt: new Date().toISOString(), cards, routines, activities });
-      localStorage.setItem(_AB_LAST, today);
+      const now2       = new Date();
+      const hhmm2      = String(now2.getHours()).padStart(2,'0') + '-' + String(now2.getMinutes()).padStart(2,'0');
+      const dateStr2   = todayDate + '_' + hhmm2;
+      await _driveUpload(uid, dateStr2, { version: 1, exportedAt: now2.toISOString(), cards, routines, activities });
+      localStorage.setItem(_AB_LAST, dateStr2);
       _applyAutoBackupUI(true);
       if (window.toast) toast('☁️ Otomatik yedek Drive\'a kaydedildi!', 'ok');
     } catch(e) {
@@ -10618,5 +10699,22 @@ window.SubPlan = (() => {
 </script>
 
 <!-- ══ MONETAG ADS — Sadece manuel izleme ══ -->
+
+<!-- ── Drive Yedek Listesi Modalı ─────────────────────────────────────────── -->
+<div id="drive-restore-modal" class="modal-overlay" onclick="if(event.target===this)App.closeDriveRestoreModal()" style="display:none;opacity:0;transition:opacity .25s">
+  <div class="modal-sheet" style="max-height:80vh;overflow-y:auto">
+    <div class="modal-handle"></div>
+    <div class="modal-title">☁️ Yedek Seç</div>
+    <div id="drive-restore-list" style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+      <div style="text-align:center;color:var(--text3);padding:20px;font-size:.85rem">Yükleniyor...</div>
+    </div>
+    <div style="margin-top:14px">
+      <button class="btn" onclick="App.closeDriveRestoreModal()"
+        style="width:100%;background:var(--surface2);border:1.5px solid var(--border);color:var(--text2)">
+        İptal
+      </button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
