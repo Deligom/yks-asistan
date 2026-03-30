@@ -2556,29 +2556,23 @@ select option{background:var(--surface2);color:var(--text)}
     <div class="modal-title">💾 Yedekleme & Geri Yükleme</div>
     <div style="display:flex;flex-direction:column;gap:12px">
       <button class="btn btn-teal" onclick="App.backupData()">
-        <i class="fa-solid fa-cloud-arrow-up"></i> Google Drive'a Yedekle
+        <i class="fa-solid fa-download"></i> Verileri Yedekle (.json)
       </button>
-      <button class="btn" onclick="App.backupDataLocal()"
-        style="background:var(--surface2);border:1.5px solid var(--border);color:var(--text2);font-size:.82rem">
-        <i class="fa-solid fa-download"></i> Yerel JSON İndir (yedek)
-      </button>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-primary" style="flex:1" onclick="App.restoreFromDrive()">
-          <i class="fa-solid fa-cloud-arrow-down"></i> Drive'dan Geri Yükle
+      <div style="position:relative">
+        <button class="btn btn-primary" onclick="document.getElementById('restore-file-input').click()">
+          <i class="fa-solid fa-upload"></i> Yedekten Geri Yükle
         </button>
-        <button class="btn" onclick="document.getElementById('restore-file-input').click()"
-          style="flex:1;background:var(--surface2);border:1.5px solid var(--border);color:var(--text2);font-size:.82rem">
-          <i class="fa-solid fa-upload"></i> Dosyadan Yükle
-        </button>
+        <input type="file" id="restore-file-input" accept=".json" style="display:none" onchange="App.restoreData(event)"/>
       </div>
       <p style="font-size:.78rem;color:var(--text3);line-height:1.5;margin-top:4px">
         <i class="fa-solid fa-circle-info" style="color:var(--primary2)"></i>
-        Yedekler Google Drive'a kaydedilir. Telefon değişse bile verilerini kaybetmezsin.
+        Yedekleme; tüm kartlarını, rutinlerini ve aktivite loglarını tek bir .json dosyasına kaydeder. Geri yükleme mevcut verilerin üzerine yazar.
       </p>
       <hr style="border:none;border-top:1px solid var(--border);margin:4px 0"/>
       <button class="btn" id="reset-btn" onclick="App.resetTap()"
         style="background:transparent;border:1.5px solid #ff4d6d;color:#ff4d6d;transition:all .2s">
         <i class="fa-solid fa-rotate-left"></i> Uygulamayı Sıfırla
+        <span id="reset-tap-counter" style="font-size:.72rem;opacity:.7;margin-left:4px"></span>
       </button>
       <p style="font-size:.75rem;color:var(--text3);line-height:1.5;margin-top:-4px">
         <i class="fa-solid fa-circle-info" style="color:#ff4d6d"></i>
@@ -5969,6 +5963,33 @@ STRİKT KURALLAR:
 
   function closeBackupModal() {
     document.getElementById('backup-modal').classList.remove('open');
+  }
+
+  async function backupData() {
+    try {
+      const cards      = await dbGetAll();
+      const routines   = await routineGetAll();
+      const activities = await activityGetAll();
+      const now3   = new Date();
+      const hhmm3  = now3.toTimeString().slice(0, 5).replace(':', '');
+      const backup = {
+        version: 1,
+        exportedAt: now3.toISOString(),
+        cards, routines, activities
+      };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `yks-asistan-yedek-${now3.toISOString().slice(0,10)}-${hhmm3}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast('✅ Yedek indirildi!', 'ok');
+    } catch(e) {
+      toast('❌ Yedekleme başarısız: ' + e.message, 'err');
+    }
   }
 
   async function restoreData(event) {
