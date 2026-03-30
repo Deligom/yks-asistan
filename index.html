@@ -6159,7 +6159,7 @@ STRİKT KURALLAR:
     // Day modal
     openDayModal, closeDayModal,
     // Backup
-    openBackupModal, closeBackupModal, backupData, backupDataLocal, restoreData, restoreFromDrive, _restoreDriveFile, closeDriveRestoreModal, _selectDriveBackup, _confirmDriveRestore, _closeDriveConfirmModal, _confirmNewDeviceRestore,
+    openBackupModal, closeBackupModal, backupData, backupDataLocal, restoreData, restoreFromDrive, _restoreDriveFile, closeDriveRestoreModal, _selectDriveBackup, _confirmDriveRestore, _closeDriveConfirmModal, _toggleDriveSort, _askDeleteDriveBackup, _closeDriveDeleteModal, _confirmDeleteDriveBackup, _confirmNewDeviceRestore,
     resetTap, closeResetConfirm, confirmReset, selectResetType,
     // Social wrappers
     socialOpenChat: (code, name) => Social.openChat(code, name),
@@ -6337,6 +6337,20 @@ STRİKT KURALLAR:
     return { date, data };
   }
 
+  // Drive'dan belirli bir dosyayı sil
+  async function _driveDeleteBackup(uid, filename) {
+    const res = await fetch(_DRIVE_API, {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body   : JSON.stringify({ action: 'delete', uid, filename }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Silme başarısız: HTTP ' + res.status);
+    }
+    return res.json();
+  }
+
   // Durum banner'ını güncelle
   function _updateDriveStatus(msg, color) {
     const el = document.getElementById('drive-backup-status');
@@ -6417,54 +6431,122 @@ STRİKT KURALLAR:
     const uid = _getUid();
     if (!uid) { toast('Geri yükleme için giriş yapman gerekiyor.', 'err'); return; }
     const modal = document.getElementById('drive-restore-modal');
-    const list  = document.getElementById('drive-restore-list');
-    // Modalı aç
     modal.style.display = 'flex';
     setTimeout(() => modal.style.opacity = '1', 10);
-    list.innerHTML = '<div style="text-align:center;color:var(--text3);padding:20px;font-size:.85rem">⏳ Yedekler yükleniyor...</div>';
+    App._driveBackupSortAsc = false; // default: yeniden eskiye
+    await _renderDriveBackupList(uid);
+  }
+
+  async function _renderDriveBackupList(uid, sortAsc) {
+    if (sortAsc === undefined) sortAsc = App._driveBackupSortAsc || false;
+    App._driveBackupSortAsc = sortAsc;
+    const list = document.getElementById('drive-restore-list');
+    list.innerHTML = '<div style="text-align:center;color:var(--text3);padding:20px;font-size:.85rem">⏳ Yükleniyor...</div>';
     try {
       _updateDriveStatus('☁️ Yedek listesi alınıyor...', 'var(--text3)');
-      const files = await _driveListBackups(uid);
+      let files = await _driveListBackups(uid);
+      _updateDriveStatus('', '');
       if (!files.length) {
-        list.innerHTML = '<div style="text-align:center;color:var(--text3);padding:20px;font-size:.85rem">Drive\'da henüz yedek yok.</div>';
-        _updateDriveStatus('', '');
+        list.innerHTML = '<div style="text-align:center;color:var(--text3);padding:24px;font-size:.85rem">☁️ Drive\'da henüz yedek yok.</div>';
         return;
       }
-      // Dosyaları listele (en yeni üstte)
-      App._selectedDriveFile = null;
-      list.innerHTML = files.map((f, i) => {
-        const name    = f.name.replace('.json','');
-        const [date, time] = name.split('_');
-        const label   = time ? `${date} · ${time.replace('-',':')}` : date;
-        const size    = f.size ? Math.round(f.size/1024) + ' KB' : '';
-        const isFirst = i === 0;
-        return `<button id="drv-item-${i}" onclick="App._selectDriveBackup(${i},'${f.name}')"
-          data-file="${f.name}"
-          style="display:flex;justify-content:space-between;align-items:center;
-            background:${isFirst ? 'rgba(108,99,255,.12)' : 'var(--surface2)'};
-            border:2px solid ${isFirst ? 'var(--primary)' : 'var(--border)'};
-            border-radius:14px;padding:14px 16px;cursor:pointer;width:100%;
-            color:var(--text);font-size:.88rem;transition:all .2s;text-align:left">
-          <span style="display:flex;align-items:center;gap:10px">
-            <span style="font-size:1.15rem">📅</span>
-            <span style="font-weight:700;letter-spacing:.01em">${label}</span>
-          </span>
-          <span style="color:var(--text3);font-size:.75rem;background:var(--surface3);padding:3px 9px;border-radius:8px;white-space:nowrap">${size}</span>
-        </button>`;
-      }).join('') + `
-      <div style="margin-top:6px;display:flex;gap:8px">
-        <button id="drv-restore-confirm-btn" onclick="App._confirmDriveRestore()"
+      // Sıralama
+      files = files.slice().sort((a, b) => {
+        return sortAsc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
+      });
+      App._selectedDriveFile = files[0].name;
+
+      const sortBtn = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="font-size:.78rem;color:var(--text3)">${files.length} yedek</span>
+        <button onclick="App._toggleDriveSort()" style="background:var(--surface2);border:1.5px solid var(--border);
+          border-radius:8px;padding:5px 10px;color:var(--text2);font-size:.75rem;cursor:pointer;display:flex;align-items:center;gap:5px">
+          <i class="fa-solid fa-calendar" style="font-size:.7rem"></i>
+          ${sortAsc ? 'Eskiden yeniye ↑' : 'Yeniden eskiye ↓'}
+        </button>
+      </div>`;
+
+      const items = files.map((f, i) => {
+        const name       = f.name.replace('.json','');
+        const [date, t]  = name.split('_');
+        const label      = t ? `${date} · ${t.replace('-',':')}` : date;
+        const size       = f.size ? Math.round(f.size/1024) + ' KB' : '';
+        const isSelected = i === 0;
+        return `<div style="display:flex;align-items:center;gap:6px">
+          <button id="drv-item-${i}" onclick="App._selectDriveBackup(${i},'${f.name}')"
+            data-file="${f.name}"
+            style="display:flex;justify-content:space-between;align-items:center;
+              background:${isSelected ? 'rgba(108,99,255,.13)' : 'var(--surface2)'};
+              border:2px solid ${isSelected ? 'var(--primary)' : 'var(--border)'};
+              border-radius:12px;padding:12px 14px;cursor:pointer;flex:1;
+              color:var(--text);font-size:.86rem;transition:all .18s;text-align:left">
+            <span style="display:flex;align-items:center;gap:9px">
+              <span style="font-size:1.05rem">📅</span>
+              <span style="font-weight:700">${label}</span>
+            </span>
+            <span style="color:var(--text3);font-size:.73rem;background:var(--surface3);
+              padding:2px 8px;border-radius:7px;white-space:nowrap">${size}</span>
+          </button>
+          <button onclick="App._askDeleteDriveBackup('${f.name}')"
+            title="Sil" style="background:rgba(255,77,109,.1);border:1.5px solid rgba(255,77,109,.3);
+              border-radius:10px;padding:10px 11px;cursor:pointer;color:#ff4d6d;
+              font-size:.8rem;flex-shrink:0;transition:all .18s"
+            onmouseover="this.style.background='rgba(255,77,109,.2)'"
+            onmouseout="this.style.background='rgba(255,77,109,.1)'">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </div>`;
+      }).join('');
+
+      const footer = `<div style="margin-top:10px;display:flex;gap:8px">
+        <button onclick="App._confirmDriveRestore()"
           style="flex:1;background:var(--primary);border:none;border-radius:12px;
-            padding:13px;color:#fff;font-weight:700;cursor:pointer;font-size:.9rem">
+            padding:13px;color:#fff;font-weight:700;cursor:pointer;font-size:.88rem">
           <i class="fa-solid fa-cloud-arrow-down"></i> Geri Yükle
         </button>
       </div>`;
-      // İlk item varsayılan seçili
-      if (files.length) App._selectedDriveFile = files[0].name;
-      _updateDriveStatus('', '');
+
+      list.innerHTML = sortBtn + items + footer;
     } catch(e) {
       list.innerHTML = `<div style="color:#ff4d6d;padding:12px;font-size:.82rem">❌ ${e.message}</div>`;
       _updateDriveStatus('❌ Liste alınamadı: ' + e.message, '#ff4d6d');
+    }
+  }
+
+  function _toggleDriveSort() {
+    const uid = _getUid();
+    _renderDriveBackupList(uid, !App._driveBackupSortAsc);
+  }
+
+  async function _askDeleteDriveBackup(filename) {
+    App._pendingDeleteFile = filename;
+    const name = filename.replace('.json','');
+    const parts = name.split('_');
+    const label = parts.length > 1 ? parts[0] + ' · ' + parts[1].replace('-',':') : parts[0];
+    document.getElementById('drv-delete-filename').textContent = label;
+    const m = document.getElementById('drv-delete-modal');
+    m.style.display = 'flex';
+    setTimeout(() => m.style.opacity = '1', 10);
+  }
+
+  function _closeDriveDeleteModal() {
+    const m = document.getElementById('drv-delete-modal');
+    m.style.opacity = '0';
+    setTimeout(() => m.style.display = 'none', 200);
+  }
+
+  async function _confirmDeleteDriveBackup() {
+    const filename = App._pendingDeleteFile;
+    if (!filename) return;
+    _closeDriveDeleteModal();
+    const uid = _getUid();
+    try {
+      _updateDriveStatus('🗑️ Siliniyor...', 'var(--text3)');
+      await _driveDeleteBackup(uid, filename);
+      toast('🗑️ Yedek silindi.', 'ok');
+      await _renderDriveBackupList(uid);
+    } catch(e) {
+      toast('❌ Silinemedi: ' + e.message, 'err');
+      _updateDriveStatus('', '');
     }
   }
 
@@ -10792,6 +10874,35 @@ window.SubPlan = (() => {
         style="flex:1;padding:13px;border-radius:12px;border:none;
           background:var(--primary,#6c63ff);color:#fff;font-weight:700;cursor:pointer;font-size:.88rem">
         <i class="fa-solid fa-cloud-arrow-down"></i> Y&#252;kle
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Drive Yedek Silme Onay Modali -->
+<div id="drv-delete-modal" onclick="if(event.target===this)App._closeDriveDeleteModal()"
+  style="display:none;opacity:0;transition:opacity .2s;position:fixed;inset:0;
+    background:rgba(0,0,0,.65);z-index:10000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface1,#1a1a2e);border:1.5px solid rgba(255,77,109,.35);
+    border-radius:20px;padding:28px 24px;max-width:320px;width:100%;text-align:center">
+    <div style="font-size:2rem;margin-bottom:12px">&#x1F5D1;&#xFE0F;</div>
+    <div style="font-weight:800;font-size:1rem;margin-bottom:8px;color:var(--text)">Yede&#287;i Sil</div>
+    <div id="drv-delete-filename" style="font-weight:700;color:#ff4d6d;
+      font-size:.9rem;background:rgba(255,77,109,.1);padding:8px 14px;
+      border-radius:10px;margin-bottom:14px;border:1px solid rgba(255,77,109,.25)"></div>
+    <div style="color:var(--text3,#888);font-size:.8rem;margin-bottom:22px;line-height:1.6">
+      Bu yedek Drive&#x27;dan kal&#x131;c&#x131; olarak silinecek.<br>Bu i&#351;lem geri al&#x131;namaz.
+    </div>
+    <div style="display:flex;gap:10px">
+      <button onclick="App._closeDriveDeleteModal()"
+        style="flex:1;padding:13px;border-radius:12px;border:1.5px solid var(--border);
+          background:var(--surface2);color:var(--text);font-weight:600;cursor:pointer;font-size:.88rem">
+        &#x130;ptal
+      </button>
+      <button onclick="App._confirmDeleteDriveBackup()"
+        style="flex:1;padding:13px;border-radius:12px;border:none;
+          background:#ff4d6d;color:#fff;font-weight:700;cursor:pointer;font-size:.88rem">
+        <i class="fa-solid fa-trash"></i> Sil
       </button>
     </div>
   </div>
