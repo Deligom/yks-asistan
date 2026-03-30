@@ -4,83 +4,94 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   body { font-family: monospace; padding: 20px; background: #111; color: #eee; }
-  button { padding: 14px 20px; font-size: 15px; border: none; border-radius: 8px;
+  button { padding: 14px; font-size: 15px; border: none; border-radius: 8px;
            width: 100%; margin: 5px 0; cursor: pointer; color: #000; }
-  .g { background: #0f0; } .b { background: #4af; } .r { background: #f44; color:#fff; } .y { background: #ff0; }
+  .g{background:#0f0}.b{background:#4af}.r{background:#f44;color:#fff}.y{background:#ff0}
   pre { background: #222; padding: 12px; border-radius: 8px; white-space: pre-wrap;
         word-break: break-all; font-size: 12px; margin-top: 10px; }
-  .ok { color: #0f0; } .err { color: #f44; }
+  .ok{color:#0f0}.err{color:#f44}
 </style>
 </head>
 <body>
-<h3>Drive Debug v2</h3>
-
-<button class="y" onclick="inspectApp()">🔍 App State İncele (uid, url, sw)</button>
-<button class="b" onclick="testWithRealUid()">📤 Gerçek uid ile gdrive-backup POST</button>
-<button class="r" onclick="clearSWCache()">🗑️ SW Cache Temizle + Reload</button>
-
+<h3>Drive Debug v3</h3>
+<button class="y" onclick="readDB()">📊 IndexedDB'den gerçek data oku (boyut göster)</button>
+<button class="g" onclick="uploadRealData()">📤 Gerçek data ile Drive'a yükle</button>
 <pre id="out">Butona bas...</pre>
 
 <script>
 const BACKUP_API = 'https://yks-asistan.vercel.app/api/gdrive-backup';
+const DB_NAME = 'yks_asistan_db';
 const out = document.getElementById('out');
+let _realData = null;
 
-function show(msg, ok) {
-  out.className = ok === false ? 'err' : 'ok';
-  out.textContent = msg;
+function openDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(DB_NAME, 3);
+    req.onsuccess = e => res(e.target.result);
+    req.onerror   = e => rej(e);
+  });
 }
 
-async function inspectApp() {
-  const social_code  = localStorage.getItem('social_code');
-  const drive_api_ls = localStorage.getItem('drive_api') || '(localStorage\'da yok)';
-  
-  // SW listesi
-  let swList = '(API yok)';
-  if ('serviceWorker' in navigator) {
-    const regs = await navigator.serviceWorker.getRegistrations();
-    swList = regs.map(r => r.scope + ' [' + (r.active ? r.active.state : 'no active') + ']').join('\n') || '(kayıtlı SW yok)';
-  }
-
-  show(
-    'social_code: ' + social_code + '\n' +
-    'drive_api (ls): ' + drive_api_ls + '\n' +
-    'Hardcoded BACKUP_API: ' + BACKUP_API + '\n\n' +
-    'Service Workers:\n' + swList,
-    true
-  );
+function getAll(db, store) {
+  return new Promise((res, rej) => {
+    const req = db.transaction(store, 'readonly').objectStore(store).getAll();
+    req.onsuccess = e => res(e.target.result);
+    req.onerror   = e => rej(e);
+  });
 }
 
-async function testWithRealUid() {
-  const uid = localStorage.getItem('social_code');
-  if (!uid) { show('social_code bulunamadı! Uygulamaya giriş yap.', false); return; }
-  
-  show('uid=' + uid + ' ile POST gönderiliyor...', true);
-  const now = new Date();
-  const dateStr = now.toISOString().slice(0,10) + '_' + 
-    String(now.getHours()).padStart(2,'0') + '-' + String(now.getMinutes()).padStart(2,'0');
+async function readDB() {
+  out.textContent = 'IndexedDB okunuyor...';
   try {
+    const db         = await openDB();
+    const cards      = await getAll(db, 'cards');
+    const routines   = await getAll(db, 'routines');
+    const activities = await getAll(db, 'activities');
+    _realData = { version: 1, cards, routines, activities };
+    const json = JSON.stringify(_realData);
+    const kb   = Math.round(json.length / 1024);
+
+    // Base64 içeriyor mu kontrol et
+    const hasBase64 = json.includes('data:image') || json.includes('base64');
+
+    out.className = 'ok';
+    out.textContent = 
+      'cards: '      + cards.length      + ' adet\n' +
+      'routines: '   + routines.length   + ' adet\n' +
+      'activities: ' + activities.length + ' adet\n' +
+      'Toplam boyut: ' + kb + ' KB\n' +
+      'base64 resim var mı: ' + (hasBase64 ? '⚠️ EVET — sorun bu!' : 'hayır');
+  } catch(e) {
+    out.className = 'err';
+    out.textContent = 'DB HATA: ' + e.message;
+  }
+}
+
+async function uploadRealData() {
+  if (!_realData) { out.textContent = 'Önce sarı butona bas!'; return; }
+  const uid = localStorage.getItem('social_code');
+  if (!uid) { out.textContent = 'social_code yok!'; return; }
+
+  const json = JSON.stringify(_realData);
+  const kb   = Math.round(json.length / 1024);
+  out.textContent = uid + ' için ' + kb + 'KB gönderiliyor...';
+
+  try {
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0,10) + '_' +
+      String(now.getHours()).padStart(2,'0') + '-' + String(now.getMinutes()).padStart(2,'0');
     const res = await fetch(BACKUP_API, {
-      method: 'POST',
+      method : 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'save', uid, date: dateStr, data: { version: 1, cards: [], routines: [], activities: [] } })
+      body   : JSON.stringify({ action: 'save', uid, date: dateStr, data: _realData })
     });
     const text = await res.text();
-    show('HTTP ' + res.status + '\n\n' + text, res.ok);
+    out.className = res.ok ? 'ok' : 'err';
+    out.textContent = 'HTTP ' + res.status + ' (' + kb + 'KB)\n\n' + text;
   } catch(e) {
-    show('HATA: ' + e.message + '\n\nuid: ' + uid, false);
+    out.className = 'err';
+    out.textContent = 'HATA (' + kb + 'KB): ' + e.message;
   }
-}
-
-async function clearSWCache() {
-  show('SW\'ler siliniyor...', true);
-  if ('serviceWorker' in navigator) {
-    const regs = await navigator.serviceWorker.getRegistrations();
-    for (const r of regs) await r.unregister();
-  }
-  const keys = await caches.keys();
-  for (const k of keys) await caches.delete(k);
-  show('Temizlendi! 3 saniye sonra reload...', true);
-  setTimeout(() => location.reload(), 3000);
 }
 </script>
 </body>
