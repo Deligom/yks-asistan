@@ -22,10 +22,50 @@ async function getAccessToken() {
   return data.access_token;
 }
 
+// ── Ana YKS klasörünü doğrula veya root'ta oluştur ────────────────────────────
+async function _getValidParentId(token) {
+  const envId = process.env.GDRIVE_FOLDER_ID;
+
+  // Env var yoksa root kullan
+  if (!envId) return 'root';
+
+  // Env var varsa klasörün gerçekten erişilebilir olduğunu kontrol et
+  const checkRes = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${envId}?fields=id`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (checkRes.ok) return envId; // Klasör erişilebilir, kullan
+
+  // 404 veya başka hata → root'ta "YKS-Asistan-Backups" klasörü bul veya oluştur
+  console.warn(`[gdrive-backup] GDRIVE_FOLDER_ID erişilemiyor (${checkRes.status}), root'a fallback yapılıyor.`);
+
+  const q       = `'root' in parents and name='YKS-Asistan-Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+  const listRes = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)&spaces=drive`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (listRes.ok) {
+    const listData = await listRes.json();
+    if (listData.files && listData.files.length > 0) return listData.files[0].id;
+  }
+
+  // Root'ta da yoksa oluştur
+  const mkRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method : 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body   : JSON.stringify({ name: 'YKS-Asistan-Backups', mimeType: 'application/vnd.google-apps.folder' }),
+  });
+  if (!mkRes.ok) {
+    const err = await mkRes.text();
+    throw new Error(`Root klasör oluşturulamadı (${mkRes.status}): ${err}`);
+  }
+  const mkData = await mkRes.json();
+  return mkData.id;
+}
+
 // ── Kullanıcıya ait alt klasörü bul veya oluştur ──────────────────────────────
 async function getOrCreateUserFolder(token, uid) {
-  const parentId = process.env.GDRIVE_FOLDER_ID;
-  if (!parentId) throw new Error('GDRIVE_FOLDER_ID env var eksik');
+  const parentId = await _getValidParentId(token);
 
   // Var mı kontrol et
   const q      = `'${parentId}' in parents and name='${uid}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
