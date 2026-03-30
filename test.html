@@ -4,8 +4,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   body { font-family: monospace; padding: 20px; background: #111; color: #eee; }
-  button { padding: 16px 24px; font-size: 18px; background: #0f0; color: #000;
-           border: none; border-radius: 8px; width: 100%; margin: 8px 0; cursor: pointer; }
+  button { padding: 16px 24px; font-size: 16px; background: #0f0; color: #000;
+           border: none; border-radius: 8px; width: 100%; margin: 6px 0; cursor: pointer; }
+  button.blue { background: #4af; }
+  button.red  { background: #f44; color: #fff; }
   pre { background: #222; padding: 12px; border-radius: 8px; white-space: pre-wrap;
         word-break: break-all; font-size: 13px; margin-top: 12px; }
   .ok  { color: #0f0; }
@@ -13,44 +15,68 @@
 </style>
 </head>
 <body>
-<h3>Drive POST Test</h3>
-<button onclick="testPost()">POST Test Yap</button>
-<button onclick="testOptions()">OPTIONS Test Yap</button>
+<h3>Drive Debug</h3>
+
+<button onclick="testSmall()">1. Küçük POST (debug-post)</button>
+<button onclick="testBig()" class="blue">2. Büyük POST ~500KB (debug-post)</button>
+<button onclick="testRealSave()" class="red">3. GERÇEK gdrive-backup POST</button>
+
 <pre id="out">Butona bas...</pre>
 
 <script>
-const API = 'https://yks-asistan.vercel.app/api/debug-post';
+const DEBUG_API  = 'https://yks-asistan.vercel.app/api/debug-post';
+const BACKUP_API = 'https://yks-asistan.vercel.app/api/gdrive-backup';
+const out = document.getElementById('out');
 
-async function testPost() {
-  const out = document.getElementById('out');
-  out.textContent = 'İstek gönderiliyor...';
-  try {
-    const res = await fetch(API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'save', uid: 'test', date: '2026-test', data: { test: true } })
-    });
-    const text = await res.text();
-    out.className = 'ok';
-    out.textContent = 'HTTP ' + res.status + '\n\n' + text;
-  } catch(e) {
-    out.className = 'err';
-    out.textContent = 'HATA: ' + e.message + '\n\nBu "Failed to fetch" ise CORS/OPTIONS sorunu.';
-  }
+function show(msg, ok) {
+  out.className = ok ? 'ok' : 'err';
+  out.textContent = msg;
 }
 
-async function testOptions() {
-  const out = document.getElementById('out');
-  out.textContent = 'OPTIONS gönderiliyor...';
+async function testSmall() {
+  show('Gönderiliyor...', true);
   try {
-    const res = await fetch(API, { method: 'OPTIONS' });
-    const cors = res.headers.get('access-control-allow-methods');
-    out.className = 'ok';
-    out.textContent = 'OPTIONS HTTP ' + res.status + '\nCORS Methods: ' + cors;
-  } catch(e) {
-    out.className = 'err';
-    out.textContent = 'OPTIONS HATA: ' + e.message;
-  }
+    const res = await fetch(DEBUG_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'save', uid: 'test', test: true })
+    });
+    show('HTTP ' + res.status + ' ✅ Küçük POST OK', true);
+  } catch(e) { show('HATA: ' + e.message, false); }
+}
+
+async function testBig() {
+  show('Büyük payload gönderiliyor...', true);
+  // ~500KB fake data
+  const fakeCards = Array.from({length: 2000}, (_, i) => ({
+    id: i, front: 'soru ' + i, back: 'cevap '.repeat(20) + i,
+    tags: ['matematik','türkçe'], created: Date.now()
+  }));
+  const payload = JSON.stringify({ action: 'save', uid: 'test', date: '2026-sizetest', data: { cards: fakeCards } });
+  const kb = Math.round(payload.length / 1024);
+  show('Boyut: ' + kb + 'KB — gönderiliyor...', true);
+  try {
+    const res = await fetch(DEBUG_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload
+    });
+    const text = await res.text();
+    show('HTTP ' + res.status + ' (' + kb + 'KB) ✅', true);
+  } catch(e) { show('HATA (' + kb + 'KB): ' + e.message + '\n\n⚠️ Body size limit aşıldı!', false); }
+}
+
+async function testRealSave() {
+  show('Gerçek backup endpoint\'e POST...', true);
+  try {
+    const res = await fetch(BACKUP_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'save', uid: 'test', date: '2026-03-31_01-20', data: { version: 1, cards: [], routines: [], activities: [] } })
+    });
+    const text = await res.text();
+    show('HTTP ' + res.status + '\n\n' + text, res.ok);
+  } catch(e) { show('HATA: ' + e.message, false); }
 }
 </script>
 </body>
