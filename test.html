@@ -4,79 +4,83 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   body { font-family: monospace; padding: 20px; background: #111; color: #eee; }
-  button { padding: 16px 24px; font-size: 16px; background: #0f0; color: #000;
-           border: none; border-radius: 8px; width: 100%; margin: 6px 0; cursor: pointer; }
-  button.blue { background: #4af; }
-  button.red  { background: #f44; color: #fff; }
+  button { padding: 14px 20px; font-size: 15px; border: none; border-radius: 8px;
+           width: 100%; margin: 5px 0; cursor: pointer; color: #000; }
+  .g { background: #0f0; } .b { background: #4af; } .r { background: #f44; color:#fff; } .y { background: #ff0; }
   pre { background: #222; padding: 12px; border-radius: 8px; white-space: pre-wrap;
-        word-break: break-all; font-size: 13px; margin-top: 12px; }
-  .ok  { color: #0f0; }
-  .err { color: #f44; }
+        word-break: break-all; font-size: 12px; margin-top: 10px; }
+  .ok { color: #0f0; } .err { color: #f44; }
 </style>
 </head>
 <body>
-<h3>Drive Debug</h3>
+<h3>Drive Debug v2</h3>
 
-<button onclick="testSmall()">1. Küçük POST (debug-post)</button>
-<button onclick="testBig()" class="blue">2. Büyük POST ~500KB (debug-post)</button>
-<button onclick="testRealSave()" class="red">3. GERÇEK gdrive-backup POST</button>
+<button class="y" onclick="inspectApp()">🔍 App State İncele (uid, url, sw)</button>
+<button class="b" onclick="testWithRealUid()">📤 Gerçek uid ile gdrive-backup POST</button>
+<button class="r" onclick="clearSWCache()">🗑️ SW Cache Temizle + Reload</button>
 
 <pre id="out">Butona bas...</pre>
 
 <script>
-const DEBUG_API  = 'https://yks-asistan.vercel.app/api/debug-post';
 const BACKUP_API = 'https://yks-asistan.vercel.app/api/gdrive-backup';
 const out = document.getElementById('out');
 
 function show(msg, ok) {
-  out.className = ok ? 'ok' : 'err';
+  out.className = ok === false ? 'err' : 'ok';
   out.textContent = msg;
 }
 
-async function testSmall() {
-  show('Gönderiliyor...', true);
-  try {
-    const res = await fetch(DEBUG_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'save', uid: 'test', test: true })
-    });
-    show('HTTP ' + res.status + ' ✅ Küçük POST OK', true);
-  } catch(e) { show('HATA: ' + e.message, false); }
+async function inspectApp() {
+  const social_code  = localStorage.getItem('social_code');
+  const drive_api_ls = localStorage.getItem('drive_api') || '(localStorage\'da yok)';
+  
+  // SW listesi
+  let swList = '(API yok)';
+  if ('serviceWorker' in navigator) {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    swList = regs.map(r => r.scope + ' [' + (r.active ? r.active.state : 'no active') + ']').join('\n') || '(kayıtlı SW yok)';
+  }
+
+  show(
+    'social_code: ' + social_code + '\n' +
+    'drive_api (ls): ' + drive_api_ls + '\n' +
+    'Hardcoded BACKUP_API: ' + BACKUP_API + '\n\n' +
+    'Service Workers:\n' + swList,
+    true
+  );
 }
 
-async function testBig() {
-  show('Büyük payload gönderiliyor...', true);
-  // ~500KB fake data
-  const fakeCards = Array.from({length: 2000}, (_, i) => ({
-    id: i, front: 'soru ' + i, back: 'cevap '.repeat(20) + i,
-    tags: ['matematik','türkçe'], created: Date.now()
-  }));
-  const payload = JSON.stringify({ action: 'save', uid: 'test', date: '2026-sizetest', data: { cards: fakeCards } });
-  const kb = Math.round(payload.length / 1024);
-  show('Boyut: ' + kb + 'KB — gönderiliyor...', true);
-  try {
-    const res = await fetch(DEBUG_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: payload
-    });
-    const text = await res.text();
-    show('HTTP ' + res.status + ' (' + kb + 'KB) ✅', true);
-  } catch(e) { show('HATA (' + kb + 'KB): ' + e.message + '\n\n⚠️ Body size limit aşıldı!', false); }
-}
-
-async function testRealSave() {
-  show('Gerçek backup endpoint\'e POST...', true);
+async function testWithRealUid() {
+  const uid = localStorage.getItem('social_code');
+  if (!uid) { show('social_code bulunamadı! Uygulamaya giriş yap.', false); return; }
+  
+  show('uid=' + uid + ' ile POST gönderiliyor...', true);
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0,10) + '_' + 
+    String(now.getHours()).padStart(2,'0') + '-' + String(now.getMinutes()).padStart(2,'0');
   try {
     const res = await fetch(BACKUP_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'save', uid: 'test', date: '2026-03-31_01-20', data: { version: 1, cards: [], routines: [], activities: [] } })
+      body: JSON.stringify({ action: 'save', uid, date: dateStr, data: { version: 1, cards: [], routines: [], activities: [] } })
     });
     const text = await res.text();
     show('HTTP ' + res.status + '\n\n' + text, res.ok);
-  } catch(e) { show('HATA: ' + e.message, false); }
+  } catch(e) {
+    show('HATA: ' + e.message + '\n\nuid: ' + uid, false);
+  }
+}
+
+async function clearSWCache() {
+  show('SW\'ler siliniyor...', true);
+  if ('serviceWorker' in navigator) {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    for (const r of regs) await r.unregister();
+  }
+  const keys = await caches.keys();
+  for (const k of keys) await caches.delete(k);
+  show('Temizlendi! 3 saniye sonra reload...', true);
+  setTimeout(() => location.reload(), 3000);
 }
 </script>
 </body>
