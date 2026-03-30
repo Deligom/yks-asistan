@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { font-family: monospace; padding: 20px; background: #111; color: #eee; }
+  button { padding: 16px 24px; font-size: 18px; background: #0f0; color: #000;
+           border: none; border-radius: 8px; width: 100%; margin: 8px 0; cursor: pointer; }
+  pre { background: #222; padding: 12px; border-radius: 8px; white-space: pre-wrap;
+        word-break: break-all; font-size: 13px; margin-top: 12px; }
+  .ok  { color: #0f0; }
+  .err { color: #f44; }
+</style>
+</head>
+<body>
+<h3>Drive POST Test</h3>
+<button onclick="testPost()">POST Test Yap</button>
+<button onclick="testOptions()">OPTIONS Test Yap</button>
+<pre id="out">Butona bas...</pre>
+
+<script>
+const API = 'https://yks-asistan.vercel.app/api/debug-post';
+
+async function testPost() {
+  const out = document.getElementById('out');
+  out.textContent = 'İstek gönderiliyor...';
+  try {
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'save', uid: 'test', date: '2026-test', data: { test: true } })
+    });
+    const text = await res.text();
+    out.className = 'ok';
+    out.textContent = 'HTTP ' + res.status + '\n\n' + text;
+  } catch(e) {
+    out.className = 'err';
+    out.textContent = 'HATA: ' + e.message + '\n\nBu "Failed to fetch" ise CORS/OPTIONS sorunu.';
+  }
+}
+
+async function testOptions() {
+  const out = document.getElementById('out');
+  out.textContent = 'OPTIONS gönderiliyor...';
+  try {
+    const res = await fetch(API, { method: 'OPTIONS' });
+    const cors = res.headers.get('access-control-allow-methods');
+    out.className = 'ok';
+    out.textContent = 'OPTIONS HTTP ' + res.status + '\nCORS Methods: ' + cors;
+  } catch(e) {
+    out.className = 'err';
+    out.textContent = 'OPTIONS HATA: ' + e.message;
+  }
+}
+</script>
+</body>
+</html>
