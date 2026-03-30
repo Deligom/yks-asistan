@@ -1,6 +1,7 @@
 // api/gdrive-backup.js
 // Google Drive'a kullanıcı başına yedek yaz / oku / listele
-// Env vars: GDRIVE_CLIENT_ID, GDRIVE_CLIENT_SECRET, GDRIVE_REFRESH_TOKEN, GDRIVE_FOLDER_ID
+// Env vars: GDRIVE_CLIENT_ID, GDRIVE_CLIENT_SECRET, GDRIVE_REFRESH_TOKEN
+// Opsiyonel: GDRIVE_FOLDER_ID (yoksa Drive root'una yazar)
 
 // ── OAuth2 access token al (refresh token ile) ────────────────────────────────
 async function getAccessToken() {
@@ -24,11 +25,11 @@ async function getAccessToken() {
 
 // ── Kullanıcıya ait alt klasörü bul veya oluştur ──────────────────────────────
 async function getOrCreateUserFolder(token, uid) {
-  const parentId = process.env.GDRIVE_FOLDER_ID;
-  if (!parentId) throw new Error('GDRIVE_FOLDER_ID env var eksik');
+  // GDRIVE_FOLDER_ID yoksa root'a yaz
+  const parentId = process.env.GDRIVE_FOLDER_ID || 'root';
 
   // Var mı kontrol et
-  const q      = `'${parentId}' in parents and name='${uid}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+  const q = `'${parentId}' in parents and name='${uid}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
   const listRes = await fetch(
     `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)&spaces=drive`,
     { headers: { Authorization: `Bearer ${token}` } }
@@ -143,10 +144,9 @@ module.exports = async function handler(req, res) {
       if (!d || !data) return res.status(400).json({ error: 'date ve data gerekli' });
 
       const folderId = await getOrCreateUserFolder(token, uid);
-      const fname    = `${d}.json`;  // örn: 2026-03-30_14-23.json
+      const fname    = `${d}.json`;
       const json     = JSON.stringify(data);
 
-      // Aynı isimde varsa üzerine yaz (saat içerdiği için pratikte hep yeni)
       const existing       = await listFiles(token, folderId, fname);
       const existingFileId = existing.length > 0 ? existing[0].id : null;
 
@@ -162,8 +162,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ files });
     }
 
-    // ── GET ?action=load&uid=...&date=2026-03-30_14-23 ───────────────────────
-    // date parametresi tam dosya adının .json'suz hali
+    // ── GET ?action=load&uid=...&filename=2026-03-30_14-23.json ─────────────
     if (action === 'load') {
       const { filename } = req.query;
       const fname = filename || (date ? `${date}.json` : null);
