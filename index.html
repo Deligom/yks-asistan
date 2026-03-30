@@ -6159,7 +6159,7 @@ STRİKT KURALLAR:
     // Day modal
     openDayModal, closeDayModal,
     // Backup
-    openBackupModal, closeBackupModal, backupData, backupDataLocal, restoreData, restoreFromDrive, _restoreDriveFile, closeDriveRestoreModal, _selectDriveBackup, _confirmDriveRestore, _closeDriveConfirmModal, _toggleDriveSort, _askDeleteDriveBackup, _closeDriveDeleteModal, _confirmDeleteDriveBackup, _confirmNewDeviceRestore,
+    openBackupModal, closeBackupModal, backupData, backupDataLocal, restoreData, restoreFromDrive, _restoreDriveFile, closeDriveRestoreModal, _selectDriveBackup, _confirmDriveRestore, _closeDriveConfirmModal, _toggleDriveSort, _toggleDriveMultiSelect, _toggleDriveDelItem, _driveSelectAll, _confirmBulkDelete, _askDeleteDriveBackup, _closeDriveDeleteModal, _confirmDeleteDriveBackup, _confirmNewDeviceRestore,
     resetTap, closeResetConfirm, confirmReset, selectResetType,
     // Social wrappers
     socialOpenChat: (code, name) => Social.openChat(code, name),
@@ -6429,83 +6429,151 @@ STRİKT KURALLAR:
   // ── Drive yedek listesi modalını aç ─────────────────────────────────────
   async function restoreFromDrive() {
     const uid = _getUid();
-    if (!uid) { toast('Geri yükleme için giriş yapman gerekiyor.', 'err'); return; }
+    if (!uid) { toast('Giriş yapman gerekiyor.', 'err'); return; }
     const modal = document.getElementById('drive-restore-modal');
     modal.style.display = 'flex';
     setTimeout(() => modal.style.opacity = '1', 10);
-    App._driveBackupSortAsc = false; // default: yeniden eskiye
+    App._driveBackupSortAsc   = false;
+    App._driveMultiSelect     = false;
+    App._driveSelectedForDel  = new Set();
     await _renderDriveBackupList(uid);
   }
 
   async function _renderDriveBackupList(uid, sortAsc) {
     if (sortAsc === undefined) sortAsc = App._driveBackupSortAsc || false;
     App._driveBackupSortAsc = sortAsc;
-    const list = document.getElementById('drive-restore-list');
+    const isMulti = App._driveMultiSelect || false;
+    const selSet  = App._driveSelectedForDel || new Set();
+    const list    = document.getElementById('drive-restore-list');
     list.innerHTML = '<div style="text-align:center;color:var(--text3);padding:20px;font-size:.85rem">⏳ Yükleniyor...</div>';
     try {
       _updateDriveStatus('☁️ Yedek listesi alınıyor...', 'var(--text3)');
       let files = await _driveListBackups(uid);
+      App._driveFilesCache = files;
       _updateDriveStatus('', '');
       if (!files.length) {
         list.innerHTML = '<div style="text-align:center;color:var(--text3);padding:24px;font-size:.85rem">☁️ Drive\'da henüz yedek yok.</div>';
         return;
       }
-      // Sıralama
-      files = files.slice().sort((a, b) => {
-        return sortAsc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
-      });
-      App._selectedDriveFile = files[0].name;
+      files = files.slice().sort((a, b) =>
+        sortAsc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)
+      );
+      if (!isMulti && !App._selectedDriveFile) App._selectedDriveFile = files[0].name;
 
-      const sortBtn = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      // ── Toolbar ──
+      const toolbar = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:6px">
         <span style="font-size:.78rem;color:var(--text3)">${files.length} yedek</span>
-        <button onclick="App._toggleDriveSort()" style="background:var(--surface2);border:1.5px solid var(--border);
-          border-radius:8px;padding:5px 10px;color:var(--text2);font-size:.75rem;cursor:pointer;display:flex;align-items:center;gap:5px">
-          <i class="fa-solid fa-calendar" style="font-size:.7rem"></i>
-          ${sortAsc ? 'Eskiden yeniye ↑' : 'Yeniden eskiye ↓'}
-        </button>
+        <div style="display:flex;gap:6px">
+          <button onclick="App._toggleDriveSort()"
+            style="background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;
+              padding:5px 10px;color:var(--text2);font-size:.73rem;cursor:pointer">
+            ?? ${sortAsc ? 'Eskiden yeniye ↑' : 'Yeniden eskiye ↓'}
+          </button>
+          <button onclick="App._toggleDriveMultiSelect()"
+            style="background:${isMulti ? 'rgba(255,77,109,.15)' : 'var(--surface2)'};
+              border:1.5px solid ${isMulti ? 'rgba(255,77,109,.5)' : 'var(--border)'};
+              border-radius:8px;padding:5px 10px;
+              color:${isMulti ? '#ff4d6d' : 'var(--text2)'};font-size:.73rem;cursor:pointer">
+            ??️ ${isMulti ? 'Vazgeç' : 'Seç & Sil'}
+          </button>
+        </div>
       </div>`;
 
+      // ── Select-all row (only in multi mode) ──
+      const selectAllRow = isMulti ? `<div style="display:flex;align-items:center;justify-content:space-between;
+          padding:6px 10px;margin-bottom:4px;border-radius:8px;background:rgba(255,77,109,.07)">
+        <span style="font-size:.78rem;color:#ff4d6d;font-weight:600">
+          ${selSet.size} / ${files.length} seçili
+        </span>
+        <button onclick="App._driveSelectAll(${files.length})"
+          style="background:none;border:none;color:#ff4d6d;font-size:.75rem;cursor:pointer;font-weight:600;padding:3px 6px">
+          ${selSet.size === files.length ? 'Tümünü Kaldır' : 'Tümünü Seç'}
+        </button>
+      </div>` : '';
+
+      // ── Items ──
       const items = files.map((f, i) => {
-        const name       = f.name.replace('.json','');
-        const [date, t]  = name.split('_');
-        const label      = t ? `${date} · ${t.replace('-',':')}` : date;
-        const size       = f.size ? Math.round(f.size/1024) + ' KB' : '';
-        const isSelected = i === 0;
-        return `<div style="display:flex;align-items:center;gap:6px">
-          <button id="drv-item-${i}" onclick="App._selectDriveBackup(${i},'${f.name}')"
-            data-file="${f.name}"
-            style="display:flex;justify-content:space-between;align-items:center;
-              background:${isSelected ? 'rgba(108,99,255,.13)' : 'var(--surface2)'};
-              border:2px solid ${isSelected ? 'var(--primary)' : 'var(--border)'};
-              border-radius:12px;padding:12px 14px;cursor:pointer;flex:1;
-              color:var(--text);font-size:.86rem;transition:all .18s;text-align:left">
-            <span style="display:flex;align-items:center;gap:9px">
-              <span style="font-size:1.05rem">📅</span>
-              <span style="font-weight:700">${label}</span>
-            </span>
-            <span style="color:var(--text3);font-size:.73rem;background:var(--surface3);
-              padding:2px 8px;border-radius:7px;white-space:nowrap">${size}</span>
-          </button>
-          <button onclick="App._askDeleteDriveBackup('${f.name}')"
-            title="Sil" style="background:rgba(255,77,109,.1);border:1.5px solid rgba(255,77,109,.3);
-              border-radius:10px;padding:10px 11px;cursor:pointer;color:#ff4d6d;
-              font-size:.8rem;flex-shrink:0;transition:all .18s"
-            onmouseover="this.style.background='rgba(255,77,109,.2)'"
-            onmouseout="this.style.background='rgba(255,77,109,.1)'">
-            <i class="fa-solid fa-trash"></i>
-          </button>
-        </div>`;
+        const name   = f.name.replace('.json','');
+        const parts  = name.split('_');
+        const label  = parts.length > 1 ? parts[0] + ' · ' + parts[1].replace('-',':') : parts[0];
+        const size   = f.size ? Math.round(f.size/1024) + ' KB' : '';
+
+        if (isMulti) {
+          const isChecked = selSet.has(f.name);
+          return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <div data-delfile="${f.name}" onclick="App._toggleDriveDelItem('${f.name}')"
+              style="width:22px;height:22px;border-radius:6px;flex-shrink:0;cursor:pointer;
+                border:2px solid ${isChecked ? '#ff4d6d' : 'var(--border)'};
+                background:${isChecked ? 'rgba(255,77,109,.2)' : 'var(--surface2)'};
+                display:flex;align-items:center;justify-content:center;transition:all .15s">
+              ${isChecked ? '<span style="color:#ff4d6d;font-size:.7rem;font-weight:900">✓</span>' : ''}
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;
+              flex:1;background:var(--surface2);border:1.5px solid var(--border);
+              border-radius:12px;padding:11px 13px;opacity:${isChecked ? '0.7' : '1'}">
+              <span style="display:flex;align-items:center;gap:8px;font-size:.85rem">
+                <span>&#x1F4C5;</span>
+                <span style="font-weight:700">${label}</span>
+              </span>
+              <span style="color:var(--text3);font-size:.72rem;background:var(--surface3);
+                padding:2px 7px;border-radius:6px">${size}</span>
+            </div>
+          </div>`;
+        } else {
+          const isSelected = f.name === App._selectedDriveFile;
+          return `<div style="margin-bottom:6px">
+            <button id="drv-item-${i}" onclick="App._selectDriveBackup(${i},'${f.name}')"
+              style="display:flex;justify-content:space-between;align-items:center;
+                background:${isSelected ? 'rgba(108,99,255,.13)' : 'var(--surface2)'};
+                border:2px solid ${isSelected ? 'var(--primary)' : 'var(--border)'};
+                border-radius:12px;padding:12px 14px;cursor:pointer;width:100%;
+                color:var(--text);font-size:.86rem;transition:all .18s;text-align:left">
+              <span style="display:flex;align-items:center;gap:9px">
+                <span>&#x1F4C5;</span>
+                <span style="font-weight:700">${label}</span>
+              </span>
+              <span style="color:var(--text3);font-size:.72rem;background:var(--surface3);
+                padding:2px 7px;border-radius:6px;white-space:nowrap">${size}</span>
+            </button>
+          </div>`;
+        }
       }).join('');
 
-      const footer = `<div style="margin-top:10px;display:flex;gap:8px">
-        <button onclick="App._confirmDriveRestore()"
-          style="flex:1;background:var(--primary);border:none;border-radius:12px;
-            padding:13px;color:#fff;font-weight:700;cursor:pointer;font-size:.88rem">
-          <i class="fa-solid fa-cloud-arrow-down"></i> Geri Yükle
-        </button>
-      </div>`;
+      // ── Footer ──
+      let footer;
+      if (isMulti) {
+        const hasSelection = selSet.size > 0;
+        footer = `<div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+          <button onclick="App._confirmBulkDelete()"
+            ${!hasSelection ? 'disabled' : ''}
+            style="flex:1;background:${hasSelection ? '#ff4d6d' : 'rgba(255,77,109,.3)'};
+              border:none;border-radius:12px;padding:13px;color:#fff;
+              font-weight:700;cursor:${hasSelection ? 'pointer' : 'not-allowed'};font-size:.88rem;
+              transition:all .2s;opacity:${hasSelection ? '1' : '.6'}">
+            ??️ ${hasSelection ? selSet.size + ' yedeği Sil' : 'Seçim Yap'}
+          </button>
+          <button onclick="App.closeDriveRestoreModal()"
+            style="background:var(--surface2);border:1.5px solid var(--border);
+              border-radius:12px;padding:11px;color:var(--text2);cursor:pointer;font-size:.85rem">
+            İptal
+          </button>
+        </div>`;
+      } else {
+        footer = `<div style="margin-top:10px;display:flex;gap:8px">
+          <button onclick="App._confirmDriveRestore()"
+            style="flex:1;background:var(--primary);border:none;border-radius:12px;
+              padding:13px;color:#fff;font-weight:700;cursor:pointer;font-size:.88rem">
+            <i class="fa-solid fa-cloud-arrow-down"></i> Geri Yükle
+          </button>
+          <button onclick="App.closeDriveRestoreModal()"
+            style="background:var(--surface2);border:1.5px solid var(--border);
+              border-radius:12px;padding:11px 16px;color:var(--text2);cursor:pointer;font-size:.85rem">
+            İptal
+          </button>
+        </div>`;
+      }
 
-      list.innerHTML = sortBtn + items + footer;
+      list.innerHTML = toolbar + selectAllRow + items + footer;
     } catch(e) {
       list.innerHTML = `<div style="color:#ff4d6d;padding:12px;font-size:.82rem">❌ ${e.message}</div>`;
       _updateDriveStatus('❌ Liste alınamadı: ' + e.message, '#ff4d6d');
@@ -6517,15 +6585,45 @@ STRİKT KURALLAR:
     _renderDriveBackupList(uid, !App._driveBackupSortAsc);
   }
 
-  async function _askDeleteDriveBackup(filename) {
-    App._pendingDeleteFile = filename;
-    const name = filename.replace('.json','');
-    const parts = name.split('_');
-    const label = parts.length > 1 ? parts[0] + ' · ' + parts[1].replace('-',':') : parts[0];
-    document.getElementById('drv-delete-filename').textContent = label;
+  function _toggleDriveMultiSelect() {
+    App._driveMultiSelect    = !App._driveMultiSelect;
+    App._driveSelectedForDel = new Set();
+    _renderDriveBackupList(_getUid());
+  }
+
+  function _toggleDriveDelItem(filename) {
+    const s = App._driveSelectedForDel || (App._driveSelectedForDel = new Set());
+    if (s.has(filename)) s.delete(filename); else s.add(filename);
+    _renderDriveBackupList(_getUid());
+  }
+
+  function _driveSelectAll(total) {
+    if (!App._driveSelectedForDel) App._driveSelectedForDel = new Set();
+    if (App._driveSelectedForDel.size === total) {
+      App._driveSelectedForDel.clear();
+    } else {
+      // Use cached file list
+      const cached = App._driveFilesCache || [];
+      cached.forEach(f => App._driveSelectedForDel.add(f.name));
+    }
+    _renderDriveBackupList(_getUid());
+  }
+
+  async function _confirmBulkDelete() {
+    const files = App._driveSelectedForDel;
+    if (!files || !files.size) return;
+    const count = files.size;
+    document.getElementById('drv-delete-count').textContent = count;
     const m = document.getElementById('drv-delete-modal');
+    App._pendingDeleteFile = null; // bulk mode
     m.style.display = 'flex';
     setTimeout(() => m.style.opacity = '1', 10);
+  }
+
+  // Tek silme (eski uyumluluk - artık kullanılmıyor ama bırakıldı)
+  async function _askDeleteDriveBackup(filename) {
+    App._driveSelectedForDel = new Set([filename]);
+    await _confirmBulkDelete();
   }
 
   function _closeDriveDeleteModal() {
@@ -6535,14 +6633,18 @@ STRİKT KURALLAR:
   }
 
   async function _confirmDeleteDriveBackup() {
-    const filename = App._pendingDeleteFile;
-    if (!filename) return;
+    const files = Array.from(App._driveSelectedForDel || []);
+    if (!files.length) return;
     _closeDriveDeleteModal();
     const uid = _getUid();
     try {
-      _updateDriveStatus('🗑️ Siliniyor...', 'var(--text3)');
-      await _driveDeleteBackup(uid, filename);
-      toast('🗑️ Yedek silindi.', 'ok');
+      _updateDriveStatus('??️ Siliniyor (' + files.length + ')...', 'var(--text3)');
+      for (const fn of files) {
+        await _driveDeleteBackup(uid, fn);
+      }
+      App._driveSelectedForDel = new Set();
+      App._driveMultiSelect = false;
+      toast('??️ ' + files.length + ' yedek silindi.', 'ok');
       await _renderDriveBackupList(uid);
     } catch(e) {
       toast('❌ Silinemedi: ' + e.message, 'err');
@@ -10886,12 +10988,13 @@ window.SubPlan = (() => {
   <div style="background:var(--surface1,#1a1a2e);border:1.5px solid rgba(255,77,109,.35);
     border-radius:20px;padding:28px 24px;max-width:320px;width:100%;text-align:center">
     <div style="font-size:2rem;margin-bottom:12px">&#x1F5D1;&#xFE0F;</div>
-    <div style="font-weight:800;font-size:1rem;margin-bottom:8px;color:var(--text)">Yede&#287;i Sil</div>
-    <div id="drv-delete-filename" style="font-weight:700;color:#ff4d6d;
-      font-size:.9rem;background:rgba(255,77,109,.1);padding:8px 14px;
-      border-radius:10px;margin-bottom:14px;border:1px solid rgba(255,77,109,.25)"></div>
+    <div style="font-weight:800;font-size:1rem;margin-bottom:8px;color:var(--text)">Yedekleri Sil</div>
+    <div style="font-weight:700;color:#ff4d6d;font-size:1.1rem;background:rgba(255,77,109,.1);
+      padding:10px 16px;border-radius:10px;margin-bottom:14px;border:1px solid rgba(255,77,109,.25)">
+      <span id="drv-delete-count">0</span> yedek se&#231;ildi
+    </div>
     <div style="color:var(--text3,#888);font-size:.8rem;margin-bottom:22px;line-height:1.6">
-      Bu yedek Drive&#x27;dan kal&#x131;c&#x131; olarak silinecek.<br>Bu i&#351;lem geri al&#x131;namaz.
+      &#x26A0;&#xFE0F; Se&#231;ilen yedekler Drive&#x27;dan kal&#x131;c&#x131; silinecek.<br>Bu i&#351;lem geri al&#x131;namaz.
     </div>
     <div style="display:flex;gap:10px">
       <button onclick="App._closeDriveDeleteModal()"
