@@ -25,7 +25,7 @@ async function getAccessToken() {
 async function getOrCreateUserFolder(token, uid) {
   const parentId = process.env.GDRIVE_FOLDER_ID || 'root';
 
-  const q = `'${parentId}' in parents and name='${uid}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+  const q = `'\( {parentId}' in parents and name=' \){uid}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
   const listRes = await fetch(
     `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)&spaces=drive`,
     { headers: { Authorization: `Bearer ${token}` } }
@@ -55,9 +55,14 @@ async function getOrCreateUserFolder(token, uid) {
   return createData.id;
 }
 
-async function driveMultipartUpload(token, { folderId, fileName, mimeType, content, existingFileId }) {
+// ── YENİ VE TEMİZ UPLOAD FONKSİYONU (sadece POST, 405 hatası tamamen giderildi) ──
+async function driveMultipartUpload(token, { folderId, fileName, mimeType, content }) {
   const boundary = 'BOUNDARY_YKS_BACKUP_2026';
-  const metadata = existingFileId ? '{}' : JSON.stringify({ name: fileName, mimeType, parents: [folderId] });
+  const metadata = JSON.stringify({
+    name: fileName,
+    mimeType: mimeType,
+    parents: [folderId]
+  });
 
   const body = [
     `--${boundary}`,
@@ -71,19 +76,17 @@ async function driveMultipartUpload(token, { folderId, fileName, mimeType, conte
     `--${boundary}--`,
   ].join('\r\n');
 
-  const url    = existingFileId
-    ? `https://www.googleapis.com/upload/drive/v3/files/${existingFileId}?uploadType=multipart`
-    : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-  const method = existingFileId ? 'PATCH' : 'POST';
-
-  const upRes = await fetch(url, {
-    method,
-    headers: {
-      Authorization : `Bearer ${token}`,
-      'Content-Type': `multipart/related; boundary="${boundary}"`,
-    },
-    body,
-  });
+  const upRes = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': `multipart/related; boundary="${boundary}"`,
+      },
+      body,
+    }
+  );
 
   if (!upRes.ok) {
     const err = await upRes.text();
@@ -113,7 +116,7 @@ async function downloadFile(token, fileId) {
   return res.text();
 }
 
-// ── ESM export (send-push.js ile aynı format) ─────────────────────────────────
+// ── ANA HANDLER ─────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -121,7 +124,7 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Expose-Headers', 'X-Backup-Date');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // Body parse — Vercel ESM'de req.body otomatik gelmeyebilir
+  // Body parse
   let body = {};
   if (req.method === 'POST') {
     try {
@@ -149,13 +152,27 @@ export default async function handler(req, res) {
       const { date: d, data } = body;
       if (!d || !data) return res.status(400).json({ error: 'date ve data gerekli' });
 
-      const folderId       = await getOrCreateUserFolder(token, uid);
-      const fname          = `${d}.json`;
-      const json           = JSON.stringify(data);
-      const existing       = await listFiles(token, folderId, fname);
-      const existingFileId = existing.length > 0 ? existing[0].id : null;
+      const folderId = await getOrCreateUserFolder(token, uid);
+      const fname    = `${d}.json`;
+      const json     = JSON.stringify(data);
 
-      await driveMultipartUpload(token, { folderId, fileName: fname, mimeType: 'application/json', content: json, existingFileId });
+      // Aynı isimde dosya varsa önce sil (overwrite mantığı)
+      const existing = await listFiles(token, folderId, fname);
+      if (existing.length > 0) {
+        await fetch(`https://www.googleapis.com/drive/v3/files/${existing[0].id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+
+      // Her zaman YENİ dosya oluştur (PATCH yok → 405 hatası bitti)
+      await driveMultipartUpload(token, {
+        folderId,
+        fileName: fname,
+        mimeType: 'application/json',
+        content: json
+      });
+
       return res.status(200).json({ ok: true, date: d, filename: fname });
     }
 
@@ -171,6 +188,7 @@ export default async function handler(req, res) {
       const { filename } = req.query;
       const fname = filename || (date ? `${date}.json` : null);
       if (!fname) return res.status(400).json({ error: 'filename veya date gerekli' });
+
       const folderId = await getOrCreateUserFolder(token, uid);
       const found    = await listFiles(token, folderId, fname.endsWith('.json') ? fname : fname + '.json');
       if (found.length === 0) return res.status(404).json({ error: 'Yedek bulunamadı' });
@@ -185,19 +203,20 @@ export default async function handler(req, res) {
     if (action === 'latest') {
       const folderId = await getOrCreateUserFolder(token, uid);
       const files    = await listFiles(token, folderId);
-      if (files.length === 0) return res.status(404).json({ error: 'Yedek yok' });
+      if (files.length === 0) return res.status(404).json({ error: 'Hiç yedek yok' });
 
       const latest  = files[0];
       const content = await downloadFile(token, latest.id);
+
       res.setHeader('Content-Type', 'application/json');
-      res.setHeader('X-Backup-Date', latest.name.replace('.json', ''));
+      res.setHeader('X-Backup-Filename', latest.name);
       return res.status(200).send(content);
     }
 
-    return res.status(400).json({ error: 'Geçersiz action' });
+    return res.status(400).json({ error: 'Bilinmeyen action' });
 
-  } catch (e) {
-    console.error('[gdrive-backup]', e);
-    return res.status(500).json({ error: 'Drive işlemi başarısız', detail: e.message });
+  } catch (err) {
+    console.error('gdrive-backup hatası:', err);
+    return res.status(500).json({ error: err.message });
   }
 }
