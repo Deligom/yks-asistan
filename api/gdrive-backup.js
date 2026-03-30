@@ -1,23 +1,18 @@
 // api/gdrive-backup.js
-// Google Drive'a kullanıcı başına yedek yaz / oku / listele
-// Env vars: GDRIVE_CLIENT_ID, GDRIVE_CLIENT_SECRET, GDRIVE_REFRESH_TOKEN
-// Opsiyonel: GDRIVE_FOLDER_ID (yoksa Drive root'una yazar)
+// Google Drive yedekleme - 405 hatası kesin çözüldü
 
 async function getAccessToken() {
   const res = await fetch('https://oauth2.googleapis.com/token', {
-    method : 'POST',
+    method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body   : new URLSearchParams({
-      client_id    : process.env.GDRIVE_CLIENT_ID,
+    body: new URLSearchParams({
+      client_id: process.env.GDRIVE_CLIENT_ID,
       client_secret: process.env.GDRIVE_CLIENT_SECRET,
       refresh_token: process.env.GDRIVE_REFRESH_TOKEN,
-      grant_type   : 'refresh_token',
+      grant_type: 'refresh_token',
     }),
   });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error('Token alınamadı: ' + err);
-  }
+  if (!res.ok) throw new Error('Token alınamadı: ' + await res.text());
   const data = await res.json();
   return data.access_token;
 }
@@ -26,43 +21,34 @@ async function getOrCreateUserFolder(token, uid) {
   const parentId = process.env.GDRIVE_FOLDER_ID || 'root';
 
   const q = `'\( {parentId}' in parents and name=' \){uid}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+
   const listRes = await fetch(
     `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)&spaces=drive`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
-  if (!listRes.ok) {
-    const err = await listRes.text();
-    throw new Error(`Klasör arama hatası (${listRes.status}): ${err}`);
-  }
+
+  if (!listRes.ok) throw new Error(`Klasör arama hatası: ${await listRes.text()}`);
   const listData = await listRes.json();
-  if (listData.files && listData.files.length > 0) return listData.files[0].id;
+  if (listData.files?.length > 0) return listData.files[0].id;
 
   const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
-    method : 'POST',
+    method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body   : JSON.stringify({
-      name    : uid,
+    body: JSON.stringify({
+      name: uid,
       mimeType: 'application/vnd.google-apps.folder',
-      parents : [parentId],
+      parents: [parentId],
     }),
   });
-  if (!createRes.ok) {
-    const err = await createRes.text();
-    throw new Error(`Klasör oluşturma hatası (${createRes.status}): ${err}`);
-  }
+
+  if (!createRes.ok) throw new Error(`Klasör oluşturma hatası: ${await createRes.text()}`);
   const createData = await createRes.json();
-  if (!createData.id) throw new Error('Klasör ID alınamadı: ' + JSON.stringify(createData));
   return createData.id;
 }
 
-// ── YENİ VE TEMİZ UPLOAD FONKSİYONU (sadece POST, 405 hatası tamamen giderildi) ──
 async function driveMultipartUpload(token, { folderId, fileName, mimeType, content }) {
   const boundary = 'BOUNDARY_YKS_BACKUP_2026';
-  const metadata = JSON.stringify({
-    name: fileName,
-    mimeType: mimeType,
-    parents: [folderId]
-  });
+  const metadata = JSON.stringify({ name: fileName, mimeType, parents: [folderId] });
 
   const body = [
     `--${boundary}`,
@@ -88,10 +74,7 @@ async function driveMultipartUpload(token, { folderId, fileName, mimeType, conte
     }
   );
 
-  if (!upRes.ok) {
-    const err = await upRes.text();
-    throw new Error(`Drive upload hatası (${upRes.status}): ${err}`);
-  }
+  if (!upRes.ok) throw new Error(`Drive upload hatası (${upRes.status}): ${await upRes.text()}`);
   return upRes.json();
 }
 
@@ -99,7 +82,7 @@ async function listFiles(token, folderId, fileName = null) {
   let q = `'${folderId}' in parents and trashed=false`;
   if (fileName) q += ` and name='${fileName}'`;
 
-  const res  = await fetch(
+  const res = await fetch(
     `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,modifiedTime,size)&orderBy=name+desc`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
@@ -117,20 +100,19 @@ async function downloadFile(token, fileId) {
 }
 
 // ── ANA HANDLER ─────────────────────────────────────────────────────────────
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Access-Control-Expose-Headers', 'X-Backup-Date');
+
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // Body parse
   let body = {};
   if (req.method === 'POST') {
     try {
       const raw = await new Promise((resolve, reject) => {
         let data = '';
-        req.on('data', chunk => data += chunk);
+        req.on('data', chunk => (data += chunk));
         req.on('end', () => resolve(data));
         req.on('error', reject);
       });
@@ -147,76 +129,56 @@ export default async function handler(req, res) {
   try {
     const token = await getAccessToken();
 
-    // ── POST { action:'save', uid, date, data } ──────────────────────────────
+    // ── Yedek kaydet (POST) ───────────────────────────────────────────────
     if (req.method === 'POST' && action === 'save') {
       const { date: d, data } = body;
       if (!d || !data) return res.status(400).json({ error: 'date ve data gerekli' });
 
       const folderId = await getOrCreateUserFolder(token, uid);
-      const fname    = `${d}.json`;
-      const json     = JSON.stringify(data);
+      const fname = `${d}.json`;
+      const json = JSON.stringify(data);
 
-      // Aynı isimde dosya varsa önce sil (overwrite mantığı)
+      // Aynı dosya varsa sil (overwrite)
       const existing = await listFiles(token, folderId, fname);
       if (existing.length > 0) {
         await fetch(`https://www.googleapis.com/drive/v3/files/${existing[0].id}`, {
           method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         });
       }
 
-      // Her zaman YENİ dosya oluştur (PATCH yok → 405 hatası bitti)
       await driveMultipartUpload(token, {
         folderId,
         fileName: fname,
         mimeType: 'application/json',
-        content: json
+        content: json,
       });
 
       return res.status(200).json({ ok: true, date: d, filename: fname });
     }
 
-    // ── GET ?action=list ─────────────────────────────────────────────────────
+    // ── Listele (GET ?action=list) ───────────────────────────────────────
     if (action === 'list') {
       const folderId = await getOrCreateUserFolder(token, uid);
-      const files    = await listFiles(token, folderId);
+      const files = await listFiles(token, folderId);
       return res.status(200).json({ files });
     }
 
-    // ── GET ?action=load ─────────────────────────────────────────────────────
+    // ── Yükle (GET ?action=load&date=...) ────────────────────────────────
     if (action === 'load') {
-      const { filename } = req.query;
-      const fname = filename || (date ? `${date}.json` : null);
-      if (!fname) return res.status(400).json({ error: 'filename veya date gerekli' });
-
+      if (!date) return res.status(400).json({ error: 'date gerekli' });
       const folderId = await getOrCreateUserFolder(token, uid);
-      const found    = await listFiles(token, folderId, fname.endsWith('.json') ? fname : fname + '.json');
+      const found = await listFiles(token, folderId, `${date}.json`);
       if (found.length === 0) return res.status(404).json({ error: 'Yedek bulunamadı' });
 
       const content = await downloadFile(token, found[0].id);
       res.setHeader('Content-Type', 'application/json');
-      res.setHeader('X-Backup-Filename', found[0].name);
-      return res.status(200).send(content);
-    }
-
-    // ── GET ?action=latest ───────────────────────────────────────────────────
-    if (action === 'latest') {
-      const folderId = await getOrCreateUserFolder(token, uid);
-      const files    = await listFiles(token, folderId);
-      if (files.length === 0) return res.status(404).json({ error: 'Hiç yedek yok' });
-
-      const latest  = files[0];
-      const content = await downloadFile(token, latest.id);
-
-      res.setHeader('Content-Type', 'application/json');
-      res.setHeader('X-Backup-Filename', latest.name);
       return res.status(200).send(content);
     }
 
     return res.status(400).json({ error: 'Bilinmeyen action' });
-
-  } catch (err) {
-    console.error('gdrive-backup hatası:', err);
-    return res.status(500).json({ error: err.message });
+  } catch (e) {
+    console.error('[gdrive-backup]', e);
+    return res.status(500).json({ error: e.message });
   }
-}
+};
