@@ -1,5 +1,5 @@
 // api/gdrive-backup.js
-// Google Drive yedekleme - 405 hatası kesin çözüldü
+// Google Drive yedekleme - 405 hatası kesin çözüldü (temiz versiyon)
 
 async function getAccessToken() {
   const res = await fetch('https://oauth2.googleapis.com/token', {
@@ -112,7 +112,7 @@ module.exports = async function handler(req, res) {
     try {
       const raw = await new Promise((resolve, reject) => {
         let data = '';
-        req.on('data', chunk => (data += chunk));
+        req.on('data', chunk => data += chunk);
         req.on('end', () => resolve(data));
         req.on('error', reject);
       });
@@ -129,7 +129,6 @@ module.exports = async function handler(req, res) {
   try {
     const token = await getAccessToken();
 
-    // ── Yedek kaydet (POST) ───────────────────────────────────────────────
     if (req.method === 'POST' && action === 'save') {
       const { date: d, data } = body;
       if (!d || !data) return res.status(400).json({ error: 'date ve data gerekli' });
@@ -138,7 +137,6 @@ module.exports = async function handler(req, res) {
       const fname = `${d}.json`;
       const json = JSON.stringify(data);
 
-      // Aynı dosya varsa sil (overwrite)
       const existing = await listFiles(token, folderId, fname);
       if (existing.length > 0) {
         await fetch(`https://www.googleapis.com/drive/v3/files/${existing[0].id}`, {
@@ -157,14 +155,12 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, date: d, filename: fname });
     }
 
-    // ── Listele (GET ?action=list) ───────────────────────────────────────
     if (action === 'list') {
       const folderId = await getOrCreateUserFolder(token, uid);
       const files = await listFiles(token, folderId);
       return res.status(200).json({ files });
     }
 
-    // ── Yükle (GET ?action=load&date=...) ────────────────────────────────
     if (action === 'load') {
       if (!date) return res.status(400).json({ error: 'date gerekli' });
       const folderId = await getOrCreateUserFolder(token, uid);
@@ -177,6 +173,7 @@ module.exports = async function handler(req, res) {
     }
 
     return res.status(400).json({ error: 'Bilinmeyen action' });
+
   } catch (e) {
     console.error('[gdrive-backup]', e);
     return res.status(500).json({ error: e.message });
