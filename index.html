@@ -9584,20 +9584,19 @@ const GeminiAI = (() => {
       const el = document.getElementById('ai-level-' + l);
       if (el) el.style.borderColor = l === _level ? colors[l] : 'var(--border)';
     });
-    // live update on click
-  function _updateMergeborders() {
-    ['direct','blend'].forEach(m => {
-      const el = document.getElementById('ai-merge-' + m + '-lbl');
-      const color = m === 'direct' ? 'var(--primary)' : 'var(--teal)';
-      if (el) el.style.borderColor = m === _mergeMode ? color : 'var(--border)';
-    });
-  }
-
     document.querySelectorAll('input[name="ai-level"]').forEach(r => {
       r.onchange = () => {
         _level = r.value;
         _updateLevelBorders();
       };
+    });
+  }
+
+  function _updateMergeborders() {
+    ['direct','blend'].forEach(m => {
+      const el = document.getElementById('ai-merge-' + m + '-lbl');
+      const color = m === 'direct' ? 'var(--primary)' : 'var(--teal)';
+      if (el) el.style.borderColor = m === _mergeMode ? color : 'var(--border)';
     });
   }
 
