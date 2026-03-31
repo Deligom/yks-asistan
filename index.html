@@ -884,7 +884,7 @@ select option{background:var(--surface2);color:var(--text)}
 
 .flashcard{
   background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--radius);padding:28px 22px;
+  border-radius:var(--radius);padding:22px 14px;
   margin-bottom:16px;animation:cardIn .3s ease;
   min-height:200px;position:relative;overflow:hidden
 }
@@ -906,10 +906,10 @@ select option{background:var(--surface2);color:var(--text)}
   display:flex;align-items:center;gap:5px}
 /* Formatted answer parts */
 .fc-answer-line{
-  display:flex;align-items:flex-start;gap:10px;
-  padding:9px 12px;border-radius:10px;
+  display:flex;align-items:flex-start;gap:8px;
+  padding:7px 9px;border-radius:10px;
   background:var(--surface2);border:1px solid var(--border);
-  margin-bottom:7px;font-size:.88rem;line-height:1.55;
+  margin-bottom:7px;font-size:.83rem;line-height:1.55;
   animation:fadeUp .2s ease both;
 }
 .fc-answer-line:last-child{margin-bottom:0}
@@ -953,7 +953,7 @@ select option{background:var(--surface2);color:var(--text)}
   border-radius:6px;padding:2px 8px;
   font-family:'DM Sans','Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:.9em;
   color:var(--text);letter-spacing:.02em;
-  white-space:nowrap;
+  white-space:normal;word-break:break-word;
 }
 /* ── FORMÜL KLAVYESİ ── */
 .math-kb{
@@ -1534,7 +1534,7 @@ select option{background:var(--surface2);color:var(--text)}
   .btn-danger-sm,.btn-edit-sm{padding:8px 10px;font-size:.72rem;min-height:38px}
 
   /* study */
-  .flashcard{padding:20px 16px;margin-bottom:12px;min-height:160px}
+  .flashcard{padding:16px 11px;margin-bottom:12px;min-height:160px}
   .fc-question{font-size:.92rem}
   .fc-answer{font-size:.85rem}
   .done-screen{padding:32px 12px}
@@ -3225,7 +3225,7 @@ select option{background:var(--surface2);color:var(--text)}
         style="width:100%;padding:10px;border-radius:11px;border:1.5px dashed var(--primary);
           background:rgba(108,99,255,.09);color:var(--primary2);font-weight:700;
           cursor:pointer;font-size:.82rem">
-        🔀 Tüm Kartları Tek Kartta Birleştir
+        🔀 Seçilenleri Tek Kartta Birleştir (<span id="ai-merge-sel-count">0</span>)
       </button>
     </div>
     <div id="ai-card-preview-box" style="margin-bottom:12px"></div>
@@ -5155,12 +5155,15 @@ STRİKT KURALLAR:
     if (!raw) return '';
     const s = String(raw);
 
-    // \n veya gerçek satır sonu karakteriyle böl
-    const s2 = s.replace(/<br\s*\/?>/gi, '\n');  // normalize <br> from Gemini
-    const lines = s2.split(/\\n|\n/).map(l => l.trim()).filter(l => l.length > 0);
+    // <br> → \n normalize et (Gemini bazen <br> döndürür)
+    const s2 = s.replace(/<br\s*\/?>/gi, '\n');
+    // split + her satırdan artık kalan <br> tag'lerini de temizle
+    const lines = s2.split(/\\n|\n/)
+      .map(l => l.replace(/<br\s*\/?>/gi, '').trim())
+      .filter(l => l.length > 0);
 
     if (lines.length <= 1) {
-      return `<div class="fc-answer-plain">${renderMath(s)}</div>`;
+      return `<div class="fc-answer-plain">${renderMath(s2.replace(/<br\s*\/?>/gi, ''))}</div>`;
     }
 
     // Flow satırı: "[f]...[/f] → [f]...[/f]" zinciri → flex-wrap chip sırası
@@ -10093,12 +10096,38 @@ ANSWER FORMATI - ZORUNLU:
   }
 
   // ── Review Modal ──────────────────────────────────────
+  let _mergeSelected = new Set(); // seçili kart indeksleri
+
+  function _updateMergeBtn() {
+    const count = _mergeSelected.size;
+    const btn = document.getElementById('ai-merge-btn');
+    const span = document.getElementById('ai-merge-sel-count');
+    if (span) span.textContent = count;
+    if (btn) {
+      const canMerge = count >= 2;
+      btn.disabled = !canMerge;
+      btn.style.opacity = canMerge ? '1' : '0.45';
+      btn.style.cursor  = canMerge ? 'pointer' : 'not-allowed';
+    }
+  }
+
+  function toggleMergeSelect(idx) {
+    if (_mergeSelected.has(idx)) _mergeSelected.delete(idx);
+    else _mergeSelected.add(idx);
+    // checkbox görünümünü güncelle
+    const cb = document.getElementById('ai-merge-cb-' + idx);
+    if (cb) cb.checked = _mergeSelected.has(idx);
+    _updateMergeBtn();
+  }
+
   function showCardModal(cards) {
+    _mergeSelected = new Set(); // sıfırla
     const preview = document.getElementById('ai-card-preview-box');
     const count   = document.getElementById('ai-card-count');
     const mergeBar = document.getElementById('ai-card-merge-bar');
     if (count) count.textContent = cards.length + ' kart';
     if (mergeBar) mergeBar.style.display = cards.length >= 2 ? 'block' : 'none';
+    _updateMergeBtn();
     if (preview) {
       preview.innerHTML = cards.map((c, idx) => {
         const isNote = !c.question || c.question === 'Bilgi Notu';
@@ -10110,8 +10139,17 @@ ANSWER FORMATI - ZORUNLU:
         const photoThumb = c.photo
           ? `<img src="${c.photo}" style="width:100%;max-height:90px;object-fit:cover;border-radius:8px;margin-bottom:8px;display:block">`
           : '';
+        // Seçim checkbox'u (sadece 2+ kart varsa)
+        const checkboxHTML = cards.length >= 2 ? `
+          <label style="display:flex;align-items:center;gap:6px;margin-bottom:8px;cursor:pointer;user-select:none">
+            <input type="checkbox" id="ai-merge-cb-${idx}"
+              onchange="GeminiAI.toggleMergeSelect(${idx})"
+              style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer">
+            <span style="font-size:.7rem;color:var(--text3)">Birleştirmeye dahil et</span>
+          </label>` : '';
         return `<div style="background:var(--surface2);border:1.5px solid var(--border);border-radius:14px;padding:13px;margin-bottom:10px;position:relative">
           ${photoThumb}
+          ${checkboxHTML}
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
             <div style="font-size:.7rem;color:${typeColor};font-weight:700">${typeIcon} ${_escHtml(c.category||'')} · ${_escHtml(c.subject||'')}</div>
             <button onclick="GeminiAI.removeCard(${idx})" title="Kartı kaldır"
@@ -10227,38 +10265,46 @@ KURALLAR:
   // ── Merge cards ───────────────────────────────────────
   async function mergeCards() {
     if (!_pendingCards || _pendingCards.length < 2) return;
+    // Seçili kartları al; hiç seçilmediyse uyar
+    const selectedIndices = [..._mergeSelected].sort((a,b) => a-b);
+    if (selectedIndices.length < 2) {
+      if (window.toast) toast('En az 2 kart seç!', 'err');
+      return;
+    }
+    const cardsToMerge = selectedIndices.map(i => _pendingCards[i]);
+    const remaining    = _pendingCards.filter((_, i) => !_mergeSelected.has(i));
     if (_mergeMode === 'blend') {
-      await _mergeBlend();
+      await _mergeBlend(cardsToMerge, remaining);
     } else {
-      _mergeDirect();
+      _mergeDirect(cardsToMerge, remaining);
     }
   }
 
-  function _mergeDirect() {
-    const base = _pendingCards[0];
-    const allAnswers = _pendingCards.map((c, i) => {
-      const header = _pendingCards.length > 1 ? `[y]Konu ${i+1}: ${c.topic || ''}[/y]` : '';
+  function _mergeDirect(cardsToMerge, remaining) {
+    const base = cardsToMerge[0];
+    const allAnswers = cardsToMerge.map((c, i) => {
+      const header = cardsToMerge.length > 1 ? `[y]Konu ${i+1}: ${c.topic || ''}[/y]` : '';
       return (header ? header + '\n' : '') + (c.answer || '');
     }).join('\n\n');
     const merged = {
       ...base,
-      topic: _pendingCards.map(c => c.topic || '').filter(Boolean).join(' + ') || base.topic,
+      topic: cardsToMerge.map(c => c.topic || '').filter(Boolean).join(' + ') || base.topic,
       question: base.question || 'Birleşik Kart',
       answer: allAnswers
     };
-    _pendingCards = [merged];
+    _pendingCards = [merged, ...remaining];
     showCardModal(_pendingCards);
     if (window.toast) toast('🔀 Kartlar birleştirildi!', 'ok');
   }
 
-  async function _mergeBlend() {
+  async function _mergeBlend(cardsToMerge, remaining) {
     const key = await getKey();
     if (!key) return;
     if (window.toast) toast('⏳ Kartlar harmanlanıyor...', 'ok');
     const mergePrompt = `Aşağıdaki YKS hap bilgi kartlarını TEK bir tutarlı karta birleştir. Tüm önemli bilgileri koru, tekrarları kaldır, akıcı bir yapı oluştur.
 
 Kartlar:
-${JSON.stringify(_pendingCards, null, 2)}
+${JSON.stringify(cardsToMerge, null, 2)}
 
 KURALLAR:
 1. Sadece saf JSON objesi döndür, dizi değil.
@@ -10282,7 +10328,7 @@ KURALLAR:
       const merged = _safeParseJSON(raw);
       const card = Array.isArray(merged) ? merged[0] : merged;
       if (!card) throw new Error('Harmanlama başarısız');
-      _pendingCards = [card];
+      _pendingCards = [card, ...remaining];
       showCardModal(_pendingCards);
       if (window.toast) toast('✨ Kartlar harmanlandı!', 'ok');
     } catch(e) {
@@ -10420,6 +10466,7 @@ STRİKT KURALLAR:
     createCard, createCardWithPhoto, createSoruKarti, closeCardModal, confirmImport, onPhotoSelected, removePhoto,
     openGenConfig, closeGenConfig, setGenCount, setGenDetail, confirmGenConfig,
     removeCard, openEditCard, closeEditCard, submitEditCard,
+    toggleMergeSelect,
     mergeCards, getKeyPublic: getKey };
 })();
 </script>
