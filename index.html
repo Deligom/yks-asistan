@@ -3043,9 +3043,17 @@ select option{background:var(--surface2);color:var(--text)}
           <i class="fa-solid fa-arrow-left"></i>
         </button>
         <div class="ai-hist-title">💬 Sohbet Geçmişi</div>
+        <button id="hist-sel-btn" onclick="GeminiAI.toggleHistSelMode()" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:6px 12px;color:var(--text2);font-size:.75rem;font-weight:700;cursor:pointer">Seç</button>
         <button onclick="GeminiAI.newChat()" style="background:var(--primary);border:none;border-radius:10px;padding:6px 14px;color:#fff;font-size:.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px">
           <i class="fa-solid fa-plus-circle"></i> Yeni
         </button>
+      </div>
+      <div id="hist-bulk-bar" style="display:none;padding:8px 12px;background:rgba(255,77,109,.08);border-bottom:1px solid rgba(255,77,109,.2);display:none;align-items:center;justify-content:space-between;gap:8px">
+        <span id="hist-sel-count" style="font-size:.78rem;color:var(--text2);font-weight:600">0 seçildi</span>
+        <div style="display:flex;gap:8px">
+          <button onclick="GeminiAI.selectAllSessions()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:5px 10px;color:var(--text2);font-size:.74rem;cursor:pointer;font-weight:600">Tümü</button>
+          <button onclick="GeminiAI.deleteSelectedSessions()" style="background:rgba(255,77,109,.15);border:1px solid rgba(255,77,109,.3);border-radius:8px;padding:5px 12px;color:#ff4d6d;font-size:.74rem;cursor:pointer;font-weight:700"><i class="fa-solid fa-trash"></i> Sil</button>
+        </div>
       </div>
       <div class="ai-hist-list" id="ai-hist-list">
         <div style="text-align:center;padding:30px;color:var(--text3);font-size:.85rem">Geçmiş yükleniyor…</div>
@@ -3341,6 +3349,11 @@ select option{background:var(--surface2);color:var(--text)}
       <div class="subject-chips" id="cfg-subjects"></div>
     </div>
 
+    <div class="config-section" id="cfg-topic-section" style="display:none">
+      <div class="config-label">Konu <span style="color:var(--text3);font-weight:400">(isteğe bağlı)</span></div>
+      <div class="subject-chips" id="cfg-topics"></div>
+    </div>
+
     <div class="config-section">
       <div class="config-label">Soru Sayısı</div>
       <div class="chip-group">
@@ -3402,6 +3415,8 @@ select option{background:var(--surface2);color:var(--text)}
     </div>
     <div class="edit-actions">
       <button class="btn btn-ghost" onclick="App.closeEdit()"><i class="fa-solid fa-xmark"></i> İptal</button>
+      <button class="btn" style="background:rgba(0,212,170,.12);color:var(--teal2);border:1px solid rgba(0,212,170,.3);font-size:.82rem;padding:10px 12px" onclick="App.previewEditCard()" title="Ön izle"><i class="fa-solid fa-eye"></i></button>
+      <button class="btn" style="background:rgba(108,99,255,.15);color:var(--primary2);border:1px solid rgba(108,99,255,.3);font-size:.82rem;padding:10px 12px" onclick="App.openAIEditFromOverlay()" title="AI ile düzelt"><i class="fa-solid fa-robot"></i></button>
       <button class="btn btn-primary" onclick="App.saveEdit()"><i class="fa-solid fa-floppy-disk"></i> Kaydet</button>
     </div>
   </div>
@@ -3611,7 +3626,7 @@ let studyMode     = 'hap';
 let studyQueue    = [];
 let studyIdx      = 0;
 let _maxStudyIdx  = 0;   // İleri butonu için: ulaşılan en yüksek index
-let studyCfg      = { cat: 'all', subjects: [], count: '10', order: 'random' };
+let studyCfg      = { cat: 'all', subjects: [], topics: [], count: '10', order: 'random' };
 let schedType   = 'interval';
 let selectedDays = [];
 let selMode     = false;
@@ -3974,12 +3989,49 @@ const App = (() => {
     studyMode = mode;
     const title = mode === 'hap' ? '⚡ Hap Bilgi Ayarları' : '📸 Soru Bankası Ayarları';
     document.getElementById('config-title').textContent = title;
+    studyCfg.topics = [];
     buildSubjectChips();
+    buildTopicChips();
     document.getElementById('config-modal').classList.add('open');
   }
 
   function closeConfig() {
     document.getElementById('config-modal').classList.remove('open');
+  }
+
+  async function buildTopicChips() {
+    const section = document.getElementById('cfg-topic-section');
+    const cont = document.getElementById('cfg-topics');
+    if (!section || !cont) return;
+    const all = await dbGetAll();
+    // Filtrele: studyMode ve seçili dersler
+    let filtered = studyMode === 'mixed' ? all : all.filter(c => c.type === studyMode);
+    if (studyCfg.cat !== 'all') filtered = filtered.filter(c => c.category === studyCfg.cat);
+    if (studyCfg.subjects.length > 0) filtered = filtered.filter(c => studyCfg.subjects.includes(c.subject));
+    const topics = [...new Set(filtered.map(c => c.topic).filter(Boolean))].sort();
+    if (!topics.length) { section.style.display = 'none'; return; }
+    section.style.display = '';
+    const allSel = studyCfg.topics.length === 0;
+    cont.innerHTML = `<div class="chip${allSel ? ' selected-teal' : ''}" data-topic="all" onclick="App.toggleTopicChip(this)">Hepsi</div>` +
+      topics.map(t => `<div class="chip${studyCfg.topics.includes(t) ? ' selected-primary' : ''}" data-topic="${t.replace(/"/g,'&quot;')}" onclick="App.toggleTopicChip(this)">${t}</div>`).join('');
+  }
+
+  function toggleTopicChip(el) {
+    const topic = el.dataset.topic;
+    if (topic === 'all') {
+      studyCfg.topics = [];
+      document.querySelectorAll('#cfg-topics [data-topic]').forEach(c => c.className = c.className.replace(/selected-\w+/g,'').trim());
+      el.classList.add('selected-teal');
+      return;
+    }
+    const allChip = document.querySelector('#cfg-topics [data-topic="all"]');
+    if (allChip) allChip.className = allChip.className.replace(/selected-\w+/g,'').trim();
+    const idx = studyCfg.topics.indexOf(topic);
+    if (idx === -1) { studyCfg.topics.push(topic); el.classList.add('selected-primary'); }
+    else { studyCfg.topics.splice(idx, 1); el.className = el.className.replace(/selected-\w+/g,'').trim(); }
+    if (!studyCfg.topics.length) {
+      if (allChip) allChip.classList.add('selected-teal');
+    }
   }
 
   function buildSubjectChips() {
@@ -4008,7 +4060,7 @@ const App = (() => {
     });
     el.classList.add(cls);
 
-    if (group === 'cat') buildSubjectChips();
+    if (group === 'cat') { studyCfg.topics = []; buildSubjectChips(); buildTopicChips(); }
   }
 
   function toggleSubChip(el) {
@@ -4019,6 +4071,8 @@ const App = (() => {
         c.className = c.className.replace(/selected-\w+/g,'').trim();
       });
       el.classList.add('selected-teal');
+      studyCfg.topics = [];
+      buildTopicChips();
       return;
     }
     // deselect "Hepsi"
@@ -4033,6 +4087,8 @@ const App = (() => {
       studyCfg.subjects.splice(idx, 1);
       el.className = el.className.replace(/selected-\w+/g,'').trim();
     }
+    studyCfg.topics = [];
+    buildTopicChips();
   }
 
   // ── START STUDY (Serbest Çalışma — Config Modal'dan) ──
@@ -4053,7 +4109,7 @@ const App = (() => {
     if (studyCfg.subjects.length > 0) filtered = filtered.filter(c => studyCfg.subjects.includes(c.subject));
 
     // topic filter
-    if (studyCfg.topic) filtered = filtered.filter(c => c.topic === studyCfg.topic);
+    if (studyCfg.topics && studyCfg.topics.length > 0) filtered = filtered.filter(c => studyCfg.topics.includes(c.topic));
 
     // order
     if (studyCfg.order === 'random') {
@@ -4686,6 +4742,43 @@ const App = (() => {
 
   function closeEdit() {
     document.getElementById('edit-overlay').classList.remove('open');
+  }
+
+  function previewEditCard() {
+    const answer = (document.getElementById('edit-answer')?.value || '').trim();
+    const question = (document.getElementById('edit-question')?.value || '').trim();
+    const topic = (document.getElementById('edit-topic')?.value || '').trim();
+    if (!answer) { toast('Önizlenecek içerik yok!', 'err'); return; }
+    // Mevcut study view'daki formatAnswer kullanır — basit modal aç
+    let modal = document.getElementById('edit-preview-modal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'edit-preview-modal';
+      modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+      modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10500;align-items:center;justify-content:center;padding:16px';
+      modal.innerHTML = `<div style="background:var(--surface1,#12122a);border:1px solid var(--border);border-radius:20px;padding:20px 16px;width:100%;max-width:440px;max-height:80vh;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div style="font-weight:800;font-size:.95rem;color:var(--text)">👁 Ön İzleme</div>
+          <button onclick="document.getElementById('edit-preview-modal').style.display='none'" style="background:none;border:none;color:var(--text3);font-size:1.1rem;cursor:pointer">✕</button>
+        </div>
+        <div id="edit-preview-content"></div>
+      </div>`;
+      document.body.appendChild(modal);
+    }
+    const content = document.getElementById('edit-preview-content');
+    content.innerHTML = `
+      ${topic ? `<div style="font-size:.7rem;color:var(--teal2);font-weight:700;margin-bottom:6px">${esc(topic)}</div>` : ''}
+      ${question ? `<div style="font-size:.92rem;font-weight:700;color:var(--text);margin-bottom:12px;line-height:1.45">${esc(question)}</div>` : ''}
+      <div class="fc-answer-label"><i class="fa-solid fa-check-circle"></i> Çözüm / Not</div>
+      <div class="fc-answer">${formatAnswer(answer)}</div>`;
+    modal.style.display = 'flex';
+  }
+
+  function openAIEditFromOverlay() {
+    const id = parseInt(document.getElementById('edit-id')?.value);
+    if (!id) return;
+    document.getElementById('edit-overlay').classList.remove('open');
+    GeminiAI.openAIEditRecord(id);
   }
 
   async function saveEdit() {
@@ -6249,11 +6342,12 @@ STRİKT KURALLAR:
     go, setAddType, setHapSubType, updateSubjectsList, updateRoutineSubjects, onRoutineSubjectChange, updateEditSubjects,
     previewPhoto, removePhoto,
     toggleHapPhoto, previewHapPhoto, removeHapPhoto, saveCard,
-    openConfig, closeConfig, cfgChip, toggleSubChip, startStudy, startDailyReview,
+    openConfig, closeConfig, cfgChip, toggleSubChip, toggleTopicChip, startStudy, startDailyReview,
     showAnswer, rate, studyGoBack, studyGoForward,
     renderRecords, deleteCard, clearAll, toggleRecords, recGoPage, _updateRecTopicFilter,
     toggleSelMode, toggleCardSelect, onRecordCardClick, bulkDelete, bulkShare, selectAll,
     openEdit, closeEdit, saveEdit, updateEditSubjects,
+    previewEditCard, openAIEditFromOverlay,
     importJSON, copyPrompt, copyPromptBilgi, copyPromptSoru, switchImportTab, togglePrompt,
     setAddMode,
     previewImportPhoto, removeImportPhoto, importJSONSoru, importFotoCardFromAI,
@@ -9714,6 +9808,73 @@ const GeminiAI = (() => {
     if (panel) panel.classList.remove('open');
   }
 
+  let _histSelMode = false;
+  let _histSelectedIds = new Set();
+
+  function toggleHistSelMode() {
+    _histSelMode = !_histSelMode;
+    _histSelectedIds = new Set();
+    const btn = document.getElementById('hist-sel-btn');
+    const bar = document.getElementById('hist-bulk-bar');
+    if (btn) { btn.textContent = _histSelMode ? 'İptal' : 'Seç'; btn.style.color = _histSelMode ? '#ff4d6d' : ''; btn.style.borderColor = _histSelMode ? 'rgba(255,77,109,.4)' : ''; }
+    if (bar) bar.style.display = _histSelMode ? 'flex' : 'none';
+    renderHistoryList();
+  }
+
+  function _updateHistSelCount() {
+    const el = document.getElementById('hist-sel-count');
+    if (el) el.textContent = _histSelectedIds.size + ' seçildi';
+  }
+
+  function toggleHistItemSelect(id) {
+    if (_histSelectedIds.has(id)) _histSelectedIds.delete(id);
+    else _histSelectedIds.add(id);
+    const cb = document.getElementById('hist-cb-' + id);
+    if (cb) cb.checked = _histSelectedIds.has(id);
+    const item = document.getElementById('hist-item-' + id);
+    if (item) item.style.borderColor = _histSelectedIds.has(id) ? 'var(--primary)' : '';
+    _updateHistSelCount();
+  }
+
+  function selectAllSessions() {
+    const sessions = _loadSessions();
+    sessions.forEach(s => _histSelectedIds.add(s.id));
+    document.querySelectorAll('.hist-sel-cb').forEach(cb => { cb.checked = true; });
+    document.querySelectorAll('.ai-hist-item').forEach(el => { el.style.borderColor = 'var(--primary)'; });
+    _updateHistSelCount();
+  }
+
+  function deleteSelectedSessions() {
+    if (!_histSelectedIds.size) { if (window.toast) toast('Hiç sohbet seçilmedi!', 'err'); return; }
+    if (!confirm(_histSelectedIds.size + ' sohbet silinsin mi?')) return;
+    let sessions = _loadSessions();
+    const toDelete = new Set(_histSelectedIds);
+    sessions = sessions.filter(s => !toDelete.has(s.id));
+    _saveSessions(sessions);
+    // aktif session silinmişse temizle
+    if (toDelete.has(_currentSessionId)) {
+      _history = [];
+      _currentSessionId = null;
+      try { localStorage.removeItem(HISTORY_KEY); } catch(e) {}
+      _updateChatTitle();
+      renderMessages();
+    }
+    // Firestore'dan da sil
+    const fb = window._FB;
+    const myCode = localStorage.getItem('social_code');
+    if (fb && myCode) {
+      toDelete.forEach(id => fb.deleteDoc(fb.doc(fb.db, 'ai_sessions', myCode, 'sessions', id)).catch(() => {}));
+    }
+    if (window.toast) toast('🗑️ ' + toDelete.size + ' sohbet silindi', 'ok');
+    _histSelMode = false;
+    _histSelectedIds = new Set();
+    const btn = document.getElementById('hist-sel-btn');
+    const bar = document.getElementById('hist-bulk-bar');
+    if (btn) { btn.textContent = 'Seç'; btn.style.color = ''; btn.style.borderColor = ''; }
+    if (bar) bar.style.display = 'none';
+    renderHistoryList();
+  }
+
   function renderHistoryList() {
     const list = document.getElementById('ai-hist-list');
     if (!list) return;
@@ -9727,7 +9888,18 @@ const GeminiAI = (() => {
     }
     list.innerHTML = sessions.map((s, i) => {
       const isActive = s.id === _currentSessionId;
+      const isChecked = _histSelectedIds.has(s.id);
       const date = new Date(s.updatedAt).toLocaleDateString('tr-TR', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+      if (_histSelMode) {
+        return `
+          <div class="ai-hist-item${isActive ? ' active' : ''}" id="hist-item-${s.id}" style="${isChecked ? 'border-color:var(--primary)' : ''}" onclick="GeminiAI.toggleHistItemSelect('${s.id}')">
+            <input type="checkbox" class="hist-sel-cb" id="hist-cb-${s.id}" ${isChecked ? 'checked' : ''} onchange="GeminiAI.toggleHistItemSelect('${s.id}')" onclick="event.stopPropagation()" style="width:16px;height:16px;accent-color:var(--primary);flex-shrink:0;cursor:pointer">
+            <div class="hist-body">
+              <div class="hist-title">${_escHtml(s.title)}</div>
+              <div class="hist-meta">${date} · ${s.msgCount || 0} mesaj</div>
+            </div>
+          </div>`;
+      }
       return `
         <div class="ai-hist-item${isActive ? ' active' : ''}" id="hist-item-${s.id}">
           <div class="hist-icon">💬</div>
@@ -10543,6 +10715,7 @@ STRİKT KURALLAR:
     removeCard, openEditCard, closeEditCard, submitEditCard,
     openAIEditRecord,
     toggleMergeSelect, toggleCardCollapse,
+    toggleHistSelMode, selectAllSessions, deleteSelectedSessions, toggleHistItemSelect,
     mergeCards, getKeyPublic: getKey };
 })();
 </script>
