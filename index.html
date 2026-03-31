@@ -399,7 +399,7 @@ button, a {
   overflow-y:auto;
   overflow-x:hidden;
   -webkit-overflow-scrolling:touch;
-  padding:20px 16px calc(var(--nav-h) + env(safe-area-inset-bottom,0px) + 32px);
+  padding:20px 10px calc(var(--nav-h) + env(safe-area-inset-bottom,0px) + 32px);
   box-sizing:border-box;
   z-index:1;
 }
@@ -1460,7 +1460,7 @@ select option{background:var(--surface2);color:var(--text)}
 @media(max-width:480px){
 
   /* views: tighter side padding */
-  .view{padding-left:12px;padding-right:12px}
+  .view{padding-left:7px;padding-right:7px}
 
   /* hero: more compact */
   .home-hero{padding:14px 0 12px;gap:4px}
@@ -4424,6 +4424,7 @@ const App = (() => {
             </div>
             <div class="record-actions" style="${selMode ? 'display:none' : ''}">
               <button class="btn btn-edit-sm" onclick="event.stopPropagation();App.openEdit(${c.id})"><i class="fa-solid fa-pen"></i></button>
+              <button class="btn btn-edit-sm" style="background:rgba(0,212,170,.12);color:var(--teal2);border-color:rgba(0,212,170,.25)" onclick="event.stopPropagation();GeminiAI.openAIEditRecord(${c.id})" title="AI ile düzelt"><i class="fa-solid fa-robot"></i></button>
               <button class="btn btn-danger-sm" onclick="event.stopPropagation();App.deleteCard(${c.id})"><i class="fa-solid fa-trash"></i></button>
             </div>
           </div>`;
@@ -10120,8 +10121,35 @@ ANSWER FORMATI - ZORUNLU:
     _updateMergeBtn();
   }
 
+  let _collapsedCards = new Set(); // kapatılmış (hariç tutulacak) kart indeksleri
+
+  function toggleCardCollapse(idx) {
+    if (_collapsedCards.has(idx)) _collapsedCards.delete(idx);
+    else _collapsedCards.add(idx);
+    // Sadece o kartın DOM'unu güncelle
+    const body = document.getElementById('ai-card-body-' + idx);
+    const icon = document.getElementById('ai-card-icon-' + idx);
+    const wrap = document.getElementById('ai-card-wrap-' + idx);
+    const collapsed = _collapsedCards.has(idx);
+    if (body) body.style.display = collapsed ? 'none' : '';
+    if (icon) icon.textContent = collapsed ? '▸' : '▾';
+    if (wrap) {
+      wrap.style.opacity = collapsed ? '0.38' : '1';
+      wrap.style.borderColor = collapsed ? 'rgba(255,77,109,.4)' : 'var(--border)';
+    }
+    // Kaydet butonunu güncelle
+    _updateSaveBtn();
+  }
+
+  function _updateSaveBtn() {
+    const active = _pendingCards ? _pendingCards.filter((_, i) => !_collapsedCards.has(i)).length : 0;
+    const btn = document.querySelector('#ai-card-modal .btn-primary');
+    if (btn) btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Kaydet${active > 0 ? ' (' + active + ')' : ''}`;
+  }
+
   function showCardModal(cards) {
-    _mergeSelected = new Set(); // sıfırla
+    _mergeSelected = new Set();
+    _collapsedCards = new Set();
     const preview = document.getElementById('ai-card-preview-box');
     const count   = document.getElementById('ai-card-count');
     const mergeBar = document.getElementById('ai-card-merge-bar');
@@ -10132,14 +10160,13 @@ ANSWER FORMATI - ZORUNLU:
       preview.innerHTML = cards.map((c, idx) => {
         const isNote = !c.question || c.question === 'Bilgi Notu';
         const title  = isNote ? (c.topic || 'Bilgi Notu') : c.question.slice(0,70) + (c.question.length > 70 ? '…' : '');
-        const ansLines = (c.answer || '').replace(/<br\s*\/?>/gi, '\n').split(/\\n|\n/).slice(0, 3);
+        const ansLines = (c.answer || '').replace(/<br\s*\/?>/gi, '\n').split(/\\n|\n/).filter(l => l.trim());
         const ansHTML  = ansLines.map(l => `<div style="margin-bottom:2px">${_escHtml(l)}</div>`).join('');
         const typeIcon  = c.type === 'foto' ? '📸' : '⚡';
         const typeColor = c.type === 'foto' ? 'var(--accent2)' : 'var(--teal2)';
         const photoThumb = c.photo
           ? `<img src="${c.photo}" style="width:100%;max-height:90px;object-fit:cover;border-radius:8px;margin-bottom:8px;display:block">`
           : '';
-        // Seçim checkbox'u (sadece 2+ kart varsa)
         const checkboxHTML = cards.length >= 2 ? `
           <label style="display:flex;align-items:center;gap:6px;margin-bottom:8px;cursor:pointer;user-select:none">
             <input type="checkbox" id="ai-merge-cb-${idx}"
@@ -10147,30 +10174,35 @@ ANSWER FORMATI - ZORUNLU:
               style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer">
             <span style="font-size:.7rem;color:var(--text3)">Birleştirmeye dahil et</span>
           </label>` : '';
-        return `<div style="background:var(--surface2);border:1.5px solid var(--border);border-radius:14px;padding:13px;margin-bottom:10px;position:relative">
-          ${photoThumb}
-          ${checkboxHTML}
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
-            <div style="font-size:.7rem;color:${typeColor};font-weight:700">${typeIcon} ${_escHtml(c.category||'')} · ${_escHtml(c.subject||'')}</div>
-            <button onclick="GeminiAI.removeCard(${idx})" title="Kartı kaldır"
-              style="background:rgba(255,77,109,.15);border:1px solid rgba(255,77,109,.3);
-                border-radius:7px;padding:2px 8px;color:#ff4d6d;font-size:.75rem;
-                cursor:pointer;font-weight:700;flex-shrink:0;margin-left:8px">✕</button>
+        return `<div id="ai-card-wrap-${idx}" style="background:var(--surface2);border:1.5px solid var(--border);border-radius:14px;padding:13px;margin-bottom:10px;transition:opacity .2s,border-color .2s">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;cursor:pointer" onclick="GeminiAI.toggleCardCollapse(${idx})">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span id="ai-card-icon-${idx}" style="font-size:.85rem;color:var(--text3)">▾</span>
+              <div style="font-size:.7rem;color:${typeColor};font-weight:700">${typeIcon} ${_escHtml(c.category||'')} · ${_escHtml(c.subject||'')}</div>
+            </div>
+            <span style="font-size:.68rem;color:rgba(255,77,109,.8);font-weight:700;background:rgba(255,77,109,.1);border:1px solid rgba(255,77,109,.25);border-radius:6px;padding:2px 7px">
+              kapat
+            </span>
           </div>
-          <div style="font-size:.7rem;color:var(--text3);margin-bottom:6px">${_escHtml(c.topic||'')}</div>
-          <div style="font-size:.84rem;font-weight:700;color:var(--text);margin-bottom:6px;line-height:1.35">${_escHtml(title)}</div>
-          <div style="font-size:.74rem;color:var(--text2);line-height:1.6;border-top:1px solid var(--border);padding-top:7px">${ansHTML}</div>
-          <button onclick="GeminiAI.openEditCard(${idx})"
-            style="margin-top:9px;background:none;border:1px solid var(--border);border-radius:8px;
-              padding:5px 12px;color:var(--text3);font-size:.73rem;cursor:pointer;width:100%;
-              text-align:left;transition:background .15s"
-            onmouseover="this.style.background='var(--surface3)'"
-            onmouseout="this.style.background='none'">
-            ✏️ Düzenle · Gemini'ye talimat ver
-          </button>
+          <div id="ai-card-body-${idx}">
+            ${photoThumb}
+            ${checkboxHTML}
+            <div style="font-size:.7rem;color:var(--text3);margin-bottom:6px">${_escHtml(c.topic||'')}</div>
+            <div style="font-size:.84rem;font-weight:700;color:var(--text);margin-bottom:6px;line-height:1.35">${_escHtml(title)}</div>
+            <div style="font-size:.74rem;color:var(--text2);line-height:1.6;border-top:1px solid var(--border);padding-top:7px;max-height:180px;overflow-y:auto">${ansHTML}</div>
+            <button onclick="GeminiAI.openEditCard(${idx})"
+              style="margin-top:9px;background:none;border:1px solid var(--border);border-radius:8px;
+                padding:5px 12px;color:var(--text3);font-size:.73rem;cursor:pointer;width:100%;
+                text-align:left;transition:background .15s"
+              onmouseover="this.style.background='var(--surface3)'"
+              onmouseout="this.style.background='none'">
+              ✏️ Düzenle · Gemini'ye talimat ver
+            </button>
+          </div>
         </div>`;
       }).join('');
     }
+    _updateSaveBtn();
     const modal = document.getElementById('ai-card-modal');
     if (modal) modal.classList.add('open');
   }
@@ -10194,9 +10226,11 @@ ANSWER FORMATI - ZORUNLU:
 
   // ── Per-card edit ─────────────────────────────────────
   let _editIdx = -1;
+  let _editRecordId = null; // DB kartını düzenlerken set edilir
 
   function openEditCard(idx) {
     _editIdx = idx;
+    _editRecordId = null;
     const c = _pendingCards[idx];
     const isNote = !c.question || c.question === 'Bilgi Notu';
     const title = isNote ? (c.topic || 'Bilgi Notu') : c.question;
@@ -10220,7 +10254,17 @@ ANSWER FORMATI - ZORUNLU:
   async function submitEditCard() {
     const instruction = (document.getElementById('ai-edit-instruction')?.value || '').trim();
     if (!instruction) { if (window.toast) toast('Bir talimat yaz!', 'err'); return; }
-    const c = _pendingCards[_editIdx];
+
+    // DB kartı mı yoksa pending kart mı?
+    const isDBMode = (_editRecordId !== null);
+    let c;
+    if (isDBMode) {
+      c = await dbGet(_editRecordId);
+      if (!c) { if (window.toast) toast('Kart bulunamadı!', 'err'); return; }
+    } else {
+      c = _pendingCards[_editIdx];
+    }
+
     closeEditCard();
     if (window.toast) toast('⏳ Kart yeniden üretiliyor...', 'ok');
     const key = await getKey();
@@ -10254,12 +10298,41 @@ KURALLAR:
       if (!card) throw new Error('Geçerli kart üretilemedi');
       // Fotoğrafı koru
       if (c.photo) card.photo = c.photo;
-      _pendingCards[_editIdx] = card;
-      showCardModal(_pendingCards);
-      if (window.toast) toast('✅ Kart güncellendi!', 'ok');
+
+      if (isDBMode) {
+        // DB kartını direkt güncelle
+        const updated = { ...c, ...card, id: c.id, createdAt: c.createdAt,
+          nextReviewDate: c.nextReviewDate, interval: c.interval,
+          repetitions: c.repetitions, easeFactor: c.easeFactor };
+        await dbPut(updated);
+        if (window.App && window.App.renderRecords) window.App.renderRecords();
+        if (window.toast) toast('✅ Kart AI ile güncellendi!', 'ok');
+      } else {
+        _pendingCards[_editIdx] = card;
+        showCardModal(_pendingCards);
+        if (window.toast) toast('✅ Kart güncellendi!', 'ok');
+      }
     } catch(e) {
       if (window.toast) toast('Düzenleme hatası: ' + e.message, 'err');
     }
+  }
+
+  async function openAIEditRecord(id) {
+    const card = await dbGet(id);
+    if (!card) { if (window.toast) toast('Kart bulunamadı!', 'err'); return; }
+    _editRecordId = id;
+    _editIdx = -1;
+    const isNote = !card.question || card.question === 'Bilgi Notu';
+    const title = isNote ? (card.topic || 'Bilgi Notu') : card.question;
+    const preview = document.getElementById('ai-edit-card-preview');
+    if (preview) {
+      preview.innerHTML = `<strong>${_escHtml(title)}</strong><br><span style="font-size:.73rem;color:var(--text3)">${_escHtml((card.answer||'').slice(0,180))}${(card.answer||'').length > 180 ? '…' : ''}</span>`;
+    }
+    const ta = document.getElementById('ai-edit-instruction');
+    if (ta) ta.value = '';
+    const m = document.getElementById('ai-edit-card-modal');
+    m.style.display = 'flex';
+    setTimeout(() => { m.style.opacity = '1'; if (ta) ta.focus(); }, 10);
   }
 
   // ── Merge cards ───────────────────────────────────────
@@ -10398,7 +10471,9 @@ STRİKT KURALLAR:
 
   async function confirmImport() {
     if (!_pendingCards || !_pendingCards.length) return;
-    const cards = _pendingCards;
+    // Kapatılmış (hariç tutulan) kartları atla
+    const cards = _pendingCards.filter((_, i) => !_collapsedCards.has(i));
+    if (!cards.length) { if (window.toast) toast('Kaydedilecek kart yok!', 'err'); return; }
     closeCardModal();
     let saved = 0;
     for (const c of cards) {
@@ -10466,7 +10541,8 @@ STRİKT KURALLAR:
     createCard, createCardWithPhoto, createSoruKarti, closeCardModal, confirmImport, onPhotoSelected, removePhoto,
     openGenConfig, closeGenConfig, setGenCount, setGenDetail, confirmGenConfig,
     removeCard, openEditCard, closeEditCard, submitEditCard,
-    toggleMergeSelect,
+    openAIEditRecord,
+    toggleMergeSelect, toggleCardCollapse,
     mergeCards, getKeyPublic: getKey };
 })();
 </script>
