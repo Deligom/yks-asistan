@@ -173,6 +173,8 @@
   #ai-setup-box { background:var(--card); border-radius:var(--radius); padding:28px 24px; width:100%; max-width:380px; border:1px solid var(--border); }
   .ai-card-preview { background:var(--bg2); border-radius:var(--radius-sm); padding:12px 14px; font-family:monospace; font-size:.75rem; color:var(--teal2); white-space:pre-wrap; word-break:break-word; overflow-wrap:anywhere; max-height:220px; overflow-y:auto; border:1px solid var(--border); margin-bottom:14px; }
   #ai-card-modal .modal-sheet { max-height:85vh; overflow-y:auto; }
+  .ai-gc-btn { flex:1;padding:9px 6px;border-radius:10px;border:2px solid var(--border);background:var(--surface2);color:var(--text2);font-size:.82rem;font-weight:600;cursor:pointer;transition:all .15s;text-align:center; }
+  .ai-gc-btn.ai-gc-active { border-color:var(--primary);background:rgba(108,99,255,.15);color:var(--primary2); }
   .friend-card { background: var(--card); border-radius: 14px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
   .friend-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--accent)); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; color: #fff; flex-shrink: 0; }
   .friend-info { flex: 1; min-width: 0; }
@@ -3075,10 +3077,10 @@ select option{background:var(--surface2);color:var(--text)}
         <button class="ai-summarize-btn" id="ai-summarize-btn" onclick="GeminiAI.summarize()" title="Bu sohbeti özetle" style="flex:1;justify-content:center">
           <i class="fa-solid fa-list-ul"></i> Özetle
         </button>
-        <button id="ai-card-btn-hap" class="btn btn-teal" style="padding:6px 10px;font-size:.75rem;flex:1;justify-content:center" onclick="GeminiAI.createCard()" title="Sohbetten Hap Bilgi kartı oluştur">
+        <button id="ai-card-btn-hap" class="btn btn-teal" style="padding:6px 10px;font-size:.75rem;flex:1;justify-content:center" onclick="GeminiAI.openGenConfig(false)" title="Sohbetten Hap Bilgi kartı oluştur">
           <i class="fa-solid fa-lightbulb"></i> Hap Bilgi
         </button>
-        <button id="ai-card-btn-hap-photo" class="btn" style="padding:6px 10px;font-size:.75rem;flex:1;justify-content:center;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;border:none;border-radius:10px;cursor:pointer;display:flex;align-items:center;gap:5px" onclick="GeminiAI.createCardWithPhoto()" title="Fotoğraflı Hap Bilgi kartı oluştur">
+        <button id="ai-card-btn-hap-photo" class="btn" style="padding:6px 10px;font-size:.75rem;flex:1;justify-content:center;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;border:none;border-radius:10px;cursor:pointer;display:flex;align-items:center;gap:5px" onclick="GeminiAI.openGenConfig(true)" title="Fotoğraflı Hap Bilgi kartı oluştur">
           <i class="fa-solid fa-camera"></i> Foto Bilgi
         </button>
         <button id="ai-card-btn-soru" class="btn" style="padding:6px 10px;font-size:.75rem;flex:1;justify-content:center;background:var(--accent2);color:#fff;border:none;border-radius:10px;cursor:pointer;display:flex;align-items:center;gap:5px" onclick="GeminiAI.createSoruKarti()" title="Sohbetteki fotoğraftan Soru Kartı oluştur">
@@ -3185,19 +3187,124 @@ select option{background:var(--surface2);color:var(--text)}
         </label>
       </div>
     </div>
+
+    <div style="margin-bottom:10px">
+      <div style="font-size:.8rem;font-weight:700;color:var(--text2);margin-bottom:8px">🔀 Kart Birleştirme Modu</div>
+      <div style="font-size:.74rem;color:var(--text3);margin-bottom:10px">"Kartları Birleştir" özelliği için hangi yöntem kullanılsın?</div>
+      <div style="display:flex;gap:8px">
+        <label id="ai-merge-direct-lbl" style="flex:1;display:flex;align-items:flex-start;gap:9px;background:var(--card);border:2px solid var(--primary);border-radius:var(--radius-sm);padding:11px 12px;cursor:pointer">
+          <input type="radio" name="ai-merge" value="direct" checked style="margin-top:2px;accent-color:var(--primary)">
+          <div>
+            <div style="font-weight:700;color:var(--primary2);font-size:.84rem">⚡ Direkt</div>
+            <div style="font-size:.72rem;color:var(--text3);margin-top:2px">Kartları anında birleştirir, API çağrısı yok.</div>
+          </div>
+        </label>
+        <label id="ai-merge-blend-lbl" style="flex:1;display:flex;align-items:flex-start;gap:9px;background:var(--card);border:2px solid var(--border);border-radius:var(--radius-sm);padding:11px 12px;cursor:pointer">
+          <input type="radio" name="ai-merge" value="blend" style="margin-top:2px;accent-color:var(--teal)">
+          <div>
+            <div style="font-weight:700;color:var(--teal2);font-size:.84rem">✨ Harmanlama</div>
+            <div style="font-size:.72rem;color:var(--text3);margin-top:2px">Gemini'ye yeniden yazdırır, daha akıcı sonuç.</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
   </div>
 </div>
 
 <!-- AI Card Confirm Modal -->
 <div id="ai-card-modal" class="modal-overlay">
-  <div class="modal-sheet" style="max-height:90vh;overflow-y:auto">
+  <div class="modal-sheet" style="max-height:92vh;overflow-y:auto">
     <div class="modal-handle"></div>
-    <div class="modal-title">⚡ Kartlar Hazır</div>
-    <div id="ai-card-count" style="font-size:.8rem;color:var(--primary2);font-weight:700;margin-bottom:12px"></div>
-    <div id="ai-card-preview-box" style="margin-bottom:16px;max-height:50vh;overflow-y:auto"></div>
-    <div style="display:flex;gap:10px">
-      <button class="btn" style="flex:1;background:var(--surface2);color:var(--text2)" onclick="GeminiAI.closeCardModal()">İptal</button>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div class="modal-title" style="margin:0">⚡ Kartlar Hazır</div>
+      <div id="ai-card-count" style="font-size:.78rem;color:var(--primary2);font-weight:700"></div>
+    </div>
+    <div id="ai-card-merge-bar" style="display:none;margin-bottom:10px">
+      <button onclick="GeminiAI.mergeCards()" id="ai-merge-btn"
+        style="width:100%;padding:10px;border-radius:11px;border:1.5px dashed var(--primary);
+          background:rgba(108,99,255,.09);color:var(--primary2);font-weight:700;
+          cursor:pointer;font-size:.82rem">
+        🔀 Tüm Kartları Tek Kartta Birleştir
+      </button>
+    </div>
+    <div id="ai-card-preview-box" style="margin-bottom:12px"></div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn" style="flex:1;background:var(--surface2);color:var(--text2);font-size:.82rem" onclick="GeminiAI.closeCardModal()">İptal</button>
       <button class="btn btn-primary" style="flex:2" onclick="GeminiAI.confirmImport()"><i class="fa-solid fa-floppy-disk"></i> Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Hap Bilgi Üretim Ayarları Bottom Sheet ── -->
+<div id="ai-gen-config-sheet" onclick="if(event.target===this)GeminiAI.closeGenConfig()"
+  style="display:none;opacity:0;transition:opacity .2s;position:fixed;inset:0;
+    background:rgba(0,0,0,.6);z-index:9200;align-items:flex-end;justify-content:center">
+  <div style="background:var(--surface1,#12122a);border-radius:22px 22px 0 0;
+    padding:22px 18px 32px;width:100%;max-width:520px">
+    <div style="width:38px;height:4px;background:var(--border);border-radius:4px;margin:0 auto 18px"></div>
+    <div style="font-weight:800;font-size:1.05rem;margin-bottom:16px;color:var(--text)">
+      ⚡ Hap Bilgi Oluştur
+    </div>
+
+    <!-- Kart sayısı -->
+    <div style="margin-bottom:18px">
+      <div style="font-size:.78rem;font-weight:700;color:var(--text2);margin-bottom:10px">Kaç kart üreteyim?</div>
+      <div style="display:flex;gap:8px" id="ai-gen-count-btns">
+        <button onclick="GeminiAI.setGenCount(1)"  id="ai-gc-1"    class="ai-gc-btn">1</button>
+        <button onclick="GeminiAI.setGenCount(2)"  id="ai-gc-2"    class="ai-gc-btn">2</button>
+        <button onclick="GeminiAI.setGenCount(3)"  id="ai-gc-3"    class="ai-gc-btn">3</button>
+        <button onclick="GeminiAI.setGenCount(0)"  id="ai-gc-auto" class="ai-gc-btn ai-gc-active" style="flex:1.5">Otomatik</button>
+      </div>
+    </div>
+
+    <!-- Detay seviyesi (mini) -->
+    <div style="margin-bottom:20px">
+      <div style="font-size:.78rem;font-weight:700;color:var(--text2);margin-bottom:10px">Kart detayı?</div>
+      <div style="display:flex;gap:8px" id="ai-gen-detail-btns">
+        <button onclick="GeminiAI.setGenDetail('kolay')"  id="ai-gd-kolay"  class="ai-gc-btn">🟢 Kısa</button>
+        <button onclick="GeminiAI.setGenDetail('normal')" id="ai-gd-normal" class="ai-gc-btn ai-gc-active">🔵 Normal</button>
+        <button onclick="GeminiAI.setGenDetail('zor')"    id="ai-gd-zor"    class="ai-gc-btn">🟡 Detaylı</button>
+        <button onclick="GeminiAI.setGenDetail('uzman')"  id="ai-gd-uzman"  class="ai-gc-btn">🔴 Uzman</button>
+      </div>
+    </div>
+
+    <button onclick="GeminiAI.confirmGenConfig()"
+      style="width:100%;background:var(--primary);border:none;border-radius:14px;
+        padding:15px;color:#fff;font-weight:800;font-size:.95rem;cursor:pointer">
+      ⚡ Kartları Oluştur
+    </button>
+  </div>
+</div>
+
+<!-- ── Kart Düzenleme Modalı ── -->
+<div id="ai-edit-card-modal" onclick="if(event.target===this)GeminiAI.closeEditCard()"
+  style="display:none;opacity:0;transition:opacity .2s;position:fixed;inset:0;
+    background:rgba(0,0,0,.6);z-index:9300;align-items:center;justify-content:center;padding:16px">
+  <div style="background:var(--surface1,#12122a);border:1.5px solid var(--border);
+    border-radius:20px;padding:22px 18px;width:100%;max-width:420px">
+    <div style="font-weight:800;font-size:.95rem;margin-bottom:6px;color:var(--text)">✏️ Kartı Düzenle</div>
+    <div id="ai-edit-card-preview" style="background:var(--surface2);border:1px solid var(--border);
+      border-radius:12px;padding:11px 13px;font-size:.78rem;color:var(--text2);
+      margin-bottom:14px;max-height:120px;overflow-y:auto;line-height:1.5"></div>
+    <div style="font-size:.78rem;color:var(--text3);margin-bottom:6px">
+      Gemini'ye ne yapmasını istedin?
+    </div>
+    <textarea id="ai-edit-instruction" rows="3" placeholder="Örn: daha renkli yap, şu bilgiyi ekle: ..., daha kısa tut"
+      style="width:100%;background:var(--surface2);border:1.5px solid var(--border);
+        border-radius:12px;padding:11px 13px;color:var(--text);font-size:.85rem;
+        resize:none;outline:none;box-sizing:border-box;line-height:1.5"></textarea>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button onclick="GeminiAI.closeEditCard()"
+        style="flex:1;padding:12px;border-radius:12px;border:1.5px solid var(--border);
+          background:var(--surface2);color:var(--text2);font-weight:600;cursor:pointer;font-size:.85rem">
+        İptal
+      </button>
+      <button onclick="GeminiAI.submitEditCard()"
+        style="flex:2;padding:12px;border-radius:12px;border:none;
+          background:var(--primary);color:#fff;font-weight:700;cursor:pointer;font-size:.85rem">
+        <i class="fa-solid fa-robot"></i> Gemini'ye Gönder
+      </button>
     </div>
   </div>
 </div>
@@ -9437,8 +9544,11 @@ const GeminiAI = (() => {
     if (window.toast) toast('✅ API anahtarı kaydedildi!', 'ok');
   }
 
-  let _level = localStorage.getItem('gemini_level') || 'normal';
-  let _hapType = localStorage.getItem('gemini_haptype') || 'auto';
+  let _level    = localStorage.getItem('gemini_level')      || 'normal';
+  let _hapType  = localStorage.getItem('gemini_haptype')   || 'auto';
+  let _mergeMode = localStorage.getItem('gemini_merge_mode') || 'direct';
+  let _genCount  = 0;   // 0 = otomatik, 1-3 = sabit
+  let _genDetail = _level; // her üretim için geçici override
 
   function showSettings() {
     const radio = document.querySelector(`input[name="ai-level"][value="${_level}"]`);
@@ -9459,6 +9569,13 @@ const GeminiAI = (() => {
     document.querySelectorAll('input[name="ai-haptype"]').forEach(r => {
       r.onchange = () => { _hapType = r.value; _updateHaptypeBorders(); };
     });
+    // Merge mode
+    const mergeR = document.querySelector(`input[name="ai-merge"][value="${_mergeMode}"]`);
+    if (mergeR) mergeR.checked = true;
+    _updateMergeborders();
+    document.querySelectorAll('input[name="ai-merge"]').forEach(r => {
+      r.onchange = () => { _mergeMode = r.value; _updateMergeborders(); };
+    });
   }
 
   function _updateLevelBorders() {
@@ -9468,6 +9585,14 @@ const GeminiAI = (() => {
       if (el) el.style.borderColor = l === _level ? colors[l] : 'var(--border)';
     });
     // live update on click
+  function _updateMergeborders() {
+    ['direct','blend'].forEach(m => {
+      const el = document.getElementById('ai-merge-' + m + '-lbl');
+      const color = m === 'direct' ? 'var(--primary)' : 'var(--teal)';
+      if (el) el.style.borderColor = m === _mergeMode ? color : 'var(--border)';
+    });
+  }
+
     document.querySelectorAll('input[name="ai-level"]').forEach(r => {
       r.onchange = () => {
         _level = r.value;
@@ -9479,6 +9604,7 @@ const GeminiAI = (() => {
   function saveSettings() {
     localStorage.setItem('gemini_level', _level);
     localStorage.setItem('gemini_haptype', _hapType);
+    localStorage.setItem('gemini_merge_mode', _mergeMode);
     document.getElementById('ai-settings-modal').classList.remove('open');
     if (window.toast) toast('✅ Ayarlar kaydedildi!', 'ok');
   }
@@ -9751,41 +9877,100 @@ const GeminiAI = (() => {
     }
   }
 
-  // ── Card creation ─────────────────────────────────────
-  async function createCard() {
+  // ── Pre-gen config sheet ─────────────────────────────
+  let _withPhoto = false;
+
+  function openGenConfig(withPhoto) {
     if (_history.length === 0) {
-      if (window.toast) toast('Önce Gemini ile sohbet et, sonra kart oluştur!', 'err'); return;
+      if (window.toast) toast('Önce Gemini ile sohbet et!', 'err'); return;
     }
+    _withPhoto = !!withPhoto;
+    _genCount  = 0;
+    _genDetail = _level;
+    // Aktif butonları sıfırla
+    document.querySelectorAll('.ai-gc-btn').forEach(b => b.classList.remove('ai-gc-active'));
+    const autoBtn = document.getElementById('ai-gc-auto');
+    if (autoBtn) autoBtn.classList.add('ai-gc-active');
+    const detBtn = document.getElementById('ai-gd-' + _genDetail);
+    if (detBtn) detBtn.classList.add('ai-gc-active');
+    else {
+      const normBtn = document.getElementById('ai-gd-normal');
+      if (normBtn) normBtn.classList.add('ai-gc-active');
+    }
+    const sheet = document.getElementById('ai-gen-config-sheet');
+    sheet.style.display = 'flex';
+    setTimeout(() => sheet.style.opacity = '1', 10);
+  }
+
+  function closeGenConfig() {
+    const sheet = document.getElementById('ai-gen-config-sheet');
+    sheet.style.opacity = '0';
+    setTimeout(() => sheet.style.display = 'none', 200);
+  }
+
+  function setGenCount(n) {
+    _genCount = n;
+    document.querySelectorAll('#ai-gen-count-btns .ai-gc-btn').forEach(b => b.classList.remove('ai-gc-active'));
+    const id = n === 0 ? 'ai-gc-auto' : ('ai-gc-' + n);
+    const el = document.getElementById(id);
+    if (el) el.classList.add('ai-gc-active');
+  }
+
+  function setGenDetail(d) {
+    _genDetail = d;
+    document.querySelectorAll('#ai-gen-detail-btns .ai-gc-btn').forEach(b => b.classList.remove('ai-gc-active'));
+    const el = document.getElementById('ai-gd-' + d);
+    if (el) el.classList.add('ai-gc-active');
+  }
+
+  async function confirmGenConfig() {
+    closeGenConfig();
+    if (_withPhoto) {
+      await _createCardInternal(true);
+    } else {
+      await _createCardInternal(false);
+    }
+  }
+
+  // ── Card creation ─────────────────────────────────────
+  async function createCard() { await openGenConfig(false); }
+
+  async function _createCardInternal(withPhoto) {
     const key = await getKey();
     if (!key) { checkSetup(); return; }
     if (_busy) return;
-
     setBusy(true);
-    const cardPrompt = _buildCardPrompt();
 
-    // Son 8 mesajı al — güncel konuya odaklanmak için uzun geçmişi kes
+    // Fotoğraflı ise önce fotoğrafı bul
+    let photoDataUrl = null;
+    if (withPhoto) {
+      const photoMsg = _history.slice().reverse().find(m => m.role === 'user' && m._photoDataUrl);
+      if (!photoMsg) {
+        setBusy(false);
+        if (window.toast) toast('📷 Önce sohbete bir görsel/şema gönder!', 'err');
+        return;
+      }
+      photoDataUrl = photoMsg._photoDataUrl;
+    }
+
+    const cardPrompt = _buildCardPrompt(_genCount, _genDetail);
     const recentHistory = _history.slice(-8);
     const cardContents = recentHistory.map(m => ({
       role: m.role,
-      parts: m.parts
-        .filter(p => p.text)
-        .map(p => ({ text: p.text }))
+      parts: m.parts.filter(p => p.text).map(p => ({ text: p.text }))
     })).filter(m => m.parts.length > 0);
 
     if (cardContents.length === 0) {
       setBusy(false);
-      if (window.toast) toast('Kart oluşturmak için önce bir konu hakkında sohbet et!', 'err');
+      if (window.toast) toast('Kart için önce sohbet et!', 'err');
       return;
     }
-
     try {
       const res = await fetch(`${API_BASE}${MODEL}:generateContent?key=${key}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          system_instruction: {
-            parts: [{ text: `Sen bir YKS sınav hazırlık asistanısın. Türkçe konuşuyorsun, her zaman Türkçe yanıt veriyorsun. TYT ve AYT müfredatını çok iyi biliyorsun.` }]
-          },
+          system_instruction: { parts: [{ text: 'Sen bir YKS sınav hazırlık asistanısın. Türkçe konuşuyorsun. TYT ve AYT müfredatını çok iyi biliyorsun.' }] },
           contents: [...cardContents, { role: 'user', parts: [{ text: cardPrompt }] }],
           generationConfig: { temperature: 0.3, maxOutputTokens: 8192 }
         })
@@ -9793,8 +9978,7 @@ const GeminiAI = (() => {
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         const msg = err?.error?.message || '';
-        if (res.status === 429)
-          throw new Error('⏱️ API limiti doldu. 1-2 dakika bekleyip tekrar dene.');
+        if (res.status === 429) throw new Error('⏱️ API limiti doldu. 1-2 dakika bekleyip tekrar dene.');
         if (msg.includes('payload') || msg.includes('too large') || res.status === 400)
           throw new Error('Sohbet çok uzun! "Yeni Sohbet" aç, sadece ilgili konuyu tekrar sor.');
         throw new Error(msg || `Sunucu hatası (${res.status})`);
@@ -9802,7 +9986,6 @@ const GeminiAI = (() => {
       const data = await res.json();
       const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
       if (!raw) throw new Error('Gemini boş yanıt döndürdü. Tekrar dene.');
-      // Token kaydet
       if (window.SubPlan) {
         const meta = data?.usageMetadata;
         const tokens = meta?.totalTokenCount || (meta?.promptTokenCount||0) + (meta?.candidatesTokenCount||0) || 30;
@@ -9811,7 +9994,9 @@ const GeminiAI = (() => {
       let cards = _safeParseJSON(raw);
       if (!Array.isArray(cards)) cards = [cards];
       if (!cards.length) throw new Error('Geçerli kart üretilemedi');
-
+      if (withPhoto && photoDataUrl) {
+        cards = cards.map(c => ({ ...c, photo: photoDataUrl }));
+      }
       _pendingCards = cards;
       showCardModal(cards);
     } catch(e) {
@@ -9821,90 +10006,7 @@ const GeminiAI = (() => {
     }
   }
 
-  // Fotoğraflı Hap Bilgi kartı — sohbetteki fotoğraf zorunlu
-  async function createCardWithPhoto() {
-    const photoMsg = _history.slice().reverse().find(m => m.role === 'user' && m._photoDataUrl);
-    if (!photoMsg) {
-      if (window.toast) toast('📷 Önce sohbete bir görsel/şema gönder, sonra bu butona bas!', 'err');
-      return;
-    }
-    await createCard();
-    // createCard tamamlanınca _pendingCards'a fotoğrafı ekle ve modal'ı yenile
-    if (_pendingCards && _pendingCards.length > 0 && photoMsg._photoDataUrl) {
-      _pendingCards = _pendingCards.map(c => ({ ...c, photo: photoMsg._photoDataUrl }));
-      showCardModal(_pendingCards);
-    }
-  }
-
-  function _buildCardPrompt() {
-    const dersler = typeof _allSubjects === 'function' ? _allSubjects().join(', ') : 'Matematik, Fizik, Kimya, Biyoloji, Tarih, Coğrafya, Edebiyat, Felsefe, İngilizce';
-
-    const levelInstructions = {
-      kolay: `SEVİYE: KOLAY
-- Kart sayısını konunun genişliğine göre sen belirle; geniş konularda daha çok, dar konularda daha az kart uygundur.
-- Sadece temel, sık sorulan bilgileri al. İnce ayrıntılara girme.
-- Niş veya teknik terimlerin yanına MUTLAKA parantezle Türkçe karşılığı yaz. Örn: "dormansisi (uykusu)", "endosperm (besin doku)", "mitoz (eşit bölünme)".
-- Cümleler kısa ve sade olsun.`,
-
-      normal: `SEVİYE: NORMAL
-- Kart sayısını konunun kapsamına göre sen belirle; müfredatın tamamını dengeli biçimde kapsa.
-- Gerekli detaylara gir.
-- Sadece gerçekten niş olan terimlerin yanına parantezle Türkçe karşılığı yaz, sıradan terimlere gerek yok.`,
-
-      zor: `SEVİYE: ZOR
-- Kart sayısını konunun derinliğine göre sen belirle; az ama derin kartlar tercih edilir.
-- İnce ayrıntıları, istisnaları, sık karıştırılan noktaları vurgula.
-- Terimler için Türkçe karşılık yazma, öğrenci zaten biliyor.
-- Her maddede mekanizma ve neden-sonuç ilişkisi kur.`,
-
-      uzman: `SEVİYE: UZMAN
-- Kart sayısını konunun özüne göre sen belirle; az ve bilgi yoğunluğu yüksek kartlar tercih edilir.
-- Derece öğrencisi gibi yaklaş. Bağlantılar, mekanizmalar, istisnalar, sınav tuzakları.
-- Terimler için Türkçe karşılık yazma.
-- Konular arası ilişkileri ve ince ayrımları vurgula. Bilgi yoğunluğu maksimum olsun.`
-    };
-
-    const levelNote = levelInstructions[_level] || levelInstructions.normal;
-
-    return `Yukarıdaki sohbette anlatılan konuyu analiz et. YKS öğrencisinin UNUTMAMASI gereken bilgileri hap bilgi kartı formatında JSON olarak yaz.
-
-${levelNote}
-
-STRİKT KURALLAR:
-1. Sadece saf JSON dizisi döndür. Açıklama, giriş metni, kod bloğu ekleme.
-2. ASLA ters eğik çizgi (\\) kullanma.
-3. Metin içinde çift tırnak (") kullanma, gerekirse tek tırnak (') kullan.
-4. subject alanı MUTLAKA şu listeden birini içermeli: ${dersler}
-5. category alanı TYT veya AYT olmalı.
-6. Tüm kartların "topic" alanı BİREBİR AYNI olmalıdır.
-7. ${_hapType === 'note' ? 'HAP TÜRÜ ZORUNLU: Tüm kartları "note" yap. question="Bilgi Notu".' : _hapType === 'qa' ? 'HAP TÜRÜ ZORUNLU: Tüm kartları "qa" yap. question alanına düşündürücü kısa bir soru yaz.' : 'hapSubType: soru/hata varsa "qa" (question dolu), saf bilgi ise "note" (question="Bilgi Notu").'}
-8. answer alanında maddeler arasına sadece \\n koy.
-9. BİÇİMLENDİRME ETİKETLERİ - ZORUNLU:
-   [f]formül[/f]  [r]hata/dikkat[/r]  [y]önemli[/y]  [g]doğru/sonuç[/g]  [c]tanım/kavram[/c]  [b]kalın[/b]
-   Her maddede EN AZ BİR etiket kullan.
-10. Matematiksel semboller: π · ² ³ √ ≥ ≤ ≠ ≈ ∞ Δ α β θ
-11. Kart sayısı: Seviyeye göre belirlenir. Kolay/Normal: konunun genişliğine göre serbest. Zor: az ama derin, maksimum 5. Uzman: sadece o sohbetin tam konusuna odaklan, maksimum 3 kart, başka konuya girme.
-
-Örnek:
-[{"type":"hap","hapSubType":"note","category":"AYT","subject":"Biyoloji","topic":"Bitkiler","question":"Bilgi Notu","answer":"1. [c]Çift döllenme[/c] sadece [y]kapalı tohumlu bitkilere[/y] özgüdür.\\n2. [r]Dikkat:[/r] Endosperm [f]3n[/f], zigot [f]2n[/f]dir.\\n3. [g]Sonuç:[/g] Meyve, [c]yumurtalığın[/c] gelişmesiyle oluşur."}]`;
-  }
-
-  function _safeParseJSON(raw) {
-    let s = raw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
-    try { return JSON.parse(s); } catch(_) {}
-    const arrM = s.match(/\[[\s\S]*\]/);
-    if (arrM) { try { return JSON.parse(arrM[0]); } catch(_) {} }
-    const objM = s.match(/\{[\s\S]*\}/);
-    if (objM) { try { return JSON.parse(objM[0]); } catch(_) {} }
-    const lines = s.split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      const chunk = lines.slice(i).join('\n').trim();
-      if (chunk.startsWith('[') || chunk.startsWith('{')) {
-        try { return JSON.parse(chunk); } catch(_) {}
-      }
-    }
-    throw new Error('Gemini geçerli JSON döndürmedi. Lütfen tekrar dene.');
-  }
+  async function createCardWithPhoto() { await openGenConfig(true); }
 
   async function createSoruKarti() {
     const photoMsg = _history.find(m => m.role === 'user' && m._photoDataUrl);
@@ -9990,28 +10092,44 @@ ANSWER FORMATI - ZORUNLU:
     }
   }
 
+  // ── Review Modal ──────────────────────────────────────
   function showCardModal(cards) {
     const preview = document.getElementById('ai-card-preview-box');
     const count   = document.getElementById('ai-card-count');
-    if (count) count.textContent = `${cards.length} kart oluşturuldu`;
+    const mergeBar = document.getElementById('ai-card-merge-bar');
+    if (count) count.textContent = cards.length + ' kart';
+    if (mergeBar) mergeBar.style.display = cards.length >= 2 ? 'block' : 'none';
     if (preview) {
-      preview.innerHTML = cards.map((c) => {
-        const photoThumb = c.photo
-          ? `<img src="${c.photo}" style="width:100%;max-height:100px;object-fit:cover;border-radius:8px;margin-bottom:10px;display:block">`
-          : '';
+      preview.innerHTML = cards.map((c, idx) => {
         const isNote = !c.question || c.question === 'Bilgi Notu';
-        const title = isNote ? (c.topic || 'Bilgi Notu') : c.question.slice(0, 70) + (c.question.length > 70 ? '…' : '');
-        // Cevabı satır satır göster, tag'leri koru
+        const title  = isNote ? (c.topic || 'Bilgi Notu') : c.question.slice(0,70) + (c.question.length > 70 ? '…' : '');
         const ansLines = (c.answer || '').split(/\\n|\n/).slice(0, 3);
-        const ansHTML = ansLines.map(l => `<div style="margin-bottom:2px">${_escHtml(l)}</div>`).join('');
-        const typeIcon = c.type === 'foto' ? '📸' : '⚡';
+        const ansHTML  = ansLines.map(l => `<div style="margin-bottom:2px">${_escHtml(l)}</div>`).join('');
+        const typeIcon  = c.type === 'foto' ? '📸' : '⚡';
         const typeColor = c.type === 'foto' ? 'var(--accent2)' : 'var(--teal2)';
-        return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:13px;margin-bottom:10px">
+        const photoThumb = c.photo
+          ? `<img src="${c.photo}" style="width:100%;max-height:90px;object-fit:cover;border-radius:8px;margin-bottom:8px;display:block">`
+          : '';
+        return `<div style="background:var(--surface2);border:1.5px solid var(--border);border-radius:14px;padding:13px;margin-bottom:10px;position:relative">
           ${photoThumb}
-          <div style="font-size:.7rem;color:${typeColor};font-weight:700;margin-bottom:2px">${typeIcon} ${_escHtml(c.category||'')} · ${_escHtml(c.subject||'')}</div>
-          <div style="font-size:.7rem;color:var(--text3);margin-bottom:7px">${_escHtml(c.topic||'')}</div>
-          <div style="font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:6px;line-height:1.35">${_escHtml(title)}</div>
-          <div style="font-size:.75rem;color:var(--text2);line-height:1.6;border-top:1px solid var(--border);padding-top:7px">${ansHTML}</div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+            <div style="font-size:.7rem;color:${typeColor};font-weight:700">${typeIcon} ${_escHtml(c.category||'')} · ${_escHtml(c.subject||'')}</div>
+            <button onclick="GeminiAI.removeCard(${idx})" title="Kartı kaldır"
+              style="background:rgba(255,77,109,.15);border:1px solid rgba(255,77,109,.3);
+                border-radius:7px;padding:2px 8px;color:#ff4d6d;font-size:.75rem;
+                cursor:pointer;font-weight:700;flex-shrink:0;margin-left:8px">✕</button>
+          </div>
+          <div style="font-size:.7rem;color:var(--text3);margin-bottom:6px">${_escHtml(c.topic||'')}</div>
+          <div style="font-size:.84rem;font-weight:700;color:var(--text);margin-bottom:6px;line-height:1.35">${_escHtml(title)}</div>
+          <div style="font-size:.74rem;color:var(--text2);line-height:1.6;border-top:1px solid var(--border);padding-top:7px">${ansHTML}</div>
+          <button onclick="GeminiAI.openEditCard(${idx})"
+            style="margin-top:9px;background:none;border:1px solid var(--border);border-radius:8px;
+              padding:5px 12px;color:var(--text3);font-size:.73rem;cursor:pointer;width:100%;
+              text-align:left;transition:background .15s"
+            onmouseover="this.style.background='var(--surface3)'"
+            onmouseout="this.style.background='none'">
+            ✏️ Düzenle · Gemini'ye talimat ver
+          </button>
         </div>`;
       }).join('');
     }
@@ -10025,6 +10143,209 @@ ANSWER FORMATI - ZORUNLU:
     _pendingCards = null;
   }
 
+  function removeCard(idx) {
+    if (!_pendingCards) return;
+    _pendingCards.splice(idx, 1);
+    if (_pendingCards.length === 0) {
+      closeCardModal();
+      if (window.toast) toast('Tüm kartlar kaldırıldı.', 'ok');
+      return;
+    }
+    showCardModal(_pendingCards);
+  }
+
+  // ── Per-card edit ─────────────────────────────────────
+  let _editIdx = -1;
+
+  function openEditCard(idx) {
+    _editIdx = idx;
+    const c = _pendingCards[idx];
+    const isNote = !c.question || c.question === 'Bilgi Notu';
+    const title = isNote ? (c.topic || 'Bilgi Notu') : c.question;
+    const preview = document.getElementById('ai-edit-card-preview');
+    if (preview) {
+      preview.innerHTML = `<strong>${_escHtml(title)}</strong><br><span style="font-size:.73rem;color:var(--text3)">${_escHtml((c.answer||'').slice(0,180))}${(c.answer||'').length > 180 ? '…' : ''}</span>`;
+    }
+    const ta = document.getElementById('ai-edit-instruction');
+    if (ta) ta.value = '';
+    const m = document.getElementById('ai-edit-card-modal');
+    m.style.display = 'flex';
+    setTimeout(() => { m.style.opacity = '1'; if (ta) ta.focus(); }, 10);
+  }
+
+  function closeEditCard() {
+    const m = document.getElementById('ai-edit-card-modal');
+    m.style.opacity = '0';
+    setTimeout(() => m.style.display = 'none', 200);
+  }
+
+  async function submitEditCard() {
+    const instruction = (document.getElementById('ai-edit-instruction')?.value || '').trim();
+    if (!instruction) { if (window.toast) toast('Bir talimat yaz!', 'err'); return; }
+    const c = _pendingCards[_editIdx];
+    closeEditCard();
+    if (window.toast) toast('⏳ Kart yeniden üretiliyor...', 'ok');
+    const key = await getKey();
+    if (!key) return;
+    const editPrompt = `Aşağıdaki YKS hap bilgi kartını SADECE şu talimata göre yeniden yaz: "${instruction}"
+
+Mevcut kart:
+${JSON.stringify(c, null, 2)}
+
+KURALLAR:
+1. Sadece saf JSON objesi döndür, dizi değil, tek obje.
+2. type, category, subject, topic alanlarını koru.
+3. Biçimlendirme etiketlerini kullan: [f][/f] [r][/r] [y][/y] [g][/g] [c][/c] [b][/b]
+4. Satır aralarında sadece \n kullan.
+5. Ters eğik çizgi (\\) ve çift tırnak (") kullanma.`;
+
+    try {
+      const res = await fetch(`${API_BASE}${MODEL}:generateContent?key=${key}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: editPrompt }] }],
+          generationConfig: { temperature: 0.4, maxOutputTokens: 2048 }
+        })
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const edited = _safeParseJSON(raw);
+      const card = Array.isArray(edited) ? edited[0] : edited;
+      if (!card) throw new Error('Geçerli kart üretilemedi');
+      // Fotoğrafı koru
+      if (c.photo) card.photo = c.photo;
+      _pendingCards[_editIdx] = card;
+      showCardModal(_pendingCards);
+      if (window.toast) toast('✅ Kart güncellendi!', 'ok');
+    } catch(e) {
+      if (window.toast) toast('Düzenleme hatası: ' + e.message, 'err');
+    }
+  }
+
+  // ── Merge cards ───────────────────────────────────────
+  async function mergeCards() {
+    if (!_pendingCards || _pendingCards.length < 2) return;
+    if (_mergeMode === 'blend') {
+      await _mergeBlend();
+    } else {
+      _mergeDirect();
+    }
+  }
+
+  function _mergeDirect() {
+    const base = _pendingCards[0];
+    const allAnswers = _pendingCards.map((c, i) => {
+      const header = _pendingCards.length > 1 ? `[y]Konu ${i+1}: ${c.topic || ''}[/y]` : '';
+      return (header ? header + '\n' : '') + (c.answer || '');
+    }).join('\n\n');
+    const merged = {
+      ...base,
+      topic: _pendingCards.map(c => c.topic || '').filter(Boolean).join(' + ') || base.topic,
+      question: base.question || 'Birleşik Kart',
+      answer: allAnswers
+    };
+    _pendingCards = [merged];
+    showCardModal(_pendingCards);
+    if (window.toast) toast('🔀 Kartlar birleştirildi!', 'ok');
+  }
+
+  async function _mergeBlend() {
+    const key = await getKey();
+    if (!key) return;
+    if (window.toast) toast('⏳ Kartlar harmanlanıyor...', 'ok');
+    const mergePrompt = `Aşağıdaki YKS hap bilgi kartlarını TEK bir tutarlı karta birleştir. Tüm önemli bilgileri koru, tekrarları kaldır, akıcı bir yapı oluştur.
+
+Kartlar:
+${JSON.stringify(_pendingCards, null, 2)}
+
+KURALLAR:
+1. Sadece saf JSON objesi döndür, dizi değil.
+2. category ve subject alanını ilk karttan al.
+3. topic alanı tüm kartların konularını kapsasın.
+4. Biçimlendirme etiketlerini kullan: [f][/f] [r][/r] [y][/y] [g][/g] [c][/c] [b][/b]
+5. Satır aralarında sadece \n kullan, ters eğik çizgi (\\) ve çift tırnak (") kullanma.`;
+
+    try {
+      const res = await fetch(`${API_BASE}${MODEL}:generateContent?key=${key}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: mergePrompt }] }],
+          generationConfig: { temperature: 0.3, maxOutputTokens: 4096 }
+        })
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const merged = _safeParseJSON(raw);
+      const card = Array.isArray(merged) ? merged[0] : merged;
+      if (!card) throw new Error('Harmanlama başarısız');
+      _pendingCards = [card];
+      showCardModal(_pendingCards);
+      if (window.toast) toast('✨ Kartlar harmanlandı!', 'ok');
+    } catch(e) {
+      if (window.toast) toast('Harmanlama hatası: ' + e.message, 'err');
+    }
+  }
+
+  function _safeParseJSON(raw) {
+    let s = raw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+    try { return JSON.parse(s); } catch(_) {}
+    const arrM = s.match(/\[[\s\S]*\]/);
+    if (arrM) { try { return JSON.parse(arrM[0]); } catch(_) {} }
+    const objM = s.match(/\{[\s\S]*\}/);
+    if (objM) { try { return JSON.parse(objM[0]); } catch(_) {} }
+    const lines = s.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const chunk = lines.slice(i).join('\n').trim();
+      if (chunk.startsWith('[') || chunk.startsWith('{')) {
+        try { return JSON.parse(chunk); } catch(_) {}
+      }
+    }
+    throw new Error('Gemini geçerli JSON döndürmedi. Lütfen tekrar dene.');
+  }
+
+  function _buildCardPrompt(countOverride, detailOverride) {
+    const dersler = typeof _allSubjects === 'function' ? _allSubjects().join(', ') : 'Matematik, Fizik, Kimya, Biyoloji, Tarih, Coğrafya, Edebiyat, Felsefe, İngilizce';
+    const levelInstructions = {
+      kolay: `SEVİYE: KOLAY\n- Sadece temel, sık sorulan bilgileri al.\n- Niş terimlerin yanına parantezle Türkçe karşılığı yaz.\n- Cümleler kısa ve sade olsun.`,
+      normal: `SEVİYE: NORMAL\n- Gerekli detaylara gir.\n- Müfredata dengeli biçimde sadık kal.`,
+      zor: `SEVİYE: ZOR\n- Az ama derin kartlar. İnce ayrıntıları, istisnaları vurgula.\n- Her maddede mekanizma ve neden-sonuç ilişkisi kur.`,
+      uzman: `SEVİYE: UZMAN\n- Az ve bilgi yoğunluğu yüksek kartlar. Derece öğrencisi gibi yaklaş.\n- Bağlantılar, mekanizmalar, istisnalar, sınav tuzakları.`
+    };
+    const effectiveDetail = detailOverride || _level;
+    const levelNote = levelInstructions[effectiveDetail] || levelInstructions.normal;
+    const countRule = (countOverride && countOverride > 0)
+      ? `KESİNLİKLE SADECE ${countOverride} KART üret, ne fazla ne az.`
+      : 'Seviyeye göre belirlenir. Kolay/Normal: konunun genişliğine göre serbest. Zor: az ama derin, maksimum 5. Uzman: maksimum 3 kart.';
+
+    return `Yukarıdaki sohbette anlatılan konuyu analiz et. YKS öğrencisinin UNUTMAMASI gereken bilgileri hap bilgi kartı formatında JSON olarak yaz.
+
+${levelNote}
+
+STRİKT KURALLAR:
+1. Sadece saf JSON dizisi döndür. Açıklama, giriş metni, kod bloğu ekleme.
+2. ASLA ters eğik çizgi (\\\\) kullanma.
+3. Metin içinde çift tırnak (") kullanma, gerekirse tek tırnak (') kullan.
+4. subject alanı MUTLAKA şu listeden birini içermeli: ${dersler}
+5. category alanı TYT veya AYT olmalı.
+6. Tüm kartların "topic" alanı BİREBİR AYNI olmalıdır.
+7. ${_hapType === 'note' ? 'HAP TÜRÜ ZORUNLU: Tüm kartları "note" yap. question="Bilgi Notu".' : _hapType === 'qa' ? 'HAP TÜRÜ ZORUNLU: Tüm kartları "qa" yap. question alanına düşündürücü kısa bir soru yaz.' : 'hapSubType: soru/hata varsa "qa" (question dolu), saf bilgi ise "note" (question="Bilgi Notu").'}
+8. answer alanında maddeler arasına sadece \\n koy.
+9. BİÇİMLENDİRME ETİKETLERİ - ZORUNLU:
+   [f]formül[/f]  [r]hata/dikkat[/r]  [y]önemli[/y]  [g]doğru/sonuç[/g]  [c]tanım/kavram[/c]  [b]kalın[/b]
+   Her maddede EN AZ BİR etiket kullan.
+10. Matematiksel semboller: π · ² ³ √ ≥ ≤ ≠ ≈ ∞ Δ α β θ
+11. Kart sayısı: \${countRule}
+
+Örnek:
+[{"type":"hap","hapSubType":"note","category":"AYT","subject":"Biyoloji","topic":"Bitkiler","question":"Bilgi Notu","answer":"1. [c]Çift döllenme[/c] sadece [y]kapalı tohumlu bitkilere[/y] özgüdür.\\n2. [r]Dikkat:[/r] Endosperm [f]3n[/f], zigot [f]2n[/f]dir.\\n3. [g]Sonuç:[/g] Meyve, [c]yumurtalığın[/c] gelişmesiyle oluşur."}]`;
+  }
+
+
+
   async function confirmImport() {
     if (!_pendingCards || !_pendingCards.length) return;
     const cards = _pendingCards;
@@ -10033,7 +10354,6 @@ ANSWER FORMATI - ZORUNLU:
     for (const c of cards) {
       try {
         if (c.type === 'foto' && c.photo) {
-          // Soru kartı: App.importFotoCardFromAI ile kaydet (activityPut dahil)
           if (typeof App !== 'undefined' && typeof App.importFotoCardFromAI === 'function') {
             await App.importFotoCardFromAI(c, c.photo);
           }
@@ -10091,7 +10411,10 @@ ANSWER FORMATI - ZORUNLU:
 
   return { onEnter, saveKey, showSettings, saveSettings, send, newChat, clearCurrentChat, summarize,
     openHistory, closeHistory, loadSession, deleteSession, renameSession, commitRename,
-    createCard, createCardWithPhoto, createSoruKarti, closeCardModal, confirmImport, onPhotoSelected, removePhoto, getKeyPublic: getKey };
+    createCard, createCardWithPhoto, createSoruKarti, closeCardModal, confirmImport, onPhotoSelected, removePhoto,
+    openGenConfig, closeGenConfig, setGenCount, setGenDetail, confirmGenConfig,
+    removeCard, openEditCard, closeEditCard, submitEditCard,
+    mergeCards, getKeyPublic: getKey };
 })();
 </script>
 
