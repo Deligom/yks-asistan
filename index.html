@@ -2771,6 +2771,7 @@ select option{background:var(--surface2);color:var(--text)}
       <button class="tab-btn"        id="stab-chat"      onclick="App.socialTab('chat')">💬 Sohbet <span id="chat-tab-badge" style="display:none;background:var(--accent2);color:#fff;border-radius:10px;padding:1px 6px;font-size:.7rem;margin-left:2px">0</span></button>
       <button class="tab-btn"        id="stab-gruplar"   onclick="App.socialTab('gruplar')">🏠 Gruplar <span id="grup-tab-badge" style="display:none;background:var(--accent2);color:#fff;border-radius:10px;padding:1px 6px;font-size:.7rem;margin-left:2px">0</span></button>
       <button class="tab-btn"        id="stab-leaderboard" onclick="App.socialTab('leaderboard')">🏆 Sıralama</button>
+      <button class="tab-btn"        id="stab-karthavuzu"  onclick="App.socialTab('karthavuzu')">🌊 Kart Havuzu</button>
     </div>
 
     <!-- FRIENDS TAB -->
@@ -2903,6 +2904,75 @@ select option{background:var(--surface2);color:var(--text)}
       <div id="lb-my-row" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:none"></div>
     </div>
 
+    <!-- KART HAVUZU TAB -->
+    <div id="social-panel-karthavuzu" style="display:none">
+
+      <!-- Toolbar: Sort + Time + View Mode -->
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <select id="kh-sort" onchange="KartHavuzu.reload()" style="flex:1;min-width:0;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:7px 10px;font-size:.78rem;cursor:pointer">
+            <option value="downloads">⬇ En Çok İndirilen</option>
+            <option value="likes">❤ En Çok Beğenilen</option>
+            <option value="newest">🆕 En Yeni</option>
+          </select>
+          <select id="kh-time" onchange="KartHavuzu.reload()" style="flex:1;min-width:0;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:7px 10px;font-size:.78rem;cursor:pointer">
+            <option value="all">🕐 Tüm Zamanlar</option>
+            <option value="year">📅 Bu Yıl</option>
+            <option value="month">📆 Bu Ay</option>
+            <option value="week">📋 Bu Hafta</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;gap:6px">
+            <button id="kh-view-list" onclick="KartHavuzu.setView('list')" class="tab-btn active" style="padding:5px 12px;font-size:.75rem">☰ Liste</button>
+            <button id="kh-view-feed" onclick="KartHavuzu.setView('feed')" class="tab-btn" style="padding:5px 12px;font-size:.75rem">▦ Feed</button>
+          </div>
+          <button onclick="KartHavuzu.reload()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:5px 10px;color:var(--text3);font-size:.72rem;cursor:pointer;display:flex;align-items:center;gap:4px">
+            <i class="fa-solid fa-rotate-right"></i> Yenile
+          </button>
+        </div>
+      </div>
+
+      <!-- Card list -->
+      <div id="kh-list-container"></div>
+
+      <!-- Load more -->
+      <div id="kh-load-more" style="display:none;text-align:center;margin-top:10px">
+        <button onclick="KartHavuzu.loadMore()" class="btn" style="background:var(--surface2);color:var(--text2);font-size:.82rem;width:100%">
+          <i class="fa-solid fa-chevron-down"></i> 10 Tane Daha
+        </button>
+      </div>
+
+    </div>
+
+</div>
+
+<!-- ══════ KART HAVUZU: Rıza Modalı ══════ -->
+<div id="kh-consent-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9500;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface1,#12122a);border:1.5px solid var(--primary);border-radius:20px;padding:28px 22px;max-width:340px;width:100%;text-align:center">
+    <div style="font-size:2.2rem;margin-bottom:12px">🌊</div>
+    <div style="font-weight:800;font-size:1rem;margin-bottom:10px;color:var(--text)">Kart Havuzu'na Hoş Geldin!</div>
+    <div style="font-size:.82rem;color:var(--text2);line-height:1.7;margin-bottom:20px">
+      Kartlarını yükleyerek tüm YKS öğrencileriyle paylaşabilirsin.<br><br>
+      <span style="color:var(--primary2);font-weight:600">⚠️ Önemli:</span> Yüklediğin kartlarda <b>kullanıcı adın herkese görünecektir</b>. Devam etmek istiyor musun?
+    </div>
+    <div style="display:flex;gap:10px">
+      <button onclick="document.getElementById('kh-consent-modal').style.display='none'" style="flex:1;padding:12px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text2);font-weight:600;cursor:pointer;font-size:.85rem">İptal</button>
+      <button onclick="KartHavuzu.acceptConsent()" style="flex:2;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;font-weight:700;cursor:pointer;font-size:.85rem">✅ Kabul Ediyorum</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ KART HAVUZU: Kart Önizleme Modalı ══════ -->
+<div id="kh-preview-modal" onclick="if(event.target===this)KartHavuzu.closePreview()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9500;align-items:flex-end;justify-content:center">
+  <div style="background:var(--surface1,#12122a);border-radius:20px 20px 0 0;padding:22px 16px 32px;width:100%;max-width:520px;max-height:88vh;overflow-y:auto">
+    <div style="width:38px;height:4px;background:var(--border);border-radius:4px;margin:0 auto 18px"></div>
+    <div id="kh-preview-content"></div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button onclick="KartHavuzu.closePreview()" class="btn" style="flex:1;background:var(--surface2);color:var(--text2)">Kapat</button>
+      <button onclick="KartHavuzu.importPreviewCard()" class="btn btn-teal" style="flex:2"><i class="fa-solid fa-download"></i> İçe Aktar</button>
+    </div>
+  </div>
 </div>
 
 <!-- Group creation modal -->
@@ -4487,6 +4557,7 @@ const App = (() => {
             <div class="record-actions" style="${selMode ? 'display:none' : ''}">
               <button class="btn btn-edit-sm" onclick="event.stopPropagation();App.openEdit(${c.id})"><i class="fa-solid fa-pen"></i></button>
               <button class="btn btn-edit-sm" style="background:rgba(0,212,170,.12);color:var(--teal2);border-color:rgba(0,212,170,.25)" onclick="event.stopPropagation();App.previewRecordCard(${c.id})" title="Önizle"><i class="fa-solid fa-eye"></i></button>
+              <button class="btn btn-edit-sm" style="background:rgba(108,99,255,.12);color:var(--primary2);border-color:rgba(108,99,255,.25)" onclick="event.stopPropagation();KartHavuzu.uploadCard(${c.id})" title="Kart Havuzu'na yükle"><i class="fa-solid fa-cloud-arrow-up"></i></button>
               <button class="btn btn-danger-sm" onclick="event.stopPropagation();App.deleteCard(${c.id})"><i class="fa-solid fa-trash"></i></button>
             </div>
           </div>`;
@@ -8683,7 +8754,7 @@ const Social = (() => {
 
   // ── Tab navigation ──
   function socialTab(tab, forceKeepChat) {
-    ['friends','inbox','chat','gruplar','leaderboard'].forEach(t => {
+    ['friends','inbox','chat','gruplar','leaderboard','karthavuzu'].forEach(t => {
       const el = document.getElementById('social-panel-' + t);
       if (el) el.style.display = t === tab ? 'block' : 'none';
       const btn = document.getElementById('stab-' + t);
@@ -8691,6 +8762,7 @@ const Social = (() => {
     });
     if (tab === 'gruplar' && _myCode) renderGroups();
     if (tab === 'leaderboard') Leaderboard.render();
+    if (tab === 'karthavuzu') KartHavuzu.onEnter();
     if (tab === 'chat') {
       renderChatFriendList();
       // Sohbet tabına tekrar basıldığında ve aktif sohbet açıksa → arkadaş seçimine dön
@@ -10958,7 +11030,10 @@ const Leaderboard = (() => {
           <div class="lb-rank">${medals[i] || (i+1)}</div>
           <div class="lb-avatar" style="background:${_avatarColor(r.code)}">${letter}</div>
           <div class="lb-name">${_esc(r.name || r.code)}${isMe ? ' <span style="font-size:.65rem;color:var(--primary2);font-weight:700">(Sen)</span>' : ''}</div>
-          <div class="lb-score">${r.score || 0}<span class="lb-score-lbl">kart</span></div>
+          <div style="text-align:right">
+            <div class="lb-score">${r.score || 0}<span class="lb-score-lbl">kart</span></div>
+            ${r.uploads ? `<div style="font-size:.62rem;color:var(--teal2);font-weight:600">🌊 ${r.uploads}</div>` : ''}
+          </div>
         </div>`;
       }).join('');
 
@@ -11000,6 +11075,393 @@ const Leaderboard = (() => {
   }
 
   return { recordReview, render, refresh };
+})();
+</script>
+
+<!-- ══════ KART HAVUZU MODULE ══════ -->
+<script>
+const KartHavuzu = (() => {
+  const CONSENT_KEY   = 'kh_consent_v1';
+  const UPLOADS_KEY   = 'kh_uploaded_hashes';
+  const RATE_KEY      = 'kh_upload_times';
+  const MAX_PER_MIN   = 5;
+  const PAGE_SIZE     = 10;
+
+  let _view       = 'list';   // 'list' | 'feed'
+  let _cards      = [];       // loaded cards
+  let _lastDoc    = null;     // Firestore pagination cursor
+  let _hasMore    = false;
+  let _previewCard = null;    // card currently in preview modal
+  let _pendingUploadId = null; // card id waiting for consent
+
+  // ── Helpers ──────────────────────────────────────────
+
+  function _fb() { return window._FB || null; }
+  function _myCode() { return localStorage.getItem('social_code') || null; }
+  function _myName() {
+    const n = localStorage.getItem('social_name') || _myCode() || '?';
+    return n.length > 10 ? n.slice(0, 10) + '…' : n;
+  }
+  function _esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  function _cardHash(card) {
+    const raw = (card.topic||'') + '|' + (card.question||'') + '|' + (card.answer||'').slice(0,120);
+    let h = 0;
+    for (let i = 0; i < raw.length; i++) h = Math.imul(31, h) + raw.charCodeAt(i) | 0;
+    return (h >>> 0).toString(36);
+  }
+
+  function _hasConsent() { return localStorage.getItem(CONSENT_KEY) === '1'; }
+
+  function _checkRateLimit() {
+    const now = Date.now();
+    let times = [];
+    try { times = JSON.parse(localStorage.getItem(RATE_KEY) || '[]'); } catch(e) {}
+    times = times.filter(t => now - t < 60000); // son 1 dakika
+    if (times.length >= MAX_PER_MIN) return false;
+    times.push(now);
+    localStorage.setItem(RATE_KEY, JSON.stringify(times));
+    return true;
+  }
+
+  function _isDuplicate(card) {
+    const hash = _cardHash(card);
+    let hashes = [];
+    try { hashes = JSON.parse(localStorage.getItem(UPLOADS_KEY) || '[]'); } catch(e) {}
+    return hashes.includes(hash);
+  }
+
+  function _saveHash(card) {
+    const hash = _cardHash(card);
+    let hashes = [];
+    try { hashes = JSON.parse(localStorage.getItem(UPLOADS_KEY) || '[]'); } catch(e) {}
+    hashes.push(hash);
+    if (hashes.length > 200) hashes = hashes.slice(-200);
+    localStorage.setItem(UPLOADS_KEY, JSON.stringify(hashes));
+  }
+
+  function _timeFilter() {
+    const val = document.getElementById('kh-time')?.value || 'all';
+    const now = Date.now();
+    if (val === 'week')  return now - 7  * 86400000;
+    if (val === 'month') return now - 30 * 86400000;
+    if (val === 'year')  return now - 365* 86400000;
+    return 0;
+  }
+
+  // ── Upload ─────────────────────────────────────────
+
+  async function uploadCard(cardId) {
+    if (!_myCode()) { toast('Önce sosyal profil oluştur!', 'err'); return; }
+    const fb = _fb(); if (!fb) { toast('Bağlantı yok!', 'err'); return; }
+
+    if (!_hasConsent()) {
+      _pendingUploadId = cardId;
+      const m = document.getElementById('kh-consent-modal');
+      if (m) { m.style.display = 'flex'; }
+      return;
+    }
+    await _doUpload(cardId);
+  }
+
+  async function acceptConsent() {
+    localStorage.setItem(CONSENT_KEY, '1');
+    document.getElementById('kh-consent-modal').style.display = 'none';
+    if (_pendingUploadId !== null) {
+      await _doUpload(_pendingUploadId);
+      _pendingUploadId = null;
+    }
+  }
+
+  async function _doUpload(cardId) {
+    const fb = _fb(); if (!fb) return;
+    const card = await dbGet(cardId);
+    if (!card) { toast('Kart bulunamadı!', 'err'); return; }
+
+    if (_isDuplicate(card)) {
+      toast('⚠️ Bu kartı daha önce yükledin!', 'err'); return;
+    }
+    if (!_checkRateLimit()) {
+      toast('⏱ Dakikada en fazla 5 kart yükleyebilirsin!', 'err'); return;
+    }
+
+    const { db, collection, addDoc, serverTimestamp } = fb;
+    const cardData = {
+      type: card.type || 'hap',
+      hapSubType: card.hapSubType || 'note',
+      category: card.category || 'TYT',
+      subject: card.subject || '',
+      topic: card.topic || '',
+      question: card.question || '',
+      answer: card.answer || ''
+    };
+
+    try {
+      await addDoc(collection(db, 'global_cards'), {
+        cardData,
+        uploaderCode: _myCode(),
+        uploaderName: _myName(),
+        likes:     0,
+        dislikes:  0,
+        downloads: 0,
+        reported:  0,
+        hidden:    false,
+        uploadedAt: serverTimestamp()
+      });
+      _saveHash(card);
+      toast('🌊 Kart Havuzu\'na yüklendi!', 'ok');
+      // Leaderboard upload count
+      _recordUploadToLeaderboard();
+    } catch(e) {
+      toast('Yükleme hatası: ' + e.message, 'err');
+    }
+  }
+
+  async function _recordUploadToLeaderboard() {
+    const fb = _fb(); if (!fb) return;
+    const myCode = _myCode(); if (!myCode) return;
+    const myName = localStorage.getItem('social_name') || myCode;
+    const week = (() => {
+      const d = new Date(), day = d.getDay() || 7;
+      d.setDate(d.getDate() - day + 1);
+      return `${d.getFullYear()}-W${String(Math.ceil((((d - new Date(d.getFullYear(),0,1))/86400000)+1)/7)).padStart(2,'0')}`;
+    })();
+    const { db, doc, setDoc, increment, serverTimestamp } = fb;
+    await setDoc(doc(db, 'leaderboard', week, 'scores', myCode), {
+      name: myName, code: myCode,
+      uploads: increment(1),
+      updatedAt: serverTimestamp()
+    }, { merge: true }).catch(() => {});
+  }
+
+  // ── Load & Render ─────────────────────────────────
+
+  async function onEnter() {
+    if (!_cards.length) await reload();
+  }
+
+  async function reload() {
+    _cards = []; _lastDoc = null; _hasMore = false;
+    const el = document.getElementById('kh-list-container');
+    if (el) el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text3)"><i class="fa-solid fa-spinner" style="animation:spin .8s linear infinite;font-size:1.4rem;display:block;margin-bottom:10px"></i>Yükleniyor…</div>`;
+    await _fetchCards(true);
+    _render();
+  }
+
+  async function _fetchCards(reset) {
+    const fb = _fb(); if (!fb) return;
+    const { db, collection, query, orderBy, where, limit, getDocs, startAfter } = fb;
+
+    const sortVal = document.getElementById('kh-sort')?.value || 'downloads';
+    const sortField = sortVal === 'newest' ? 'uploadedAt' : sortVal;
+    const since = _timeFilter();
+
+    let q = query(
+      collection(db, 'global_cards'),
+      where('hidden', '==', false),
+      orderBy(sortField, 'desc'),
+      limit(PAGE_SIZE)
+    );
+    if (!reset && _lastDoc) q = query(
+      collection(db, 'global_cards'),
+      where('hidden', '==', false),
+      orderBy(sortField, 'desc'),
+      startAfter(_lastDoc),
+      limit(PAGE_SIZE)
+    );
+
+    try {
+      const snap = await getDocs(q);
+      const docs = snap.docs;
+      _lastDoc = docs[docs.length - 1] || null;
+      _hasMore = docs.length === PAGE_SIZE;
+
+      const newCards = docs.map(d => ({ id: d.id, ...d.data() }))
+        .filter(c => since === 0 || (c.uploadedAt?.toMillis ? c.uploadedAt.toMillis() >= since : true));
+
+      if (reset) _cards = newCards;
+      else _cards = [..._cards, ...newCards];
+    } catch(e) {
+      const el = document.getElementById('kh-list-container');
+      if (el) el.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text3);font-size:.83rem">Yüklenemedi: ${_esc(e.message)}</div>`;
+    }
+  }
+
+  async function loadMore() {
+    await _fetchCards(false);
+    _render();
+  }
+
+  function _render() {
+    const el = document.getElementById('kh-list-container');
+    const moreBtn = document.getElementById('kh-load-more');
+    if (!el) return;
+    if (!_cards.length) {
+      el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text3);font-size:.85rem">🌊 Henüz kart yok. İlk yükleyen sen ol!</div>`;
+      if (moreBtn) moreBtn.style.display = 'none';
+      return;
+    }
+    if (_view === 'list') _renderList(el);
+    else _renderFeed(el);
+    if (moreBtn) moreBtn.style.display = _hasMore ? 'block' : 'none';
+  }
+
+  function _renderList(el) {
+    el.innerHTML = _cards.map(c => {
+      const title = (c.cardData?.question && c.cardData.question !== 'Bilgi Notu')
+        ? c.cardData.question.slice(0,55) + (c.cardData.question.length > 55 ? '…' : '')
+        : (c.cardData?.topic || 'Bilgi Notu');
+      const name = (c.uploaderName || '?').slice(0,10) + ((c.uploaderName||'').length > 10 ? '…' : '');
+      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px">
+        <div style="flex-shrink:0;width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--primary),var(--primary2));display:flex;align-items:center;justify-content:center;font-size:.9rem">⚡</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.78rem;color:var(--teal2);font-weight:700;margin-bottom:2px">${_esc(c.cardData?.category||'')} · ${_esc(c.cardData?.subject||'')}</div>
+          <div style="font-size:.85rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(title)}</div>
+          <div style="font-size:.68rem;color:var(--text3);margin-top:2px">${_esc(name)} · ❤ ${c.likes||0} · ⬇ ${c.downloads||0}</div>
+        </div>
+        <button onclick="KartHavuzu.openPreview('${c.id}')" style="flex-shrink:0;background:rgba(0,212,170,.12);border:1px solid rgba(0,212,170,.3);border-radius:8px;padding:6px 10px;color:var(--teal2);font-size:.75rem;cursor:pointer;font-weight:600">👁 Bak</button>
+      </div>`;
+    }).join('');
+  }
+
+  function _renderFeed(el) {
+    el.innerHTML = _cards.map(c => {
+      const title = (c.cardData?.question && c.cardData.question !== 'Bilgi Notu')
+        ? c.cardData.question
+        : (c.cardData?.topic || 'Bilgi Notu');
+      const name = (c.uploaderName || '?').slice(0,10) + ((c.uploaderName||'').length > 10 ? '…' : '');
+      const ansPreview = (c.cardData?.answer || '').replace(/<br\s*\/?>/gi,'\n').replace(/\[.*?\]/g,'').split(/\\n|\n/).filter(l=>l.trim()).slice(0,3).join('\n');
+      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:15px;margin-bottom:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div>
+            <div style="font-size:.72rem;color:var(--teal2);font-weight:700">${_esc(c.cardData?.category||'')} · ${_esc(c.cardData?.subject||'')} · ${_esc(c.cardData?.topic||'')}</div>
+            <div style="font-size:.68rem;color:var(--text3);margin-top:1px">👤 ${_esc(name)}</div>
+          </div>
+          <button onclick="KartHavuzu.vote('${c.id}','report')" style="background:none;border:none;color:var(--text3);font-size:.7rem;cursor:pointer;padding:4px">⚑</button>
+        </div>
+        <div style="font-size:.9rem;font-weight:700;color:var(--text);margin-bottom:10px;line-height:1.4">${_esc(title)}</div>
+        <div style="font-size:.78rem;color:var(--text2);line-height:1.65;background:var(--surface2);border-radius:10px;padding:10px 12px;border:1px solid var(--border);white-space:pre-wrap;margin-bottom:10px">${_esc(ansPreview)}${ansPreview.split('\n').length < (c.cardData?.answer||'').split(/\\n|\n/).length ? '\n…' : ''}</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button onclick="KartHavuzu.vote('${c.id}','like')" id="kh-vote-like-${c.id}" style="flex:1;background:rgba(255,101,132,.1);border:1px solid rgba(255,101,132,.25);border-radius:9px;padding:7px;color:#ff6584;font-size:.78rem;cursor:pointer;font-weight:700">❤ ${c.likes||0}</button>
+          <button onclick="KartHavuzu.vote('${c.id}','dislike')" id="kh-vote-dis-${c.id}" style="flex:1;background:rgba(108,99,255,.1);border:1px solid rgba(108,99,255,.25);border-radius:9px;padding:7px;color:var(--primary2);font-size:.78rem;cursor:pointer;font-weight:700">👎 ${c.dislikes||0}</button>
+          <button onclick="KartHavuzu.openPreview('${c.id}')" style="flex:2;background:linear-gradient(135deg,var(--teal),var(--teal2));border:none;border-radius:9px;padding:7px;color:#fff;font-size:.78rem;cursor:pointer;font-weight:700"><i class="fa-solid fa-download"></i> İçe Aktar (${c.downloads||0})</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Vote ──────────────────────────────────────────
+
+  async function vote(globalCardId, type) {
+    if (!_myCode()) { toast('Oy vermek için giriş yap!', 'err'); return; }
+    if (type === 'report') {
+      if (!confirm('Bu kartı şikâyet etmek istiyor musun?')) return;
+    }
+    const fb = _fb(); if (!fb) return;
+    const { db, doc, getDoc, setDoc, updateDoc, increment } = fb;
+
+    const voteRef = doc(db, 'global_cards', globalCardId, 'votes', _myCode());
+    const voteSnap = await getDoc(voteRef).catch(() => null);
+    const prevVote = voteSnap?.exists() ? voteSnap.data().type : null;
+
+    if (prevVote === type) { toast('Zaten oy verdin!', 'err'); return; }
+
+    const cardRef = doc(db, 'global_cards', globalCardId);
+    const updates = {};
+    if (prevVote === 'like')    updates.likes    = increment(-1);
+    if (prevVote === 'dislike') updates.dislikes = increment(-1);
+    if (type === 'like')    updates.likes    = increment(1);
+    if (type === 'dislike') updates.dislikes = increment(1);
+    if (type === 'report')  updates.reported = increment(1);
+
+    try {
+      await updateDoc(cardRef, updates);
+      await setDoc(voteRef, { type, votedAt: Date.now() });
+      // Local update
+      const c = _cards.find(x => x.id === globalCardId);
+      if (c) {
+        if (prevVote === 'like')    c.likes    = Math.max(0, (c.likes||0) - 1);
+        if (prevVote === 'dislike') c.dislikes = Math.max(0, (c.dislikes||0) - 1);
+        if (type === 'like')    c.likes    = (c.likes||0) + 1;
+        if (type === 'dislike') c.dislikes = (c.dislikes||0) + 1;
+        // DOM güncelle
+        const lb = document.getElementById('kh-vote-like-' + globalCardId);
+        const db2 = document.getElementById('kh-vote-dis-' + globalCardId);
+        if (lb) lb.innerHTML = `❤ ${c.likes}`;
+        if (db2) db2.innerHTML = `👎 ${c.dislikes}`;
+      }
+      toast(type === 'report' ? '⚑ Şikâyet gönderildi' : '✅ Oy verildi!', 'ok');
+    } catch(e) { toast('Hata: ' + e.message, 'err'); }
+  }
+
+  // ── Preview & Import ──────────────────────────────
+
+  async function openPreview(globalCardId) {
+    const c = _cards.find(x => x.id === globalCardId);
+    if (!c) return;
+    _previewCard = c;
+    const content = document.getElementById('kh-preview-content');
+    if (content) {
+      const cd = c.cardData || {};
+      const name = (c.uploaderName||'?').slice(0,10) + ((c.uploaderName||'').length>10?'…':'');
+      content.innerHTML = `
+        <div style="font-size:.7rem;color:var(--text3);margin-bottom:4px">👤 ${_esc(name)} · ❤ ${c.likes||0} · ⬇ ${c.downloads||0}</div>
+        <div style="font-size:.72rem;color:var(--teal2);font-weight:700;margin-bottom:6px">${_esc(cd.category||'')} · ${_esc(cd.subject||'')} · ${_esc(cd.topic||'')}</div>
+        ${cd.question && cd.question !== 'Bilgi Notu' ? `<div style="font-size:.95rem;font-weight:700;color:var(--text);margin-bottom:12px;line-height:1.45">${_esc(cd.question)}</div>` : ''}
+        <div class="fc-answer-label"><i class="fa-solid fa-check-circle"></i> Çözüm / Not</div>
+        <div class="fc-answer">${typeof formatAnswer === 'function' ? formatAnswer(cd.answer||'') : _esc(cd.answer||'')}</div>`;
+    }
+    const m = document.getElementById('kh-preview-modal');
+    if (m) m.style.display = 'flex';
+  }
+
+  function closePreview() {
+    const m = document.getElementById('kh-preview-modal');
+    if (m) m.style.display = 'none';
+    _previewCard = null;
+  }
+
+  async function importPreviewCard() {
+    if (!_previewCard) return;
+    const fb = _fb(); if (!fb) return;
+    const { db, doc, updateDoc, increment } = fb;
+    const cd = _previewCard.cardData || {};
+    try {
+      await dbPut({
+        type:           cd.type || 'hap',
+        hapSubType:     cd.hapSubType || 'note',
+        category:       cd.category || 'TYT',
+        subject:        cd.subject || 'Genel',
+        topic:          cd.topic || '',
+        question:       cd.question || '',
+        answer:         cd.answer || '',
+        photo:          null,
+        nextReviewDate: Date.now(),
+        interval:       0,
+        createdAt:      Date.now()
+      });
+      // download sayısını artır
+      await updateDoc(doc(db, 'global_cards', _previewCard.id), { downloads: increment(1) }).catch(()=>{});
+      const c = _cards.find(x => x.id === _previewCard.id);
+      if (c) c.downloads = (c.downloads||0) + 1;
+      toast('✅ Kart içe aktarıldı!', 'ok');
+      closePreview();
+      if (window.App?.renderHome) App.renderHome();
+    } catch(e) { toast('İçe aktarma hatası: ' + e.message, 'err'); }
+  }
+
+  // ── View Mode ─────────────────────────────────────
+
+  function setView(v) {
+    _view = v;
+    ['list','feed'].forEach(m => {
+      const btn = document.getElementById('kh-view-' + m);
+      if (btn) btn.className = 'tab-btn' + (m === v ? ' active' : '');
+    });
+    _render();
+  }
+
+  return { onEnter, reload, loadMore, setView, uploadCard, acceptConsent, vote, openPreview, closePreview, importPreviewCard };
 })();
 </script>
 
