@@ -2905,10 +2905,21 @@ select option{background:var(--surface2);color:var(--text)}
 
     <!-- LEADERBOARD PANEL -->
     <div id="social-panel-leaderboard" style="display:none">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <div style="font-family:'Syne','Segoe UI',sans-serif;font-size:1rem;font-weight:800;color:var(--text)">🏆 Haftalık Sıralama</div>
         <button onclick="Leaderboard.refresh()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--text3);font-size:.72rem;cursor:pointer;display:flex;align-items:center;gap:4px">
           <i class="fa-solid fa-rotate-right"></i> Yenile
+        </button>
+      </div>
+      <!-- Mode tabs -->
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button id="lb-tab-study" onclick="Leaderboard.setMode('study')"
+          style="flex:1;padding:9px 0;border-radius:12px;border:1.5px solid var(--primary);background:var(--primary);color:#fff;font-weight:700;font-size:.85rem;cursor:pointer;transition:all .2s">
+          🧠 Çalışkanlar
+        </button>
+        <button id="lb-tab-upload" onclick="Leaderboard.setMode('upload')"
+          style="flex:1;padding:9px 0;border-radius:12px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text2);font-weight:600;font-size:.85rem;cursor:pointer;transition:all .2s">
+          ⚡ Üreticiler
         </button>
       </div>
       <div class="lb-week-label" id="lb-week-label">Bu hafta kaç kart çalışıldı</div>
@@ -7338,6 +7349,7 @@ const Social = (() => {
   let _myPhoto = null;       // base64 profil fotoğrafım
   let _unreadCount = 0;      // okunmamış mesaj + inbox sayısı
   let _unreadPerSource = {};  // { 'friendCode' veya 'groupId': count }
+  let _lastMsgTime = {};      // { 'friendCode' veya 'groupId': timestamp } — WhatsApp tarzı sıralama için
   let _knownMsgIds = new Set(); // bilinen mesaj id'leri (toast duplicate önleme)
 
   // localStorage'dan kalıcı verileri yükle
@@ -7347,12 +7359,15 @@ const Social = (() => {
       if (savedUnread) _unreadPerSource = JSON.parse(savedUnread);
       const savedKnown = localStorage.getItem('_knownMsgIds');
       if (savedKnown) _knownMsgIds = new Set(JSON.parse(savedKnown));
+      const savedTime = localStorage.getItem('_lastMsgTime');
+      if (savedTime) _lastMsgTime = JSON.parse(savedTime);
     } catch(e) {}
   }
 
   function _savePersistedData() {
     try {
       localStorage.setItem('_unreadPerSource', JSON.stringify(_unreadPerSource));
+      localStorage.setItem('_lastMsgTime', JSON.stringify(_lastMsgTime));
       // Sadece son 2000 id'yi sakla (bellek tasarrufu)
       const arr = Array.from(_knownMsgIds);
       localStorage.setItem('_knownMsgIds', JSON.stringify(arr.slice(-2000)));
@@ -8087,8 +8102,11 @@ const Social = (() => {
       return;
     }
 
-    // Okunmamışı olan öne al, sonra isme göre sırala
+    // Son mesajlaşma zamanına göre sırala (WhatsApp tarzı), fallback: okunmamış → isim
     items.sort((a, b) => {
+      const ta = _lastMsgTime[a.id] || 0;
+      const tb = _lastMsgTime[b.id] || 0;
+      if (tb !== ta) return tb - ta;
       const ua = _unreadPerSource[a.id] || 0;
       const ub = _unreadPerSource[b.id] || 0;
       if (ub !== ua) return ub - ua;
@@ -8166,6 +8184,7 @@ const Social = (() => {
     if (viewEl) viewEl.style.overflow = 'hidden';
     // Bu arkadaşın unread'ini sıfırla
     delete _unreadPerSource[partnerCode];
+    _lastMsgTime[partnerCode] = _lastMsgTime[partnerCode] || Date.now();
     _savePersistedData();
     _updateNavBadge();
     _updateTabBadges();
@@ -8403,6 +8422,11 @@ const Social = (() => {
         type: 'text', text,
         createdAt: serverTimestamp()
       });
+      // Son mesaj zamanını güncelle (sıralama için)
+      const sourceId = _chatMode === 'group' ? _groupId : _chatPartner.code;
+      _lastMsgTime[sourceId] = Date.now();
+      _savePersistedData();
+      renderChatFriendList();
       // Push bildirimi gönder
       _sendPushToRecipient(text);
     } catch(e) { toast('Gönderilemedi: ' + e.message, 'err'); }
@@ -8588,6 +8612,7 @@ const Social = (() => {
           const preview = m.type === 'photo' ? '📷 Fotoğraf' : (m.text || '').slice(0, 50);
           _showNotifToast('💬', f.nameB || '?', preview, 'chat', f.userB);
           _unreadPerSource[f.userB] = (_unreadPerSource[f.userB] || 0) + 1;
+          _lastMsgTime[f.userB] = m.createdAt?.toMillis?.() || Date.now();
           _savePersistedData();
           _updateNavBadge();
           _updateTabBadges();
@@ -8620,6 +8645,7 @@ const Social = (() => {
           const preview = m.type === 'photo' ? '📷 Fotoğraf' : (m.text || '').slice(0, 50);
           _showNotifToast('👥', `${g.name} · ${senderName}`, preview, 'chat', g.id);
           _unreadPerSource[g.id] = (_unreadPerSource[g.id] || 0) + 1;
+          _lastMsgTime[g.id] = m.createdAt?.toMillis?.() || Date.now();
           _savePersistedData();
           _updateNavBadge();
           _updateTabBadges();
@@ -9019,6 +9045,7 @@ const Social = (() => {
     if (viewElGrp) viewElGrp.style.overflow = 'hidden';
     // Bu grubun unread'ini sıfırla
     delete _unreadPerSource[groupId];
+    _lastMsgTime[groupId] = _lastMsgTime[groupId] || Date.now();
     _savePersistedData();
     _updateNavBadge();
     _updateTabBadges();
@@ -10987,6 +11014,28 @@ STRİKT KURALLAR:
 <!-- ══════ LEADERBOARD MODULE ══════ -->
 <script>
 const Leaderboard = (() => {
+  let _mode = 'study'; // 'study' | 'upload'
+
+  function setMode(m) {
+    _mode = m;
+    // Tab UI güncelle
+    const studyBtn  = document.getElementById('lb-tab-study');
+    const uploadBtn = document.getElementById('lb-tab-upload');
+    if (studyBtn) {
+      studyBtn.style.background   = m === 'study' ? 'var(--primary)' : 'var(--surface2)';
+      studyBtn.style.color        = m === 'study' ? '#fff' : 'var(--text2)';
+      studyBtn.style.borderColor  = m === 'study' ? 'var(--primary)' : 'var(--border)';
+      studyBtn.style.fontWeight   = m === 'study' ? '700' : '600';
+    }
+    if (uploadBtn) {
+      uploadBtn.style.background  = m === 'upload' ? 'var(--teal)' : 'var(--surface2)';
+      uploadBtn.style.color       = m === 'upload' ? '#fff' : 'var(--text2)';
+      uploadBtn.style.borderColor = m === 'upload' ? 'var(--teal)' : 'var(--border)';
+      uploadBtn.style.fontWeight  = m === 'upload' ? '700' : '600';
+    }
+    render();
+  }
+
   // Haftanın pazartesi tarihini YYYY-Www formatında döndür
   function _weekKey() {
     const d = new Date();
@@ -11031,7 +11080,7 @@ const Leaderboard = (() => {
     const lblEl   = document.getElementById('lb-week-label');
     if (!listEl) return;
 
-    if (lblEl) lblEl.textContent = _weekLabel() + ' haftası';
+    if (lblEl) lblEl.textContent = _weekLabel() + ' haftası · ' + (_mode === 'upload' ? '⚡ Üreticiler' : '🧠 Çalışkanlar');
 
     listEl.innerHTML = `<div style="text-align:center;padding:30px 0;color:var(--text3)">
       <i class="fa-solid fa-spinner" style="animation:spin .8s linear infinite;font-size:1.4rem;margin-bottom:10px;display:block"></i>
@@ -11051,16 +11100,19 @@ const Leaderboard = (() => {
     try {
       const week = _weekKey();
       const { db, collection, getDocs, query, orderBy, limit } = fb;
+      const sortField = _mode === 'upload' ? 'uploads' : 'score';
       const q = query(
         collection(db, 'leaderboard', week, 'scores'),
-        orderBy('score', 'desc'),
+        orderBy(sortField, 'desc'),
         limit(50)
       );
       const snap = await getDocs(q);
-      const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const rows = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(r => _mode === 'upload' ? (r.uploads || 0) > 0 : (r.score || 0) > 0);
 
       if (!rows.length) {
-        listEl.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text3);font-size:.85rem">Bu hafta henüz kart çalışılmadı. İlk sen ol! 🚀</div>`;
+        listEl.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text3);font-size:.85rem">${_mode === 'upload' ? 'Bu hafta henüz kart yüklenmedi. İlk sen ol! 🌊' : 'Bu hafta henüz kart çalışılmadı. İlk sen ol! 🚀'}</div>`;
         if (myRowEl) myRowEl.style.display = 'none';
         return;
       }
@@ -11072,13 +11124,18 @@ const Leaderboard = (() => {
         const isMe    = r.code === myCode;
         const rankCls = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : '';
         const letter  = (r.name || '?')[0].toUpperCase();
+        const mainVal = _mode === 'upload' ? (r.uploads || 0) : (r.score || 0);
+        const mainLbl = _mode === 'upload' ? 'yükleme' : 'kart';
+        const subHtml = _mode === 'upload'
+          ? (r.score ? `<div style="font-size:.62rem;color:var(--text3);font-weight:600">📚 ${r.score} çalışma</div>` : '')
+          : (r.uploads ? `<div style="font-size:.62rem;color:var(--teal2);font-weight:600">🌊 ${r.uploads}</div>` : '');
         return `<div class="lb-row ${rankCls}${isMe ? ' me' : ''}">
           <div class="lb-rank">${medals[i] || (i+1)}</div>
           <div class="lb-avatar" style="background:${_avatarColor(r.code)}">${letter}</div>
           <div class="lb-name">${_esc(r.name || r.code)}${isMe ? ' <span style="font-size:.65rem;color:var(--primary2);font-weight:700">(Sen)</span>' : ''}</div>
           <div style="text-align:right">
-            <div class="lb-score">${r.score || 0}<span class="lb-score-lbl">kart</span></div>
-            ${r.uploads ? `<div style="font-size:.62rem;color:var(--teal2);font-weight:600">🌊 ${r.uploads}</div>` : ''}
+            <div class="lb-score">${mainVal}<span class="lb-score-lbl">${mainLbl}</span></div>
+            ${subHtml}
           </div>
         </div>`;
       }).join('');
@@ -11120,7 +11177,7 @@ const Leaderboard = (() => {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  return { recordReview, render, refresh };
+  return { recordReview, render, refresh, setMode };
 })();
 </script>
 
