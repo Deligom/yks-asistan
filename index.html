@@ -2032,6 +2032,20 @@ select option{background:var(--surface2);color:var(--text)}
     </div>
     <div style="border-top:1px solid var(--border);padding-top:14px;display:flex;align-items:center;justify-content:space-between">
       <div>
+        <div style="font-size:.9rem;font-weight:700;color:var(--text)">Çift Tıkla Önizle</div>
+        <div style="font-size:.75rem;color:var(--text3);margin-top:2px">Kart Havuzu listesinde çift tıklama önizler</div>
+      </div>
+      <button id="dblclick-toggle-btn" onclick="App.toggleDblClickPreview()"
+        style="display:flex;align-items:center;gap:10px;background:var(--surface2);border:1.5px solid var(--border);border-radius:30px;padding:6px 16px;cursor:pointer;transition:all .25s;color:var(--text);font-size:.85rem;font-weight:600">
+        <span id="dblclick-toggle-icon" style="font-size:1.1rem">👆</span>
+        <span id="dblclick-toggle-text">Kapalı</span>
+        <div id="dblclick-toggle-track" style="width:38px;height:22px;border-radius:11px;background:var(--surface3);border:1.5px solid var(--border);position:relative;transition:background .25s;flex-shrink:0">
+          <div id="dblclick-toggle-thumb" style="position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--text3);transition:all .25s"></div>
+        </div>
+      </button>
+    </div>
+    <div style="border-top:1px solid var(--border);padding-top:14px;display:flex;align-items:center;justify-content:space-between">
+      <div>
         <div style="font-size:.9rem;font-weight:700;color:var(--text)">AI Konu Önerisi</div>
         <div style="font-size:.75rem;color:var(--text3);margin-top:2px">Ana sayfada otomatik öneri kartı</div>
       </div>
@@ -6525,6 +6539,8 @@ STRİKT KURALLAR:
     initTheme,
     toggleAdvisor,
     initAdvisor,
+    toggleDblClickPreview,
+    initDblClickPreview,
     toggleAutoBackup,
     initAutoBackup,
     checkAutoBackup,
@@ -6597,6 +6613,30 @@ STRİKT KURALLAR:
 
   function initAdvisor() {
     _applyAdvisorUI(localStorage.getItem('yk_advisor_enabled') !== 'false');
+  }
+
+  // ── ÇİFT TIKLA ÖNİZLE TOGGLE ──
+  function _applyDblClickUI(enabled) {
+    const text  = document.getElementById('dblclick-toggle-text');
+    const track = document.getElementById('dblclick-toggle-track');
+    const thumb = document.getElementById('dblclick-toggle-thumb');
+    if (enabled) {
+      if (text)  text.textContent = 'Açık';
+      if (track) track.style.background = '#6c63ff';
+      if (thumb) { thumb.style.background = '#fff'; thumb.style.left = '18px'; }
+    } else {
+      if (text)  text.textContent = 'Kapalı';
+      if (track) track.style.background = '';
+      if (thumb) { thumb.style.background = ''; thumb.style.left = '2px'; }
+    }
+  }
+  function toggleDblClickPreview() {
+    const enabled = localStorage.getItem('kh_dblclick_preview') === '1';
+    localStorage.setItem('kh_dblclick_preview', enabled ? '0' : '1');
+    _applyDblClickUI(!enabled);
+  }
+  function initDblClickPreview() {
+    _applyDblClickUI(localStorage.getItem('kh_dblclick_preview') === '1');
   }
 
   // ── DRIVE BACKUP ─────────────────────────────────────────────────────────────
@@ -9320,6 +9360,7 @@ const Social = (() => {
     App.go('home');
     App.initTheme();
     App.initAdvisor();
+    App.initDblClickPreview();
     App.initAutoBackup();
     App.initSuperScript();
     StreakTracker.updateUI();
@@ -11320,7 +11361,7 @@ const KartHavuzu = (() => {
         ? c.cardData.question.slice(0,55) + (c.cardData.question.length > 55 ? '…' : '')
         : (c.cardData?.topic || 'Bilgi Notu');
       const name = (c.uploaderName || '?').slice(0,10) + ((c.uploaderName||'').length > 10 ? '…' : '');
-      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px">
+      return `<div ondblclick="if(localStorage.getItem('kh_dblclick_preview')==='1')KartHavuzu.openPreview('${c.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px">
         <div style="flex-shrink:0;width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--primary),var(--primary2));display:flex;align-items:center;justify-content:center;font-size:.9rem">⚡</div>
         <div style="flex:1;min-width:0">
           <div style="font-size:.78rem;color:var(--teal2);font-weight:700;margin-bottom:2px">${_esc(c.cardData?.category||'')} · ${_esc(c.cardData?.subject||'')}</div>
@@ -11355,7 +11396,8 @@ const KartHavuzu = (() => {
         <div style="display:flex;align-items:center;gap:8px">
           <button onclick="KartHavuzu.vote('${c.id}','like')" id="kh-vote-like-${c.id}" style="flex:1;background:rgba(255,101,132,.1);border:1px solid rgba(255,101,132,.25);border-radius:9px;padding:7px;color:#ff6584;font-size:.78rem;cursor:pointer;font-weight:700">❤ ${c.likes||0}</button>
           <button onclick="KartHavuzu.vote('${c.id}','dislike')" id="kh-vote-dis-${c.id}" style="flex:1;background:rgba(108,99,255,.1);border:1px solid rgba(108,99,255,.25);border-radius:9px;padding:7px;color:var(--primary2);font-size:.78rem;cursor:pointer;font-weight:700">👎 ${c.dislikes||0}</button>
-          <button onclick="KartHavuzu.openPreview('${c.id}')" style="flex:2;background:linear-gradient(135deg,var(--teal),var(--teal2));border:none;border-radius:9px;padding:7px;color:#fff;font-size:.78rem;cursor:pointer;font-weight:700"><i class="fa-solid fa-download"></i> İçe Aktar (${c.downloads||0})</button>
+          <button onclick="KartHavuzu.openPreview('${c.id}')" style="flex-shrink:0;background:rgba(0,212,170,.12);border:1px solid rgba(0,212,170,.3);border-radius:9px;padding:7px 10px;color:var(--teal2);font-size:.78rem;cursor:pointer;font-weight:600">👁 Bak</button>
+          <button onclick="KartHavuzu.openPreview('${c.id}')" style="flex:2;background:linear-gradient(135deg,var(--teal),var(--teal2));border:none;border-radius:9px;padding:7px 3px;color:#fff;font-size:.78rem;cursor:pointer;font-weight:700"><i class="fa-solid fa-download"></i> İçe Aktar (${c.downloads||0})</button>
         </div>
       </div>`;
     }).join('');
@@ -11492,11 +11534,16 @@ const KartHavuzu = (() => {
     if (!myCode) { el.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text3)">Giriş yapman gerekiyor.</div>`; return; }
     el.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text3)"><i class="fa-solid fa-spinner" style="animation:spin .8s linear infinite;font-size:1.2rem"></i></div>`;
     const fb = _fb(); if (!fb) return;
-    const { db, collection, query, where, orderBy, getDocs, doc, updateDoc } = fb;
+    const { db, collection, query, where, getDocs, doc, updateDoc } = fb;
     try {
-      const q = query(collection(db, 'global_cards'), where('uploaderCode','==', myCode), orderBy('uploadedAt','desc'));
+      const q = query(collection(db, 'global_cards'), where('uploaderCode','==', myCode));
       const snap = await getDocs(q);
-      const myCards = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const myCards = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => {
+          const ta = a.uploadedAt?.toMillis?.() || a.uploadedAt || 0;
+          const tb = b.uploadedAt?.toMillis?.() || b.uploadedAt || 0;
+          return tb - ta;
+        });
       if (!myCards.length) {
         el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text3);font-size:.85rem">🌊 Henüz kart yüklemedin.</div>`;
         return;
