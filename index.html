@@ -2938,18 +2938,70 @@ select option{background:var(--surface2);color:var(--text)}
       <!-- Toolbar: Sort + Time + View Mode -->
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
         <div id="kh-filter-toolbar" style="display:flex;gap:6px;flex-wrap:wrap">
-          <select id="kh-sort" onchange="KartHavuzu.reload()" style="flex:1;min-width:0;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:7px 10px;font-size:.78rem;cursor:pointer">
-            <option value="downloads">⬇ En Çok İndirilen</option>
-            <option value="likes">❤ En Çok Beğenilen</option>
-            <option value="newest">🆕 En Yeni</option>
-          </select>
-          <select id="kh-time" onchange="KartHavuzu.reload()" style="flex:1;min-width:0;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:7px 10px;font-size:.78rem;cursor:pointer">
-            <option value="all">🕐 Tüm Zamanlar</option>
-            <option value="year">📅 Bu Yıl</option>
-            <option value="month">📆 Bu Ay</option>
-            <option value="week">📋 Bu Hafta</option>
-          </select>
+          <!-- Sıralama -->
+          <div style="flex:1;min-width:0;position:relative">
+            <select id="kh-sort" onchange="KartHavuzu.reload()"
+              style="width:100%;appearance:none;-webkit-appearance:none;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);border-radius:11px;padding:8px 28px 8px 10px;font-size:.78rem;cursor:pointer;outline:none">
+              <option value="downloads">⬇ En Çok İndirilen</option>
+              <option value="likes">❤ En Çok Beğenilen</option>
+              <option value="newest">🆕 En Yeni</option>
+            </select>
+            <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text3);font-size:.65rem">▼</span>
+          </div>
+          <!-- Zaman -->
+          <div style="flex:1;min-width:0;position:relative">
+            <select id="kh-time" onchange="KartHavuzu.reload()"
+              style="width:100%;appearance:none;-webkit-appearance:none;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);border-radius:11px;padding:8px 28px 8px 10px;font-size:.78rem;cursor:pointer;outline:none">
+              <option value="all">🕐 Tüm Zamanlar</option>
+              <option value="year">📅 Bu Yıl</option>
+              <option value="month">📆 Bu Ay</option>
+              <option value="week">📋 Bu Hafta</option>
+            </select>
+            <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text3);font-size:.65rem">▼</span>
+          </div>
+          <!-- Ders/Konu filtre butonu -->
+          <button id="kh-filter-btn" onclick="KartHavuzu.toggleFilterPanel()"
+            style="flex-shrink:0;background:var(--surface2);border:1.5px solid var(--border);border-radius:11px;padding:8px 13px;color:var(--text2);font-size:.78rem;cursor:pointer;display:flex;align-items:center;gap:5px;font-weight:600;transition:all .2s">
+            <span id="kh-filter-icon">🔍</span>
+            <span id="kh-filter-label">Filtre</span>
+          </button>
         </div>
+
+        <!-- Ders / Konu filtre paneli (açılır) -->
+        <div id="kh-filter-panel" style="display:none;background:var(--surface2);border:1.5px solid var(--border);border-radius:14px;overflow:hidden">
+          <!-- Ders seçimi -->
+          <div style="padding:12px 12px 8px">
+            <div style="font-size:.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">📚 Ders</div>
+            <div id="kh-subject-chips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+          </div>
+          <!-- Konu seçimi (açılır-kapanır) -->
+          <div style="padding:0 12px 12px" id="kh-topic-section" style="display:none">
+            <div style="border-top:1px solid var(--border);margin-bottom:10px;padding-top:10px">
+              <button id="kh-topic-toggle" onclick="KartHavuzu.toggleTopicPanel()"
+                style="width:100%;display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1.5px solid var(--border);border-radius:11px;padding:9px 13px;cursor:pointer;color:var(--text);font-size:.82rem;font-weight:600;transition:border-color .2s">
+                <span>📖 Konu <span id="kh-topic-summary" style="color:var(--text3);font-weight:400;font-size:.75rem">— tümü</span></span>
+                <span id="kh-topic-arrow" style="font-size:.65rem;color:var(--text3);transition:transform .2s">▼</span>
+              </button>
+              <div id="kh-topic-dropdown" style="display:none;margin-top:6px;background:var(--surface);border:1.5px solid var(--border);border-radius:11px;overflow:hidden">
+                <div style="padding:8px 10px;border-bottom:1px solid var(--border)">
+                  <input id="kh-topic-search" type="text" placeholder="🔍 Konu ara…" oninput="KartHavuzu.filterTopicSearch()"
+                    style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:.80rem;outline:none;box-sizing:border-box"/>
+                </div>
+                <div id="kh-topic-list" style="max-height:200px;overflow-y:auto;padding:4px 0"></div>
+                <div style="padding:7px 10px;border-top:1px solid var(--border);display:flex;gap:7px">
+                  <button onclick="KartHavuzu.selectAllTopics()" style="flex:1;padding:6px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--teal2);font-size:.73rem;font-weight:700;cursor:pointer">Hepsi</button>
+                  <button onclick="KartHavuzu.clearTopics()" style="flex:1;padding:6px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text3);font-size:.73rem;font-weight:700;cursor:pointer">Temizle</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Uygula / Temizle -->
+          <div style="padding:0 12px 12px;display:flex;gap:8px">
+            <button onclick="KartHavuzu.clearAllFilters()" style="flex:1;padding:9px;border-radius:11px;border:1.5px solid var(--border);background:var(--surface);color:var(--text2);font-size:.8rem;font-weight:700;cursor:pointer">Temizle</button>
+            <button onclick="KartHavuzu.applyFilters()" style="flex:2;padding:9px;border-radius:11px;border:none;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;font-size:.8rem;font-weight:800;cursor:pointer">✓ Uygula</button>
+          </div>
+        </div>
+
         <div style="display:flex;align-items:center;justify-content:space-between">
           <div style="display:flex;gap:6px">
             <button id="kh-view-list" onclick="KartHavuzu.setView('list')" class="tab-btn active" style="padding:5px 12px;font-size:.75rem">☰ Liste</button>
@@ -11277,6 +11329,11 @@ const KartHavuzu = (() => {
   let _previewCard = null;    // card currently in preview modal
   let _pendingUploadId = null; // card id waiting for consent
 
+  // ── Filter state ──
+  let _filterSubjects = [];   // seçili dersler (boş = hepsi)
+  let _filterTopics   = [];   // seçili konular (boş = hepsi)
+  let _allKhTopics    = [];   // mevcut konular listesi (ders seçimine göre)
+
   // ── Helpers ──────────────────────────────────────────
 
   function _fb() { return window._FB || null; }
@@ -11428,7 +11485,12 @@ const KartHavuzu = (() => {
     const el = document.getElementById('kh-list-container');
     if (el) el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text3)"><i class="fa-solid fa-spinner" style="animation:spin .8s linear infinite;font-size:1.4rem;display:block;margin-bottom:10px"></i>Yükleniyor…</div>`;
     const ok = await _fetchCards(true);
-    if (ok) _render();
+    if (ok) {
+      _render();
+      // Filtre paneli açıksa chip'leri güncelle
+      const fp = document.getElementById('kh-filter-panel');
+      if (fp && fp.style.display !== 'none') _buildSubjectChips();
+    }
   }
 
   async function _fetchCards(reset) {
@@ -11482,18 +11544,24 @@ const KartHavuzu = (() => {
     const el = document.getElementById('kh-list-container');
     const moreBtn = document.getElementById('kh-load-more');
     if (!el) return;
-    if (!_cards.length) {
-      el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text3);font-size:.85rem">🌊 Henüz kart yok. İlk yükleyen sen ol!</div>`;
+
+    // Filtre uygula
+    let visible = _cards;
+    if (_filterSubjects.length > 0) visible = visible.filter(c => _filterSubjects.includes(c.cardData?.subject));
+    if (_filterTopics.length > 0)   visible = visible.filter(c => _filterTopics.includes(c.cardData?.topic));
+
+    if (!visible.length) {
+      el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text3);font-size:.85rem">${_cards.length > 0 ? '🔍 Bu filtreye uygun kart bulunamadı.' : '🌊 Henüz kart yok. İlk yükleyen sen ol!'}</div>`;
       if (moreBtn) moreBtn.style.display = 'none';
       return;
     }
-    if (_view === 'list') _renderList(el);
-    else _renderFeed(el);
+    if (_view === 'list') _renderList(el, visible);
+    else _renderFeed(el, visible);
     if (moreBtn) moreBtn.style.display = _hasMore ? 'block' : 'none';
   }
 
-  function _renderList(el) {
-    el.innerHTML = _cards.map(c => {
+  function _renderList(el, cards) {
+    el.innerHTML = (cards||_cards).map(c => {
       const title = (c.cardData?.question && c.cardData.question !== 'Bilgi Notu')
         ? c.cardData.question.slice(0,55) + (c.cardData.question.length > 55 ? '…' : '')
         : (c.cardData?.topic || 'Bilgi Notu');
@@ -11510,14 +11578,14 @@ const KartHavuzu = (() => {
     }).join('');
   }
 
-  function _renderFeed(el) {
-    el.innerHTML = _cards.map(c => {
+  function _renderFeed(el, cards) {
+    el.innerHTML = (cards||_cards).map(c => {
       const title = (c.cardData?.question && c.cardData.question !== 'Bilgi Notu')
         ? c.cardData.question
         : (c.cardData?.topic || 'Bilgi Notu');
       const name = (c.uploaderName || '?').slice(0,10) + ((c.uploaderName||'').length > 10 ? '…' : '');
       const ansFormatted = App.formatAnswer(c.cardData?.answer || '');
-      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:15px;margin-bottom:12px">
+      return `<div ondblclick="if(localStorage.getItem('kh_dblclick_preview')==='1')KartHavuzu.openPreview('${c.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:15px;margin-bottom:12px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
           <div>
             <div style="font-size:.72rem;color:var(--teal2);font-weight:700">${_esc(c.cardData?.category||'')} · ${_esc(c.cardData?.subject||'')} · ${_esc(c.cardData?.topic||'')}</div>
@@ -11663,6 +11731,11 @@ const KartHavuzu = (() => {
     // Sıralama/zaman filtreleri mine modda gizle
     const toolbar = document.getElementById('kh-filter-toolbar');
     if (toolbar) toolbar.style.display = v === 'mine' ? 'none' : 'flex';
+    // Filtre panelini kapat
+    const filterPanel = document.getElementById('kh-filter-panel');
+    if (filterPanel && v === 'mine') filterPanel.style.display = 'none';
+    const filterBtn = document.getElementById('kh-filter-btn');
+    if (filterBtn) filterBtn.style.display = v === 'mine' ? 'none' : '';
     if (v === 'mine') _renderMine();
     else _render();
   }
@@ -11727,6 +11800,164 @@ const KartHavuzu = (() => {
     }
   }
 
+  // ── Filter Functions ─────────────────────────────────
+
+  function toggleFilterPanel() {
+    const panel = document.getElementById('kh-filter-panel');
+    const btn   = document.getElementById('kh-filter-btn');
+    const icon  = document.getElementById('kh-filter-icon');
+    const lbl   = document.getElementById('kh-filter-label');
+    if (!panel) return;
+    const open = panel.style.display === 'none';
+    panel.style.display = open ? '' : 'none';
+    if (btn) { btn.style.borderColor = open ? 'var(--primary)' : 'var(--border)'; btn.style.color = open ? 'var(--primary2)' : 'var(--text2)'; }
+    if (icon) icon.textContent = open ? '🔍' : '🔍';
+    if (lbl) {
+      const n = _filterSubjects.length + _filterTopics.length;
+      lbl.textContent = n > 0 ? `Filtre (${n})` : 'Filtre';
+    }
+    if (open) _buildSubjectChips();
+  }
+
+  function _buildSubjectChips() {
+    const cont = document.getElementById('kh-subject-chips');
+    if (!cont) return;
+    // Loaded kartlardan benzersiz dersleri çıkar
+    const subjects = [...new Set(_cards.map(c => c.cardData?.subject).filter(Boolean))].sort();
+    if (!subjects.length) {
+      cont.innerHTML = `<span style="font-size:.75rem;color:var(--text3);font-style:italic">Kart yüklendikten sonra ders listesi belirir</span>`;
+      return;
+    }
+    cont.innerHTML = subjects.map(s => {
+      const sel = _filterSubjects.includes(s);
+      return `<div onclick="KartHavuzu.toggleSubject(this)" data-sub="${_esc(s)}"
+        style="padding:6px 12px;border-radius:20px;border:1.5px solid ${sel ? 'var(--primary)' : 'var(--border)'};background:${sel ? 'rgba(108,99,255,.15)' : 'var(--surface)'};color:${sel ? 'var(--primary2)' : 'var(--text2)'};font-size:.76rem;font-weight:${sel ? '700' : '500'};cursor:pointer;transition:all .15s;user-select:none">
+        ${_esc(s)}
+      </div>`;
+    }).join('');
+  }
+
+  function toggleSubject(el) {
+    const sub = el.dataset.sub;
+    const idx = _filterSubjects.indexOf(sub);
+    if (idx === -1) _filterSubjects.push(sub);
+    else _filterSubjects.splice(idx, 1);
+    // Clear topics when subjects change
+    _filterTopics = [];
+    // Update chip style
+    const sel = _filterSubjects.includes(sub);
+    el.style.borderColor = sel ? 'var(--primary)' : 'var(--border)';
+    el.style.background  = sel ? 'rgba(108,99,255,.15)' : 'var(--surface)';
+    el.style.color       = sel ? 'var(--primary2)' : 'var(--text2)';
+    el.style.fontWeight  = sel ? '700' : '500';
+    // Rebuild topic list
+    _buildTopicList();
+    _updateTopicSummary();
+  }
+
+  function _buildTopicList() {
+    const section = document.getElementById('kh-topic-section');
+    const srch = document.getElementById('kh-topic-search');
+    if (srch) srch.value = '';
+    // Derive topics from loaded cards, filtered by selected subjects
+    let src = _cards;
+    if (_filterSubjects.length > 0) src = src.filter(c => _filterSubjects.includes(c.cardData?.subject));
+    _allKhTopics = [...new Set(src.map(c => c.cardData?.topic).filter(Boolean))].sort();
+    if (section) section.style.display = _allKhTopics.length ? '' : 'none';
+    _renderTopicList(_allKhTopics);
+  }
+
+  function _renderTopicList(topics) {
+    const cont = document.getElementById('kh-topic-list');
+    if (!cont) return;
+    cont.innerHTML = topics.map(t => {
+      const sel = _filterTopics.includes(t);
+      return `<div onclick="KartHavuzu.toggleTopic(this)" data-topic="${_esc(t)}"
+        style="display:flex;align-items:center;gap:10px;padding:8px 13px;cursor:pointer;${sel ? 'background:rgba(108,99,255,.1)' : ''}">
+        <div style="width:17px;height:17px;border-radius:5px;border:1.5px solid ${sel ? 'var(--primary)' : 'var(--border)'};background:${sel ? 'var(--primary)' : 'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          ${sel ? '<span style="color:#fff;font-size:.65rem;font-weight:900">✓</span>' : ''}
+        </div>
+        <span style="font-size:.80rem;color:${sel ? 'var(--text)' : 'var(--text2)'};font-weight:${sel ? '700' : '400'}">${_esc(t)}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function toggleTopicPanel() {
+    const dd    = document.getElementById('kh-topic-dropdown');
+    const arrow = document.getElementById('kh-topic-arrow');
+    const btn   = document.getElementById('kh-topic-toggle');
+    if (!dd) return;
+    const open = dd.style.display === 'none';
+    dd.style.display = open ? '' : 'none';
+    if (arrow) arrow.style.transform = open ? 'rotate(180deg)' : '';
+    if (btn) btn.style.borderColor = open ? 'var(--primary)' : 'var(--border)';
+    if (open) setTimeout(() => document.getElementById('kh-topic-search')?.focus(), 50);
+  }
+
+  function toggleTopic(el) {
+    const t = el.dataset.topic;
+    const idx = _filterTopics.indexOf(t);
+    if (idx === -1) _filterTopics.push(t);
+    else _filterTopics.splice(idx, 1);
+    const sel = _filterTopics.includes(t);
+    const box = el.querySelector('div');
+    const lbl = el.querySelector('span');
+    if (box) { box.style.borderColor = sel ? 'var(--primary)' : 'var(--border)'; box.style.background = sel ? 'var(--primary)' : 'transparent'; box.innerHTML = sel ? '<span style="color:#fff;font-size:.65rem;font-weight:900">✓</span>' : ''; }
+    if (lbl) { lbl.style.color = sel ? 'var(--text)' : 'var(--text2)'; lbl.style.fontWeight = sel ? '700' : '400'; }
+    el.style.background = sel ? 'rgba(108,99,255,.1)' : '';
+    _updateTopicSummary();
+  }
+
+  function filterTopicSearch() {
+    const q = (document.getElementById('kh-topic-search')?.value || '').toLowerCase();
+    _renderTopicList(q ? _allKhTopics.filter(t => t.toLowerCase().includes(q)) : _allKhTopics);
+  }
+
+  function selectAllTopics() {
+    _filterTopics = [..._allKhTopics];
+    filterTopicSearch();
+    _updateTopicSummary();
+  }
+
+  function clearTopics() {
+    _filterTopics = [];
+    filterTopicSearch();
+    _updateTopicSummary();
+  }
+
+  function _updateTopicSummary() {
+    const el = document.getElementById('kh-topic-summary');
+    if (!el) return;
+    const n = _filterTopics.length;
+    el.textContent = n === 0 ? '— tümü' : n === 1 ? `— ${_filterTopics[0].slice(0,22)}${_filterTopics[0].length > 22 ? '…' : ''}` : `— ${n} konu`;
+  }
+
+  function _updateFilterBadge() {
+    const lbl = document.getElementById('kh-filter-label');
+    const btn = document.getElementById('kh-filter-btn');
+    const n = _filterSubjects.length + _filterTopics.length;
+    if (lbl) lbl.textContent = n > 0 ? `Filtre (${n})` : 'Filtre';
+    if (btn) { btn.style.background = n > 0 ? 'rgba(108,99,255,.15)' : 'var(--surface2)'; btn.style.borderColor = n > 0 ? 'var(--primary)' : 'var(--border)'; btn.style.color = n > 0 ? 'var(--primary2)' : 'var(--text2)'; }
+  }
+
+  function applyFilters() {
+    // Paneli kapat
+    const panel = document.getElementById('kh-filter-panel');
+    if (panel) panel.style.display = 'none';
+    _updateFilterBadge();
+    _render();
+  }
+
+  function clearAllFilters() {
+    _filterSubjects = [];
+    _filterTopics = [];
+    _buildSubjectChips();
+    _buildTopicList();
+    _updateTopicSummary();
+    _updateFilterBadge();
+    _render();
+  }
+
   function withdrawCard(globalCardId) {
     AppConfirm.show({ title: 'Kartı Geri Çek', msg: 'Bu kartı Kart Havuzu\'ndan kaldırmak istiyor musun?', type:'danger', okLabel:'Geri Çek', onOk: async () => {
       const fb = _fb(); if (!fb) return;
@@ -11739,7 +11970,8 @@ const KartHavuzu = (() => {
     }});
   }
 
-  return { onEnter, reload, loadMore, setView, uploadCard, acceptConsent, vote, openPreview, closePreview, importPreviewCard, withdrawCard };
+  return { onEnter, reload, loadMore, setView, uploadCard, acceptConsent, vote, openPreview, closePreview, importPreviewCard, withdrawCard,
+    toggleFilterPanel, toggleSubject, toggleTopicPanel, toggleTopic, filterTopicSearch, selectAllTopics, clearTopics, applyFilters, clearAllFilters };
 })();
 </script>
 
