@@ -11247,27 +11247,26 @@ const KartHavuzu = (() => {
     _cards = []; _lastDoc = null; _hasMore = false;
     const el = document.getElementById('kh-list-container');
     if (el) el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text3)"><i class="fa-solid fa-spinner" style="animation:spin .8s linear infinite;font-size:1.4rem;display:block;margin-bottom:10px"></i>Yükleniyor…</div>`;
-    await _fetchCards(true);
-    _render();
+    const ok = await _fetchCards(true);
+    if (ok) _render();
   }
 
   async function _fetchCards(reset) {
-    const fb = _fb(); if (!fb) return;
-    const { db, collection, query, orderBy, where, limit, getDocs, startAfter } = fb;
+    const fb = _fb(); if (!fb) return false;
+    const { db, collection, query, orderBy, limit, getDocs, startAfter } = fb;
 
     const sortVal = document.getElementById('kh-sort')?.value || 'downloads';
     const sortField = sortVal === 'newest' ? 'uploadedAt' : sortVal;
     const since = _timeFilter();
 
+    // where('hidden','==',false) + orderBy composite index gerektiriyor — JS'de filtrele
     let q = query(
       collection(db, 'global_cards'),
-      where('hidden', '==', false),
       orderBy(sortField, 'desc'),
       limit(PAGE_SIZE)
     );
     if (!reset && _lastDoc) q = query(
       collection(db, 'global_cards'),
-      where('hidden', '==', false),
       orderBy(sortField, 'desc'),
       startAfter(_lastDoc),
       limit(PAGE_SIZE)
@@ -11277,22 +11276,27 @@ const KartHavuzu = (() => {
       const snap = await getDocs(q);
       const docs = snap.docs;
       _lastDoc = docs[docs.length - 1] || null;
-      _hasMore = docs.length === PAGE_SIZE;
 
-      const newCards = docs.map(d => ({ id: d.id, ...d.data() }))
+      const newCards = docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(c => !c.hidden)
         .filter(c => since === 0 || (c.uploadedAt?.toMillis ? c.uploadedAt.toMillis() >= since : true));
 
+      _hasMore = docs.length === PAGE_SIZE;
       if (reset) _cards = newCards;
       else _cards = [..._cards, ...newCards];
+      return true;
     } catch(e) {
+      console.error('KartHavuzu fetch error:', e);
       const el = document.getElementById('kh-list-container');
-      if (el) el.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text3);font-size:.83rem">Yüklenemedi: ${_esc(e.message)}</div>`;
+      if (el) el.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text3);font-size:.83rem">⚠️ Yüklenemedi: ${_esc(e.message)}</div>`;
+      return false;
     }
   }
 
   async function loadMore() {
-    await _fetchCards(false);
-    _render();
+    const ok = await _fetchCards(false);
+    if (ok) _render();
   }
 
   function _render() {
