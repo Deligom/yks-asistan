@@ -2912,7 +2912,7 @@ select option{background:var(--surface2);color:var(--text)}
 
       <!-- Toolbar: Sort + Time + View Mode -->
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <div id="kh-filter-toolbar" style="display:flex;gap:6px;flex-wrap:wrap">
           <select id="kh-sort" onchange="KartHavuzu.reload()" style="flex:1;min-width:0;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:7px 10px;font-size:.78rem;cursor:pointer">
             <option value="downloads">⬇ En Çok İndirilen</option>
             <option value="likes">❤ En Çok Beğenilen</option>
@@ -2929,6 +2929,7 @@ select option{background:var(--surface2);color:var(--text)}
           <div style="display:flex;gap:6px">
             <button id="kh-view-list" onclick="KartHavuzu.setView('list')" class="tab-btn active" style="padding:5px 12px;font-size:.75rem">☰ Liste</button>
             <button id="kh-view-feed" onclick="KartHavuzu.setView('feed')" class="tab-btn" style="padding:5px 12px;font-size:.75rem">▦ Feed</button>
+            <button id="kh-view-mine" onclick="KartHavuzu.setView('mine')" class="tab-btn" style="padding:5px 12px;font-size:.75rem">👤 Benim</button>
           </div>
           <button onclick="KartHavuzu.reload()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:5px 10px;color:var(--text3);font-size:.72rem;cursor:pointer;display:flex;align-items:center;gap:4px">
             <i class="fa-solid fa-rotate-right"></i> Yenile
@@ -6529,7 +6530,8 @@ STRİKT KURALLAR:
     checkAutoBackup,
     startHardStudy,
     launchSubjectStudy,
-    renderWeakTopics
+    renderWeakTopics,
+    formatAnswer
   };
 
   // ── TEMA ──
@@ -11259,7 +11261,6 @@ const KartHavuzu = (() => {
     const sortField = sortVal === 'newest' ? 'uploadedAt' : sortVal;
     const since = _timeFilter();
 
-    // where('hidden','==',false) + orderBy composite index gerektiriyor — JS'de filtrele
     let q = query(
       collection(db, 'global_cards'),
       orderBy(sortField, 'desc'),
@@ -11337,7 +11338,7 @@ const KartHavuzu = (() => {
         ? c.cardData.question
         : (c.cardData?.topic || 'Bilgi Notu');
       const name = (c.uploaderName || '?').slice(0,10) + ((c.uploaderName||'').length > 10 ? '…' : '');
-      const ansPreview = (c.cardData?.answer || '').replace(/<br\s*\/?>/gi,'\n').replace(/\[.*?\]/g,'').split(/\\n|\n/).filter(l=>l.trim()).slice(0,3).join('\n');
+      const ansFormatted = App.formatAnswer(c.cardData?.answer || '');
       return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:15px;margin-bottom:12px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
           <div>
@@ -11347,7 +11348,10 @@ const KartHavuzu = (() => {
           <button onclick="KartHavuzu.vote('${c.id}','report')" style="background:none;border:none;color:var(--text3);font-size:.7rem;cursor:pointer;padding:4px">⚑</button>
         </div>
         <div style="font-size:.9rem;font-weight:700;color:var(--text);margin-bottom:10px;line-height:1.4">${_esc(title)}</div>
-        <div style="font-size:.78rem;color:var(--text2);line-height:1.65;background:var(--surface2);border-radius:10px;padding:10px 12px;border:1px solid var(--border);white-space:pre-wrap;margin-bottom:10px">${_esc(ansPreview)}${ansPreview.split('\n').length < (c.cardData?.answer||'').split(/\\n|\n/).length ? '\n…' : ''}</div>
+        <div class="fc-answer" style="max-height:180px;overflow:hidden;position:relative;margin-bottom:10px;background:var(--surface2);border-radius:10px;padding:10px 12px;border:1px solid var(--border)">
+          ${ansFormatted}
+          <div style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent,var(--surface2));border-radius:0 0 10px 10px"></div>
+        </div>
         <div style="display:flex;align-items:center;gap:8px">
           <button onclick="KartHavuzu.vote('${c.id}','like')" id="kh-vote-like-${c.id}" style="flex:1;background:rgba(255,101,132,.1);border:1px solid rgba(255,101,132,.25);border-radius:9px;padding:7px;color:#ff6584;font-size:.78rem;cursor:pointer;font-weight:700">❤ ${c.likes||0}</button>
           <button onclick="KartHavuzu.vote('${c.id}','dislike')" id="kh-vote-dis-${c.id}" style="flex:1;background:rgba(108,99,255,.1);border:1px solid rgba(108,99,255,.25);border-radius:9px;padding:7px;color:var(--primary2);font-size:.78rem;cursor:pointer;font-weight:700">👎 ${c.dislikes||0}</button>
@@ -11384,6 +11388,13 @@ const KartHavuzu = (() => {
     try {
       await updateDoc(cardRef, updates);
       await setDoc(voteRef, { type, votedAt: Date.now() });
+      // 5+ report → otomatik gizle
+      if (type === 'report') {
+        const snap = await getDoc(cardRef).catch(()=>null);
+        if (snap && (snap.data()?.reported||0) >= 5) {
+          await updateDoc(cardRef, { hidden: true }).catch(()=>{});
+        }
+      }
       // Local update
       const c = _cards.find(x => x.id === globalCardId);
       if (c) {
@@ -11416,7 +11427,7 @@ const KartHavuzu = (() => {
         <div style="font-size:.72rem;color:var(--teal2);font-weight:700;margin-bottom:6px">${_esc(cd.category||'')} · ${_esc(cd.subject||'')} · ${_esc(cd.topic||'')}</div>
         ${cd.question && cd.question !== 'Bilgi Notu' ? `<div style="font-size:.95rem;font-weight:700;color:var(--text);margin-bottom:12px;line-height:1.45">${_esc(cd.question)}</div>` : ''}
         <div class="fc-answer-label"><i class="fa-solid fa-check-circle"></i> Çözüm / Not</div>
-        <div class="fc-answer">${typeof formatAnswer === 'function' ? formatAnswer(cd.answer||'') : _esc(cd.answer||'')}</div>`;
+        <div class="fc-answer">${App.formatAnswer(cd.answer||'')}</div>`;
     }
     const m = document.getElementById('kh-preview-modal');
     if (m) m.style.display = 'flex';
@@ -11461,14 +11472,84 @@ const KartHavuzu = (() => {
 
   function setView(v) {
     _view = v;
-    ['list','feed'].forEach(m => {
+    ['list','feed','mine'].forEach(m => {
       const btn = document.getElementById('kh-view-' + m);
       if (btn) btn.className = 'tab-btn' + (m === v ? ' active' : '');
     });
-    _render();
+    // Sıralama/zaman filtreleri mine modda gizle
+    const toolbar = document.getElementById('kh-filter-toolbar');
+    if (toolbar) toolbar.style.display = v === 'mine' ? 'none' : 'flex';
+    if (v === 'mine') _renderMine();
+    else _render();
   }
 
-  return { onEnter, reload, loadMore, setView, uploadCard, acceptConsent, vote, openPreview, closePreview, importPreviewCard };
+  async function _renderMine() {
+    const el = document.getElementById('kh-list-container');
+    const moreBtn = document.getElementById('kh-load-more');
+    if (moreBtn) moreBtn.style.display = 'none';
+    if (!el) return;
+    const myCode = _myCode();
+    if (!myCode) { el.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text3)">Giriş yapman gerekiyor.</div>`; return; }
+    el.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text3)"><i class="fa-solid fa-spinner" style="animation:spin .8s linear infinite;font-size:1.2rem"></i></div>`;
+    const fb = _fb(); if (!fb) return;
+    const { db, collection, query, where, orderBy, getDocs, doc, updateDoc } = fb;
+    try {
+      const q = query(collection(db, 'global_cards'), where('uploaderCode','==', myCode), orderBy('uploadedAt','desc'));
+      const snap = await getDocs(q);
+      const myCards = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (!myCards.length) {
+        el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text3);font-size:.85rem">🌊 Henüz kart yüklemedin.</div>`;
+        return;
+      }
+      const totalLikes = myCards.reduce((s,c) => s+(c.likes||0), 0);
+      const totalDl    = myCards.reduce((s,c) => s+(c.downloads||0), 0);
+      el.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:10px;text-align:center">
+            <div style="font-size:1.2rem;font-weight:800;color:var(--primary2)">${myCards.length}</div>
+            <div style="font-size:.65rem;color:var(--text3);margin-top:2px">Kart</div>
+          </div>
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:10px;text-align:center">
+            <div style="font-size:1.2rem;font-weight:800;color:#ff6584">${totalLikes}</div>
+            <div style="font-size:.65rem;color:var(--text3);margin-top:2px">Beğeni</div>
+          </div>
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:10px;text-align:center">
+            <div style="font-size:1.2rem;font-weight:800;color:var(--teal2)">${totalDl}</div>
+            <div style="font-size:.65rem;color:var(--text3);margin-top:2px">İndirme</div>
+          </div>
+        </div>
+        ${myCards.map(c => {
+          const title = (c.cardData?.question && c.cardData.question !== 'Bilgi Notu')
+            ? c.cardData.question.slice(0,55) + (c.cardData.question.length>55?'…':'')
+            : (c.cardData?.topic?.slice(0,55)||'Bilgi Notu');
+          const isHidden = c.hidden;
+          return `<div style="background:var(--surface);border:1px solid ${isHidden?'rgba(255,101,132,.35)':'var(--border)'};border-radius:14px;padding:11px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px">
+            <div style="flex-shrink:0;width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--primary),var(--primary2));display:flex;align-items:center;justify-content:center;font-size:.9rem">⚡</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:.72rem;color:var(--teal2);font-weight:700">${_esc(c.cardData?.category||'')} · ${_esc(c.cardData?.subject||'')}</div>
+              <div style="font-size:.82rem;font-weight:600;color:${isHidden?'var(--text3)':'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(title)}${isHidden?' <span style="color:rgba(255,101,132,.8);font-size:.65rem">[Gizlendi]</span>':''}</div>
+              <div style="font-size:.65rem;color:var(--text3);margin-top:2px">❤ ${c.likes||0} · ⬇ ${c.downloads||0} · ⚑ ${c.reported||0}</div>
+            </div>
+            <button onclick="KartHavuzu.withdrawCard('${c.id}')" style="flex-shrink:0;background:rgba(255,101,132,.12);border:1px solid rgba(255,101,132,.3);border-radius:10px;padding:6px 10px;color:#ff6584;font-size:.72rem;cursor:pointer;font-weight:600">Geri Çek</button>
+          </div>`;
+        }).join('')}`;
+    } catch(e) {
+      el.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text3)">⚠️ Yüklenemedi: ${_esc(e.message)}</div>`;
+    }
+  }
+
+  async function withdrawCard(globalCardId) {
+    if (!confirm('Bu kartı Kart Havuzu\'ndan kaldırmak istiyor musun?')) return;
+    const fb = _fb(); if (!fb) return;
+    const { db, doc, deleteDoc } = fb;
+    try {
+      await deleteDoc(doc(db, 'global_cards', globalCardId));
+      toast('🗑 Kart havuzdan kaldırıldı.', 'ok');
+      _renderMine();
+    } catch(e) { toast('Hata: ' + e.message, 'err'); }
+  }
+
+  return { onEnter, reload, loadMore, setView, uploadCard, acceptConsent, vote, openPreview, closePreview, importPreviewCard, withdrawCard };
 })();
 </script>
 
