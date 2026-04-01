@@ -3452,7 +3452,27 @@ select option{background:var(--surface2);color:var(--text)}
 
     <div class="config-section" id="cfg-topic-section" style="display:none">
       <div class="config-label">Konu <span style="color:var(--text3);font-weight:400">(isteğe bağlı)</span></div>
-      <div class="subject-chips" id="cfg-topics"></div>
+      <!-- Seçilen konuların özeti / açma-kapama butonu -->
+      <button id="cfg-topic-toggle" onclick="App.toggleTopicPanel()"
+        style="width:100%;display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1.5px solid var(--border);border-radius:12px;padding:10px 14px;cursor:pointer;color:var(--text);font-size:.85rem;font-weight:600;margin-bottom:0;transition:border-color .2s">
+        <span id="cfg-topic-summary">Hepsi seçili</span>
+        <span id="cfg-topic-arrow" style="font-size:.75rem;color:var(--text3);transition:transform .2s">▼</span>
+      </button>
+      <!-- Açılır panel -->
+      <div id="cfg-topic-panel" style="display:none;margin-top:8px;background:var(--surface2);border:1.5px solid var(--border);border-radius:12px;overflow:hidden">
+        <!-- Arama -->
+        <div style="padding:8px 10px;border-bottom:1px solid var(--border)">
+          <input id="cfg-topic-search" type="text" placeholder="🔍 Konu ara…" oninput="App.filterTopicList()"
+            style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:.82rem;outline:none;box-sizing:border-box"/>
+        </div>
+        <!-- Liste -->
+        <div id="cfg-topics" style="max-height:220px;overflow-y:auto;padding:4px 0"></div>
+        <!-- Alt bar -->
+        <div style="padding:8px 10px;border-top:1px solid var(--border);display:flex;gap:8px">
+          <button onclick="App.selectAllTopics()" style="flex:1;padding:6px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--teal2);font-size:.75rem;font-weight:700;cursor:pointer">Hepsini Seç</button>
+          <button onclick="App.clearTopics()" style="flex:1;padding:6px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text3);font-size:.75rem;font-weight:700;cursor:pointer">Temizle</button>
+        </div>
+      </div>
     </div>
 
     <div class="config-section">
@@ -4100,43 +4120,108 @@ const App = (() => {
     document.getElementById('config-modal').classList.remove('open');
   }
 
+  let _allTopics = []; // tüm konular (filtrelenmiş)
+
   async function buildTopicChips() {
     const section = document.getElementById('cfg-topic-section');
     const cont = document.getElementById('cfg-topics');
     if (!section || !cont) return;
     const all = await dbGetAll();
-    // Filtrele: studyMode ve seçili dersler
     let filtered = studyMode === 'mixed' ? all : all.filter(c => c.type === studyMode);
     if (studyCfg.cat !== 'all') filtered = filtered.filter(c => c.category === studyCfg.cat);
     if (studyCfg.subjects.length > 0) filtered = filtered.filter(c => studyCfg.subjects.includes(c.subject));
-    const topics = [...new Set(filtered.map(c => c.topic).filter(Boolean))].sort();
-    if (!topics.length) {
-      section.style.display = '';
-      cont.innerHTML = `<div style="font-size:.75rem;color:var(--text3);padding:8px 4px;font-style:italic">Seçilen derste konu bulunamadı</div>`;
+    _allTopics = [...new Set(filtered.map(c => c.topic).filter(Boolean))].sort();
+    if (!_allTopics.length) {
+      section.style.display = 'none';
       return;
     }
     section.style.display = '';
-    const allSel = studyCfg.topics.length === 0;
-    cont.innerHTML = `<div class="chip${allSel ? ' selected-teal' : ''}" data-topic="all" onclick="App.toggleTopicChip(this)">Hepsi</div>` +
-      topics.map(t => `<div class="chip${studyCfg.topics.includes(t) ? ' selected-primary' : ''}" data-topic="${t.replace(/"/g,'&quot;')}" onclick="App.toggleTopicChip(this)">${t}</div>`).join('');
+    // Seçili konuları temizle (ders değişince)
+    studyCfg.topics = studyCfg.topics.filter(t => _allTopics.includes(t));
+    // Arama kutusunu sıfırla
+    const searchEl = document.getElementById('cfg-topic-search');
+    if (searchEl) searchEl.value = '';
+    _renderTopicList(_allTopics);
+    _updateTopicSummary();
   }
 
-  function toggleTopicChip(el) {
+  function _renderTopicList(topics) {
+    const cont = document.getElementById('cfg-topics');
+    if (!cont) return;
+    cont.innerHTML = topics.map(t => {
+      const sel = studyCfg.topics.includes(t);
+      return `<div onclick="App.toggleTopicItem(this)" data-topic="${t.replace(/"/g,'&quot;')}"
+        style="display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;transition:background .15s;${sel ? 'background:rgba(108,99,255,.12)' : ''}">
+        <div style="width:18px;height:18px;border-radius:5px;border:1.5px solid ${sel ? 'var(--primary)' : 'var(--border)'};background:${sel ? 'var(--primary)' : 'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s">
+          ${sel ? '<span style="color:#fff;font-size:.7rem;font-weight:900">✓</span>' : ''}
+        </div>
+        <span style="font-size:.82rem;color:${sel ? 'var(--text)' : 'var(--text2)'};font-weight:${sel ? '700' : '400'}">${t}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function filterTopicList() {
+    const q = (document.getElementById('cfg-topic-search')?.value || '').toLowerCase();
+    const filtered = q ? _allTopics.filter(t => t.toLowerCase().includes(q)) : _allTopics;
+    _renderTopicList(filtered);
+  }
+
+  function toggleTopicPanel() {
+    const panel = document.getElementById('cfg-topic-panel');
+    const arrow = document.getElementById('cfg-topic-arrow');
+    const toggle = document.getElementById('cfg-topic-toggle');
+    if (!panel) return;
+    const open = panel.style.display === 'none';
+    panel.style.display = open ? '' : 'none';
+    if (arrow) arrow.style.transform = open ? 'rotate(180deg)' : '';
+    if (toggle) toggle.style.borderColor = open ? 'var(--primary)' : 'var(--border)';
+    if (open) { // açılınca ara kutuya odaklan
+      setTimeout(() => document.getElementById('cfg-topic-search')?.focus(), 50);
+    }
+  }
+
+  function toggleTopicItem(el) {
     const topic = el.dataset.topic;
-    if (topic === 'all') {
-      studyCfg.topics = [];
-      document.querySelectorAll('#cfg-topics [data-topic]').forEach(c => c.className = c.className.replace(/selected-\w+/g,'').trim());
-      el.classList.add('selected-teal');
-      return;
-    }
-    const allChip = document.querySelector('#cfg-topics [data-topic="all"]');
-    if (allChip) allChip.className = allChip.className.replace(/selected-\w+/g,'').trim();
     const idx = studyCfg.topics.indexOf(topic);
-    if (idx === -1) { studyCfg.topics.push(topic); el.classList.add('selected-primary'); }
-    else { studyCfg.topics.splice(idx, 1); el.className = el.className.replace(/selected-\w+/g,'').trim(); }
-    if (!studyCfg.topics.length) {
-      if (allChip) allChip.classList.add('selected-teal');
+    if (idx === -1) studyCfg.topics.push(topic);
+    else studyCfg.topics.splice(idx, 1);
+    // Sadece bu öğeyi güncelle (listeyi yeniden render etmeden)
+    const sel = studyCfg.topics.includes(topic);
+    const box = el.querySelector('div');
+    const lbl = el.querySelector('span:last-child');
+    if (box) {
+      box.style.borderColor  = sel ? 'var(--primary)' : 'var(--border)';
+      box.style.background   = sel ? 'var(--primary)' : 'transparent';
+      box.innerHTML          = sel ? '<span style="color:#fff;font-size:.7rem;font-weight:900">✓</span>' : '';
     }
+    if (lbl) { lbl.style.color = sel ? 'var(--text)' : 'var(--text2)'; lbl.style.fontWeight = sel ? '700' : '400'; }
+    el.style.background = sel ? 'rgba(108,99,255,.12)' : '';
+    _updateTopicSummary();
+  }
+
+  function selectAllTopics() {
+    studyCfg.topics = [..._allTopics];
+    const q = (document.getElementById('cfg-topic-search')?.value || '').toLowerCase();
+    _renderTopicList(q ? _allTopics.filter(t => t.toLowerCase().includes(q)) : _allTopics);
+    _updateTopicSummary();
+  }
+
+  function clearTopics() {
+    studyCfg.topics = [];
+    const q = (document.getElementById('cfg-topic-search')?.value || '').toLowerCase();
+    _renderTopicList(q ? _allTopics.filter(t => t.toLowerCase().includes(q)) : _allTopics);
+    _updateTopicSummary();
+  }
+
+  function _updateTopicSummary() {
+    const el = document.getElementById('cfg-topic-summary');
+    if (!el) return;
+    const n = studyCfg.topics.length;
+    el.textContent = n === 0 ? 'Hepsi seçili' : n === 1 ? studyCfg.topics[0].slice(0,28) + (studyCfg.topics[0].length > 28 ? '…' : '') : `${n} konu seçili`;
+  }
+
+  function toggleTopicChip(el) { // eski chip sistemi için compat
+    toggleTopicItem(el);
   }
 
   function buildSubjectChips() {
@@ -4381,6 +4466,8 @@ const App = (() => {
       StudyTimer.start();
       // Leaderboard: haftalık skor +1
       Leaderboard.recordReview().catch(() => {});
+      // Ana sayfa sayaçlarını anında güncelle
+      renderHome();
       // Kart detaylı log - kart silinse bile geçmiş korunur
       await activityPut({
         text:      '__card_reviewed__',
@@ -4701,24 +4788,21 @@ const App = (() => {
     if (shareBar) shareBar.classList.toggle('show', show);
   }
 
-  async function bulkDelete() {
+  function bulkDelete() {
     const n = selectedIds.size;
     if (!n) return;
-    if (!confirm(`${n} adet kartı silmek istediğine emin misin?`)) return;
-    for (const id of selectedIds) await dbDelete(id);
-    selectedIds.clear();
-    selMode = false;
-    const btn = document.getElementById('btn-sel-mode');
-    if (btn) {
-      btn.classList.remove('active');
-      btn.innerHTML = '<i class="fa-regular fa-circle-dot"></i> Seçim Modu';
-    }
-    const btnSelAll = document.getElementById('btn-select-all');
-    if (btnSelAll) btnSelAll.style.display = 'none';
-    updateBulkBar();
-    toast(`🗑️ ${n} kart silindi.`, 'info');
-    renderRecords();
-    renderHome();
+    AppConfirm.show({ title: `${n} kartı sil`, msg: `${n} adet kartı silmek istediğine emin misin?`, type:'danger', okLabel:'Sil', onOk: async () => {
+      for (const id of selectedIds) await dbDelete(id);
+      selectedIds.clear();
+      selMode = false;
+      const btn = document.getElementById('btn-sel-mode');
+      if (btn) { btn.classList.remove('active'); btn.innerHTML = '<i class="fa-regular fa-circle-dot"></i> Seçim Modu'; }
+      const btnSelAll = document.getElementById('btn-select-all');
+      if (btnSelAll) btnSelAll.style.display = 'none';
+      updateBulkBar();
+      toast(`🗑️ ${n} kart silindi.`, 'info');
+      renderRecords(); renderHome();
+    }});
   }
 
   async function bulkShare() {
@@ -4802,22 +4886,22 @@ const App = (() => {
     };
   }
 
-  async function deleteCard(id) {
-    if (!confirm('Bu kartı silmek istediğine emin misin?')) return;
-    await dbDelete(id);
-    selectedIds.delete(id);
-    toast('Kart silindi.', 'info');
-    renderRecords();
+  function deleteCard(id) {
+    AppConfirm.show({ title: 'Kartı Sil', msg: 'Bu kartı silmek istediğine emin misin?', type:'danger', okLabel:'Sil', onOk: async () => {
+      await dbDelete(id);
+      selectedIds.delete(id);
+      toast('Kart silindi.', 'info');
+      renderRecords();
+    }});
   }
 
-  async function clearAll() {
-    if (!confirm('Tüm kartları silmek istediğine emin misin? Bu işlem geri alınamaz!')) return;
-    await dbClear();
-    selectedIds.clear();
-    selMode = false;
-    toast('Tüm kartlar silindi.', 'info');
-    renderRecords();
-    renderHome();
+  function clearAll() {
+    AppConfirm.show({ title: 'Tüm Kartları Sil', msg: 'Tüm kartları silmek istediğine emin misin? Bu işlem geri alınamaz!', type:'danger', okLabel:'Hepsini Sil', onOk: async () => {
+      await dbClear();
+      selectedIds.clear(); selMode = false;
+      toast('Tüm kartlar silindi.', 'info');
+      renderRecords(); renderHome();
+    }});
   }
 
   // ── EDIT ──
@@ -5728,30 +5812,28 @@ STRİKT KURALLAR:
     bar.classList.toggle('show', rSelMode && n > 0);
   }
 
-  async function bulkDeleteRoutines() {
+  function bulkDeleteRoutines() {
     const n = selectedRIds.size;
     if (!n) return;
-    if (!confirm(`${n} adet rutini silmek istediğine emin misin?`)) return;
-    for (const id of selectedRIds) await routineDelete(id);
-    selectedRIds.clear();
-    rSelMode = false;
-    const btn = document.getElementById('btn-rsel-mode');
-    if (btn) {
-      btn.classList.remove('active');
-      btn.innerHTML = '<i class="fa-regular fa-circle-dot"></i> Seçim Modu';
-    }
-    const btnAll = document.getElementById('btn-rselect-all');
-    if (btnAll) btnAll.style.display = 'none';
-    updateRBulkBar();
-    toast(`🗑️ ${n} rutin silindi.`, 'info');
-    renderRoutines();
+    AppConfirm.show({ title: `${n} rutini sil`, msg: `${n} adet rutini silmek istediğine emin misin?`, type:'danger', okLabel:'Sil', onOk: async () => {
+      for (const id of selectedRIds) await routineDelete(id);
+      selectedRIds.clear(); rSelMode = false;
+      const btn = document.getElementById('btn-rsel-mode');
+      if (btn) { btn.classList.remove('active'); btn.innerHTML = '<i class="fa-regular fa-circle-dot"></i> Seçim Modu'; }
+      const btnAll = document.getElementById('btn-rselect-all');
+      if (btnAll) btnAll.style.display = 'none';
+      updateRBulkBar();
+      toast(`🗑️ ${n} rutin silindi.`, 'info');
+      renderRoutines();
+    }});
   }
 
-  async function deleteRoutine(id) {
-    if (!confirm('Bu rutini silmek istediğine emin misin?')) return;
-    await routineDelete(id);
-    toast('Rutin silindi.', 'info');
-    renderRoutines();
+  function deleteRoutine(id) {
+    AppConfirm.show({ title: 'Rutini Sil', msg: 'Bu rutini silmek istediğine emin misin?', type:'danger', okLabel:'Sil', onOk: async () => {
+      await routineDelete(id);
+      toast('Rutin silindi.', 'info');
+      renderRoutines();
+    }});
   }
 
   // ── LAUNCH ROUTINE STUDY ──
@@ -6335,15 +6417,17 @@ STRİKT KURALLAR:
     const file = event.target.files[0];
     if (!file) return;
     event.target.value = '';
-    if (!confirm('Geri yükleme mevcut tüm verilerin üzerine yazacak. Devam etmek istediğine emin misin?')) return;
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-      const count = await _applyRestoreData(data);
-      toast(`✅ Geri yükleme tamamlandı! (${count} kart)`, 'ok');
-    } catch(e) {
-      toast('❌ Geri yükleme başarısız: ' + e.message, 'err');
-    }
+    const fileRef = file;
+    AppConfirm.show({ title: 'Geri Yükleme', msg: 'Mevcut tüm veriler silinip yedekteki veriler yüklenecek. Devam etmek istediğine emin misin?', type:'warn', okLabel:'Geri Yükle', onOk: async () => {
+      try {
+        const text = await fileRef.text();
+        const data = JSON.parse(text);
+        const count = await _applyRestoreData(data);
+        toast(`✅ Geri yükleme tamamlandı! (${count} kart)`, 'ok');
+      } catch(e) {
+        toast('❌ Geri yükleme başarısız: ' + e.message, 'err');
+      }
+    }});
   }
 
   // Formül klavyesi — imlecin olduğu yere sembol ekle
@@ -6552,6 +6636,11 @@ STRİKT KURALLAR:
     initAdvisor,
     toggleDblClickPreview,
     initDblClickPreview,
+    toggleTopicPanel,
+    toggleTopicItem,
+    filterTopicList,
+    selectAllTopics,
+    clearTopics,
     toggleAutoBackup,
     initAutoBackup,
     checkAutoBackup,
@@ -7760,18 +7849,15 @@ const Social = (() => {
     }
   }
 
-  async function doSignOut() {
-    if (!confirm('Hesaptan çıkış yapılacak. Devam?')) return;
-    try {
-      if (_fb?.auth) await _fb.signOut(_fb.auth);
-    } catch(e) {}
-    // localStorage temizle
-    ['social_code','social_name','social_photo','social_email'].forEach(k => localStorage.removeItem(k));
-    _myCode = null; _myName = null; _myPhoto = null;
-    // Giriş ekranını göster
-    document.getElementById('onboard-overlay').style.display = 'flex';
-    switchOnboardMode('login');
-    toast('Çıkış yapıldı.', 'ok');
+  function doSignOut() {
+    AppConfirm.show({ title: 'Çıkış Yap', msg: 'Hesaptan çıkış yapılacak. Devam etmek istiyor musun?', type:'warn', okLabel:'Çıkış Yap', onOk: async () => {
+      try { if (_fb?.auth) await _fb.signOut(_fb.auth); } catch(e) {}
+      ['social_code','social_name','social_photo','social_email'].forEach(k => localStorage.removeItem(k));
+      _myCode = null; _myName = null; _myPhoto = null;
+      document.getElementById('onboard-overlay').style.display = 'flex';
+      switchOnboardMode('login');
+      toast('Çıkış yapıldı.', 'ok');
+    }});
   }
 
   function openAuthModal(mode) {
@@ -7994,23 +8080,21 @@ const Social = (() => {
   }
 
   // ── Remove Friend ──
-  async function removeFriend(friendCode) {
+  function removeFriend(friendCode) {
     if (!_fb || !_myCode) return;
-    if (!confirm('Bu arkadaşı silmek istiyor musun?')) return;
-    const { db, doc, deleteDoc } = _fb;
-    try {
-      // Önce cache'den kaldır ve UI'ı anında güncelle
-      _friendsCache = _friendsCache.filter(f => f.userB !== friendCode);
-      renderFriendsFromCache();
-      // Sonra Firestore'dan sil
-      await deleteDoc(doc(db, 'friends', _myCode + '_' + friendCode));
-      await deleteDoc(doc(db, 'friends', friendCode + '_' + _myCode));
-      toast('Arkadaş silindi', 'ok');
-    } catch(e) {
-      toast('Silinemedi: ' + e.message, 'err');
-      // Hata olursa listeyi yeniden yükle
-      renderFriends();
-    }
+    AppConfirm.show({ title: 'Arkadaşı Sil', msg: 'Bu arkadaşı silmek istiyor musun?', type:'danger', okLabel:'Sil', onOk: async () => {
+      const { db, doc, deleteDoc } = _fb;
+      try {
+        _friendsCache = _friendsCache.filter(f => f.userB !== friendCode);
+        renderFriendsFromCache();
+        await deleteDoc(doc(db, 'friends', _myCode + '_' + friendCode));
+        await deleteDoc(doc(db, 'friends', friendCode + '_' + _myCode));
+        toast('Arkadaş silindi', 'ok');
+      } catch(e) {
+        toast('Silinemedi: ' + e.message, 'err');
+        renderFriends();
+      }
+    }});
   }
 
   // Cache'den anında render (Firestore sorgusu olmadan)
@@ -8340,25 +8424,25 @@ const Social = (() => {
   }
 
   // ── Clear Chat ──
-  async function clearChat() {
+  function clearChat() {
     if (!_fb || !_myCode) return;
     const total = document.querySelectorAll('#chat-messages .msg-wrapper').length;
     if (total === 0) { toast('Sohbet zaten boş', 'info'); return; }
-    const confirmed = confirm(`Tüm sohbeti silmek istediğine emin misin? Bu işlem geri alınamaz.`);
-    if (!confirmed) return;
-    const { db, collection, getDocs, deleteDoc, doc } = _fb;
-    try {
-      let msgColl;
-      if (_chatMode === 'group' && _groupId) {
-        msgColl = collection(db, 'groups', _groupId, 'messages');
-      } else if (_chatPartner) {
-        msgColl = collection(db, 'chats', _getChatId(_myCode, _chatPartner.code), 'messages');
-      } else return;
-      const snap = await getDocs(msgColl);
-      const deletions = snap.docs.map(d => deleteDoc(doc(db, d.ref.path)));
-      await Promise.all(deletions);
-      toast(`🗑️ ${snap.size} mesaj silindi`, 'ok');
-    } catch(e) { toast('Silinemedi: ' + e.message, 'err'); }
+    AppConfirm.show({ title: 'Sohbeti Sil', msg: 'Tüm sohbeti silmek istediğine emin misin? Bu işlem geri alınamaz.', type:'danger', okLabel:'Sil', onOk: async () => {
+      const { db, collection, getDocs, deleteDoc, doc } = _fb;
+      try {
+        let msgColl;
+        if (_chatMode === 'group' && _groupId) {
+          msgColl = collection(db, 'groups', _groupId, 'messages');
+        } else if (_chatPartner) {
+          msgColl = collection(db, 'chats', _getChatId(_myCode, _chatPartner.code), 'messages');
+        } else return;
+        const snap = await getDocs(msgColl);
+        const deletions = snap.docs.map(d => deleteDoc(doc(db, d.ref.path)));
+        await Promise.all(deletions);
+        toast(`🗑️ ${snap.size} mesaj silindi`, 'ok');
+      } catch(e) { toast('Silinemedi: ' + e.message, 'err'); }
+    }});
   }
 
   // ── Send Chat Photo ──
@@ -9169,8 +9253,7 @@ const Social = (() => {
   function confirmDeleteGroup() {
     const grp = _groupsCache.find(g => g.id === _groupId);
     if (!grp) return;
-    if (!confirm(`"${grp.name}" grubunu silmek istediğinden emin misin?\nBu işlem geri alınamaz ve tüm mesajlar silinir.`)) return;
-    deleteGroup();
+    AppConfirm.show({ title: 'Grubu Sil', msg: `"${grp.name}" grubunu silmek istediğinden emin misin? Bu işlem geri alınamaz ve tüm mesajlar silinir.`, type:'danger', okLabel:'Sil', onOk: deleteGroup });
   }
 
   async function deleteGroup() {
@@ -9963,15 +10046,20 @@ const GeminiAI = (() => {
   }
 
   function newChat(skipConfirm) {
-    if (!skipConfirm && _history.length > 0 && !confirm('Mevcut sohbet silinecek. Devam et?')) return;
-    // Mevcut sohbeti kaydet (geçmişe al)
-    if (_history.length > 0) _saveCurrentSession();
-    _history = [];
-    _currentSessionId = null;
-    localStorage.removeItem(HISTORY_KEY);
-    _updateChatTitle();
-    closeHistory();
-    renderMessages();
+    const doNew = () => {
+      if (_history.length > 0) _saveCurrentSession();
+      _history = [];
+      _currentSessionId = null;
+      localStorage.removeItem(HISTORY_KEY);
+      _updateChatTitle();
+      closeHistory();
+      renderMessages();
+    };
+    if (!skipConfirm && _history.length > 0) {
+      AppConfirm.show({ title: 'Yeni Sohbet', msg: 'Mevcut sohbet silinecek. Devam et?', type:'warn', okLabel:'Devam Et', onOk: doNew });
+    } else {
+      doNew();
+    }
   }
 
   // ── GEÇMİŞ PANEL ─────────────────────────────────────
@@ -10030,33 +10118,30 @@ const GeminiAI = (() => {
 
   function deleteSelectedSessions() {
     if (!_histSelectedIds.size) { if (window.toast) toast('Hiç sohbet seçilmedi!', 'err'); return; }
-    if (!confirm(_histSelectedIds.size + ' sohbet silinsin mi?')) return;
-    let sessions = _loadSessions();
-    const toDelete = new Set(_histSelectedIds);
-    sessions = sessions.filter(s => !toDelete.has(s.id));
-    _saveSessions(sessions);
-    // aktif session silinmişse temizle
-    if (toDelete.has(_currentSessionId)) {
-      _history = [];
-      _currentSessionId = null;
-      try { localStorage.removeItem(HISTORY_KEY); } catch(e) {}
-      _updateChatTitle();
-      renderMessages();
-    }
-    // Firestore'dan da sil
-    const fb = window._FB;
-    const myCode = localStorage.getItem('social_code');
-    if (fb && myCode) {
-      toDelete.forEach(id => fb.deleteDoc(fb.doc(fb.db, 'ai_sessions', myCode, 'sessions', id)).catch(() => {}));
-    }
-    if (window.toast) toast('🗑️ ' + toDelete.size + ' sohbet silindi', 'ok');
-    _histSelMode = false;
-    _histSelectedIds = new Set();
-    const btn = document.getElementById('hist-sel-btn');
-    const bar = document.getElementById('hist-bulk-bar');
-    if (btn) { btn.textContent = 'Seç'; btn.style.color = ''; btn.style.borderColor = ''; }
-    if (bar) bar.style.display = 'none';
-    renderHistoryList();
+    const n = _histSelectedIds.size;
+    AppConfirm.show({ title: `${n} Sohbeti Sil`, msg: `${n} sohbet silinsin mi? Bu işlem geri alınamaz.`, type:'danger', okLabel:'Sil', onOk: () => {
+      let sessions = _loadSessions();
+      const toDelete = new Set(_histSelectedIds);
+      sessions = sessions.filter(s => !toDelete.has(s.id));
+      _saveSessions(sessions);
+      if (toDelete.has(_currentSessionId)) {
+        _history = []; _currentSessionId = null;
+        try { localStorage.removeItem(HISTORY_KEY); } catch(e) {}
+        _updateChatTitle(); renderMessages();
+      }
+      const fb = window._FB;
+      const myCode = localStorage.getItem('social_code');
+      if (fb && myCode) {
+        toDelete.forEach(id => fb.deleteDoc(fb.doc(fb.db, 'ai_sessions', myCode, 'sessions', id)).catch(() => {}));
+      }
+      if (window.toast) toast('🗑️ ' + toDelete.size + ' sohbet silindi', 'ok');
+      _histSelMode = false; _histSelectedIds = new Set();
+      const btn = document.getElementById('hist-sel-btn');
+      const bar = document.getElementById('hist-bulk-bar');
+      if (btn) { btn.textContent = 'Seç'; btn.style.color = ''; btn.style.borderColor = ''; }
+      if (bar) bar.style.display = 'none';
+      renderHistoryList();
+    }});
   }
 
   function renderHistoryList() {
@@ -10120,24 +10205,20 @@ const GeminiAI = (() => {
   }
 
   function deleteSession(id) {
-    if (!confirm('Bu sohbet silinsin mi?')) return;
-    let sessions = _loadSessions();
-    sessions = sessions.filter(s => s.id !== id);
-    _saveSessions(sessions);
-    if (_currentSessionId === id) {
-      _history = [];
-      _currentSessionId = null;
-      localStorage.removeItem(HISTORY_KEY);
-      _updateChatTitle();
-      renderMessages();
-    }
-    // Firestore'dan da sil
-    const fb = window._FB;
-    const myCode = localStorage.getItem('social_code');
-    if (fb && myCode) {
-      fb.deleteDoc(fb.doc(fb.db, 'ai_sessions', myCode, 'sessions', id)).catch(() => {});
-    }
-    renderHistoryList();
+    AppConfirm.show({ title: 'Sohbeti Sil', msg: 'Bu sohbet silinsin mi?', type:'danger', okLabel:'Sil', onOk: () => {
+      let sessions = _loadSessions();
+      sessions = sessions.filter(s => s.id !== id);
+      _saveSessions(sessions);
+      if (_currentSessionId === id) {
+        _history = []; _currentSessionId = null;
+        localStorage.removeItem(HISTORY_KEY);
+        _updateChatTitle(); renderMessages();
+      }
+      const fb = window._FB;
+      const myCode = localStorage.getItem('social_code');
+      if (fb && myCode) fb.deleteDoc(fb.doc(fb.db, 'ai_sessions', myCode, 'sessions', id)).catch(() => {});
+      renderHistoryList();
+    }});
   }
 
   function renameSession(id) {
@@ -10883,13 +10964,12 @@ STRİKT KURALLAR:
 
   function clearCurrentChat() {
     if (_history.length === 0) { if (window.toast) toast('Zaten boş bir sohbet!', 'err'); return; }
-    if (!confirm('Mevcut sohbet silinsin mi?')) return;
-    _history = [];
-    _currentSessionId = null;
-    localStorage.removeItem(HISTORY_KEY);
-    _updateChatTitle();
-    renderMessages();
-    if (window.toast) toast('Sohbet temizlendi.', 'ok');
+    AppConfirm.show({ title: 'Sohbeti Temizle', msg: 'Mevcut sohbet silinsin mi?', type:'warn', okLabel:'Sil', onOk: () => {
+      _history = []; _currentSessionId = null;
+      localStorage.removeItem(HISTORY_KEY);
+      _updateChatTitle(); renderMessages();
+      if (window.toast) toast('Sohbet temizlendi.', 'ok');
+    }});
   }
 
   return { onEnter, saveKey, showSettings, saveSettings, send, newChat, clearCurrentChat, summarize,
@@ -11465,8 +11545,13 @@ const KartHavuzu = (() => {
   async function vote(globalCardId, type) {
     if (!_myCode()) { toast('Oy vermek için giriş yap!', 'err'); return; }
     if (type === 'report') {
-      if (!confirm('Bu kartı şikâyet etmek istiyor musun?')) return;
+      AppConfirm.show({ title: 'Kartı Şikâyet Et', msg: 'Bu kartı şikâyet etmek istiyor musun?', type:'warn', okLabel:'Şikâyet Et', onOk: () => _doVote(globalCardId, type) });
+      return;
     }
+    await _doVote(globalCardId, type);
+  }
+
+  async function _doVote(globalCardId, type) {
     const fb = _fb(); if (!fb) return;
     const { db, doc, getDoc, setDoc, updateDoc, increment } = fb;
 
@@ -11642,15 +11727,16 @@ const KartHavuzu = (() => {
     }
   }
 
-  async function withdrawCard(globalCardId) {
-    if (!confirm('Bu kartı Kart Havuzu\'ndan kaldırmak istiyor musun?')) return;
-    const fb = _fb(); if (!fb) return;
-    const { db, doc, deleteDoc } = fb;
-    try {
-      await deleteDoc(doc(db, 'global_cards', globalCardId));
-      toast('🗑 Kart havuzdan kaldırıldı.', 'ok');
-      _renderMine();
-    } catch(e) { toast('Hata: ' + e.message, 'err'); }
+  function withdrawCard(globalCardId) {
+    AppConfirm.show({ title: 'Kartı Geri Çek', msg: 'Bu kartı Kart Havuzu\'ndan kaldırmak istiyor musun?', type:'danger', okLabel:'Geri Çek', onOk: async () => {
+      const fb = _fb(); if (!fb) return;
+      const { db, doc, deleteDoc } = fb;
+      try {
+        await deleteDoc(doc(db, 'global_cards', globalCardId));
+        toast('🗑 Kart havuzdan kaldırıldı.', 'ok');
+        _renderMine();
+      } catch(e) { toast('Hata: ' + e.message, 'err'); }
+    }});
   }
 
   return { onEnter, reload, loadMore, setView, uploadCard, acceptConsent, vote, openPreview, closePreview, importPreviewCard, withdrawCard };
@@ -12324,6 +12410,65 @@ window.SubPlan = (() => {
         style="flex:1;padding:13px;border-radius:12px;border:none;
           background:#ff4d6d;color:#fff;font-weight:700;cursor:pointer;font-size:.88rem">
         <i class="fa-solid fa-trash"></i> Sil
+      </button>
+    </div>
+  </div>
+</div>
+<!-- ══════ APPCONFIRM: Native confirm() yerine özel modal ══════ -->
+<script>
+const AppConfirm = (() => {
+  let _cb = null;
+
+  // Konfigürasyonlar: mesaj → {icon, okLabel, okColor}
+  const PRESETS = {
+    danger:  { icon: '⚠️', okColor: '#ff4d6d', okLabel: 'Sil' },
+    warn:    { icon: '⚠️', okColor: '#f59e0b', okLabel: 'Devam Et' },
+    info:    { icon: 'ℹ️', okColor: 'var(--primary)', okLabel: 'Tamam' },
+    default: { icon: '❓', okColor: 'var(--primary)', okLabel: 'Tamam' }
+  };
+
+  function show(opts) {
+    // opts: { title, msg, type='default', okLabel, onOk }
+    const preset = PRESETS[opts.type || 'default'];
+    const m = document.getElementById('app-confirm-modal');
+    document.getElementById('app-confirm-icon').textContent   = opts.icon  || preset.icon;
+    document.getElementById('app-confirm-title').textContent  = opts.title || '';
+    document.getElementById('app-confirm-msg').textContent    = opts.msg   || '';
+    const okBtn = document.getElementById('app-confirm-ok');
+    okBtn.textContent        = opts.okLabel || preset.okLabel;
+    okBtn.style.background   = opts.okColor || preset.okColor;
+    _cb = opts.onOk || null;
+    m.style.display = 'flex';
+  }
+
+  function _ok() {
+    document.getElementById('app-confirm-modal').style.display = 'none';
+    if (_cb) { const fn = _cb; _cb = null; fn(); }
+  }
+
+  function _cancel() {
+    document.getElementById('app-confirm-modal').style.display = 'none';
+    _cb = null;
+  }
+
+  return { show, _ok, _cancel };
+})();
+</script>
+
+<!-- ── Özel Onay Modalı (confirm() yerine) ── -->
+<div id="app-confirm-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:99999;align-items:center;justify-content:center;padding:24px">
+  <div style="background:var(--surface1,#1a1a2e);border:1.5px solid var(--border);border-radius:22px;padding:28px 24px;max-width:320px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+    <div id="app-confirm-icon" style="font-size:2.2rem;margin-bottom:12px"></div>
+    <div id="app-confirm-title" style="font-weight:800;font-size:1.05rem;color:var(--text);margin-bottom:10px;line-height:1.4"></div>
+    <div id="app-confirm-msg" style="color:var(--text3);font-size:.83rem;margin-bottom:24px;line-height:1.6"></div>
+    <div style="display:flex;gap:10px">
+      <button id="app-confirm-cancel" onclick="AppConfirm._cancel()"
+        style="flex:1;padding:13px;border-radius:14px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-weight:700;font-size:.9rem;cursor:pointer">
+        İptal
+      </button>
+      <button id="app-confirm-ok" onclick="AppConfirm._ok()"
+        style="flex:1;padding:13px;border-radius:14px;border:none;background:var(--primary);color:#fff;font-weight:800;font-size:.9rem;cursor:pointer">
+        Tamam
       </button>
     </div>
   </div>
