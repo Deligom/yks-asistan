@@ -11642,6 +11642,7 @@ const KartHavuzu = (() => {
   }
 
   async function reload() {
+    if (_view === 'mine') { _renderMine(); return; }
     _cards = []; _lastDoc = null; _hasMore = false;
     const el = document.getElementById('kh-list-container');
     if (el) el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text3)"><i class="fa-solid fa-spinner" style="animation:spin .8s linear infinite;font-size:1.4rem;display:block;margin-bottom:10px"></i>Yükleniyor…</div>`;
