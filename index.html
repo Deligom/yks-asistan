@@ -1024,45 +1024,45 @@ select option{background:var(--surface2);color:var(--text)}
 .btn-sel-mode i{font-size:.85rem}
 
 /* ── WEAK TOPICS ── */
+/* ── ZAYIF KONULAR — yeni tasarım ── */
 .weak-topics-card {
   background:var(--surface);border:1px solid var(--border);
   border-radius:var(--radius);padding:16px;margin-bottom:16px
 }
 .weak-topics-title {
-  font-family:var(--font-heading);font-size:.88rem;font-weight:700;
-  color:var(--text2);display:flex;align-items:center;gap:8px;margin-bottom:12px
+  font-family:var(--font-heading);font-size:.9rem;font-weight:700;
+  color:var(--text);display:flex;align-items:center;gap:8px;margin-bottom:3px
 }
-.weak-topic-row {
-  display:flex;align-items:center;gap:10px;
-  padding:10px 12px;border-radius:10px;
-  background:var(--surface2);margin-bottom:7px;
-  border:1px solid var(--border)
+.weak-topics-subtitle {
+  font-size:.66rem;color:var(--text3);margin-bottom:14px;padding-left:2px;line-height:1.5
 }
-.weak-topic-rank {
-  font-size:.7rem;font-weight:800;color:var(--text3);
-  min-width:18px;text-align:center
+.wt-row {
+  display:flex;align-items:center;gap:12px;
+  padding:12px;border-radius:12px;
+  background:var(--surface2);margin-bottom:8px;
+  border:1px solid var(--border);transition:border-color .2s
 }
-.weak-topic-bar-wrap { flex:1;min-width:0 }
-.weak-topic-label {
-  font-size:.78rem;font-weight:600;color:var(--text);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px
+.wt-row:last-child { margin-bottom:0 }
+.wt-left { flex:1;min-width:0 }
+.wt-badge {
+  display:inline-block;font-size:.62rem;font-weight:700;
+  padding:2px 8px;border-radius:20px;margin-bottom:5px;letter-spacing:.01em
 }
-.weak-topic-sub { font-size:.68rem;color:var(--text3);margin-bottom:5px }
-.weak-topic-bar-track {
-  height:4px;background:var(--border);border-radius:4px;overflow:hidden
+.wt-topic {
+  font-size:.82rem;font-weight:700;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px
 }
-.weak-topic-bar-fill {
-  height:100%;border-radius:4px;
-  background:linear-gradient(90deg,#ff6584,#ff8c42);
-  transition:width .4s ease
+.wt-meta { font-size:.66rem;color:var(--text3);margin-bottom:7px }
+.wt-bar-track {
+  height:5px;background:var(--border);border-radius:4px;overflow:hidden
 }
-.weak-topic-interval {
-  font-size:.68rem;font-weight:700;color:var(--accent2);
-  white-space:nowrap;text-align:right;min-width:42px
-}
+.wt-bar-fill { height:100%;border-radius:4px;transition:width .5s ease }
+.wt-right { text-align:center;min-width:38px;flex-shrink:0 }
+.wt-pct { font-size:.9rem;font-weight:800;line-height:1 }
+.wt-pct-lbl { font-size:.58rem;color:var(--text3);margin-top:2px }
 .weak-topics-empty {
-  text-align:center;padding:20px 0;
-  font-size:.8rem;color:var(--text3)
+  text-align:center;padding:28px 0;
+  font-size:.8rem;color:var(--text3);line-height:1.7
 }
 
 .bulk-delete-bar{
@@ -2258,36 +2258,11 @@ select option{background:var(--surface2);color:var(--text)}
   <div class="page-header">
     <h1>Rutinler</h1>
     <p>Düzenli çalışma planını yönet</p>
-  </div>
 
-  <!-- AI Rutin Asistanı -->
-  <div class="card" style="margin-bottom:16px;border:1.5px solid rgba(108,99,255,.35);background:linear-gradient(135deg,rgba(108,99,255,.07),rgba(0,212,170,.05))">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-      <span style="font-size:1.4rem">✨</span>
-      <div>
-        <div style="font-weight:800;font-size:.95rem;color:var(--primary2)">AI Rutin Asistanı</div>
-        <div style="font-size:.72rem;color:var(--text3)">Ne çalışmak istediğini yaz, rutin otomatik oluşturulsun</div>
-      </div>
-    </div>
-    <div style="font-size:.75rem;color:var(--text3);margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap">
-      <span onclick="document.getElementById('ai-routine-input').value='AYT Biyoloji KÇÇ konusu hep yanıltıyor'" style="background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.25);border-radius:20px;padding:4px 10px;cursor:pointer">💡 AYT Biyoloji KÇÇ konusu hep yanıltıyor</span>
-      <span onclick="document.getElementById('ai-routine-input').value='Hafta içi her gün Matematik tekrarı yapmak istiyorum'" style="background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.25);border-radius:20px;padding:4px 10px;cursor:pointer">💡 Hafta içi her gün Matematik tekrarı</span>
-      <span onclick="document.getElementById('ai-routine-input').value='Zayıf konularım için rutin oluştur'" style="background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.25);border-radius:20px;padding:4px 10px;cursor:pointer">💡 Zayıf konularım için rutin oluştur</span>
-    </div>
-    <div style="display:flex;gap:8px">
-      <input id="ai-routine-input" type="text" class="form-input" placeholder="Örn: TYT Türkçe yazım kurallarını unutuyorum…"
-        style="flex:1;font-size:.85rem"
-        onkeydown="if(event.key==='Enter')App.aiRoutineGenerate()"/>
-      <button onclick="App.aiRoutineGenerate()" id="ai-routine-btn"
-        style="padding:10px 16px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;font-weight:700;font-size:.85rem;cursor:pointer;white-space:nowrap;flex-shrink:0">
-        ✨ Oluştur
-      </button>
-    </div>
-    <div id="ai-routine-preview" style="display:none;margin-top:14px"></div>
   </div>
 
   <div class="card">
-    <div class="section-title" style="color:var(--teal2)">➕ Manuel Rutin Ekle</div>
+    <div class="section-title" style="color:var(--teal2)">➕ Yeni Rutin Ekle</div>
     <div class="form-group">
       <label><i class="fa-solid fa-tag"></i> Rutin Adı</label>
       <input id="r-name" type="text" placeholder="Örn: TYT Matematik Tekrarı"/>
@@ -2391,9 +2366,9 @@ select option{background:var(--surface2);color:var(--text)}
   <!-- Zayıf Konu Tespiti -->
   <div class="weak-topics-card" id="weak-topics-card">
     <div class="weak-topics-title">
-      <span>⚠️</span> Zayıf Konular
-      <span style="font-size:.65rem;font-weight:400;color:var(--text3);margin-left:auto">interval ↓ = daha zayıf</span>
+      <span>🎯</span> Çalışman Gereken Konular
     </div>
+    <div class="weak-topics-subtitle">Tekrar geçmişine göre hesaplandı · Güç arttıkça daha az tekrar gerekir</div>
     <div id="weak-topics-list"></div>
   </div>
 
@@ -5902,170 +5877,6 @@ STRİKT KURALLAR:
     if (focusedOptIdx >= 0) opts[focusedOptIdx].scrollIntoView({ block: 'nearest' });
   }
 
-  // ── AI ROUTINE GENERATOR ──
-  let _aiRoutinePending = [];
-
-  async function aiRoutineGenerate() {
-    const inp = document.getElementById('ai-routine-input');
-    const btn = document.getElementById('ai-routine-btn');
-    const preview = document.getElementById('ai-routine-preview');
-    const text = inp?.value?.trim();
-    if (!text) { toast('Ne yapmak istediğini yaz!', 'err'); return; }
-
-    const key = await GeminiAI.getKeyPublic?.();
-    if (!key) { toast('Gemini API anahtarı yok. Ayarlar > Gemini bölümünden ekle.', 'err'); return; }
-
-    if (btn) { btn.disabled = true; btn.textContent = '⏳ Oluşturuluyor…'; }
-    if (preview) preview.style.display = 'none';
-
-    // Zayıf konu isteği için mevcut kartları tara
-    let weakContext = '';
-    if (text.toLowerCase().includes('zayıf')) {
-      try {
-        const all = await dbGetAll();
-        const weak = all
-          .filter(c => c.easeFactor && c.easeFactor < 2.2 && c.subject)
-          .reduce((acc, c) => {
-            const key = (c.category||'TYT') + '|' + (c.subject||'') + '|' + (c.topic||'');
-            acc[key] = (acc[key] || 0) + 1;
-            return acc;
-          }, {});
-        const top = Object.entries(weak).sort((a,b)=>b[1]-a[1]).slice(0,8)
-          .map(([k,n]) => { const [cat,sub,top] = k.split('|'); return `${cat} ${sub}${top?' / '+top:''}(${n} kart)`; });
-        if (top.length) weakContext = '
-Kullanıcının zayıf konuları: ' + top.join(', ');
-      } catch(_) {}
-    }
-
-    const systemPrompt = `Sen bir YKS çalışma planlama asistanısın. Kullanıcının isteğine göre çalışma rutinleri oluşturuyorsun.
-
-Geçerli kategoriler: TYT, AYT
-TYT dersleri: Türkçe, Matematik, Geometri, Fizik, Kimya, Biyoloji, Tarih, Coğrafya, Felsefe, Din Kültürü
-AYT dersleri: Matematik, Geometri, Fizik, Kimya, Biyoloji, Edebiyat, Tarih-1, Tarih-2, Coğrafya-1, Coğrafya-2, Felsefe Grubu
-
-Zamanlama kuralları:
-- schedType "interval": her N günde bir (interval: 1-30)
-- schedType "days": haftanın belirli günleri (days dizisi, 0=Paz, 1=Pzt, 2=Sal, 3=Çar, 4=Per, 5=Cum, 6=Cmt)
-
-SADECE JSON döndür, başka hiçbir şey yazma. Format:
-[
-  {
-    "name": "Rutin adı",
-    "category": "TYT veya AYT",
-    "subject": "Ders adı (tam eşleşme)",
-    "topic": "Konu adı veya null",
-    "schedType": "interval veya days",
-    "interval": 2,
-    "days": null,
-    "reason": "Neden bu rutini önerdiğini tek cümleyle açıkla"
-  }
-]
-Zayıf konu için öneride bulunuyorsan her konu için ayrı rutin oluştur (max 5).
-Genel istek için 1-2 rutin yeterli.`;
-
-    const userMsg = `Kullanıcı isteği: "${text}"${weakContext}`;
-
-    try {
-      const activeModel = window.SubPlan?.getActiveModelId?.() || 'gemini-3.1-flash-lite-preview';
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${key}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            system_instruction: { parts: [{ text: systemPrompt }] },
-            contents: [{ role: 'user', parts: [{ text: userMsg }] }],
-            generationConfig: { temperature: 0.3, maxOutputTokens: 1024 }
-          })
-        }
-      );
-      if (!res.ok) {
-        const e = await res.json().catch(()=>({}));
-        throw new Error(e?.error?.message || `HTTP ${res.status}`);
-      }
-      const data = await res.json();
-      const raw = (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim().replace(/```json|```/g,'').trim();
-      let routines;
-      try { routines = JSON.parse(raw); } catch(_) { throw new Error('AI yanıtı ayrıştırılamadı. Tekrar dene.'); }
-      if (!Array.isArray(routines) || !routines.length) throw new Error('Rutin oluşturulamadı. İsteği daha açık yaz.');
-
-      _aiRoutinePending = routines;
-      _renderAiRoutinePreview(routines);
-    } catch(e) {
-      toast('AI hatası: ' + e.message, 'err');
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = '✨ Oluştur'; }
-    }
-  }
-
-  function _renderAiRoutinePreview(routines) {
-    const preview = document.getElementById('ai-routine-preview');
-    if (!preview) return;
-    const DNAMES = ['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'];
-    preview.style.display = 'block';
-    let html = '<div style="font-size:.8rem;font-weight:700;color:var(--text2);margin-bottom:10px">📋 ' + routines.length + ' rutin önerisi — kontrol et ve ekle:</div>';
-    routines.forEach(function(r, i) {
-      const schedLabel = r.schedType === 'days'
-        ? (r.days||[]).map(function(d){return DNAMES[d];}).join(', ')
-        : 'Her ' + (r.interval||1) + ' günde bir';
-      const reasonHtml = r.reason
-        ? '<div style="font-size:.72rem;color:var(--primary2);margin-top:5px;font-style:italic">💡 ' + esc(r.reason) + '</div>'
-        : '';
-      const topicPart = r.topic ? ' · ' + esc(r.topic) : '';
-      html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px">'
-        + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">'
-        + '<div style="flex:1">'
-        + '<div style="font-weight:700;font-size:.88rem;color:var(--text)">' + esc(r.name) + '</div>'
-        + '<div style="font-size:.74rem;color:var(--text3);margin-top:3px">'
-        + esc(r.category) + ' · ' + esc(r.subject) + topicPart + ' · ' + esc(schedLabel)
-        + '</div>' + reasonHtml + '</div>'
-        + '<button onclick="App.aiRoutineAddOne(' + i + ')" style="background:var(--teal2);border:none;border-radius:10px;padding:7px 12px;color:#fff;font-size:.76rem;font-weight:700;cursor:pointer;flex-shrink:0;white-space:nowrap">'
-        + '➕ Ekle</button></div></div>';
-    });
-    html += '<div style="display:flex;gap:8px;margin-top:6px">'
-      + '<button onclick="App.aiRoutineAddAll()" style="flex:2;padding:10px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--primary),var(--teal2));color:#fff;font-weight:700;font-size:.84rem;cursor:pointer">'
-      + '✅ Tümünü Ekle</button>'
-      + '<button onclick="document.getElementById(\'ai-routine-preview\').style.display=\'none\'" style="flex:1;padding:10px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text2);font-size:.82rem;cursor:pointer">'
-      + 'İptal</button></div>';
-    preview.innerHTML = html;
-  }
-
-  async function aiRoutineAddOne(idx) {
-    const r = _aiRoutinePending[idx];
-    if (!r) return;
-    await _saveAiRoutine(r);
-    // Önizlemeden kaldır
-    _aiRoutinePending.splice(idx, 1);
-    if (_aiRoutinePending.length) _renderAiRoutinePreview(_aiRoutinePending);
-    else document.getElementById('ai-routine-preview').style.display = 'none';
-  }
-
-  async function aiRoutineAddAll() {
-    for (const r of _aiRoutinePending) await _saveAiRoutine(r);
-    _aiRoutinePending = [];
-    document.getElementById('ai-routine-preview').style.display = 'none';
-    document.getElementById('ai-routine-input').value = '';
-    toast(`✅ ${_aiRoutinePending.length || 'Tüm'} rutinler eklendi!`, 'ok');
-    renderRoutines();
-  }
-
-  async function _saveAiRoutine(r) {
-    const base = {
-      name: r.name || 'AI Rutini',
-      category: r.category || 'TYT',
-      subject: r.subject || 'Matematik',
-      topic: r.topic || null,
-      createdAt: Date.now()
-    };
-    if (r.schedType === 'days' && Array.isArray(r.days) && r.days.length) {
-      await routinePut({ ...base, schedType: 'days', days: r.days });
-    } else {
-      await routinePut({ ...base, schedType: 'interval', interval: r.interval || 2 });
-    }
-    toast(`✅ "${base.name}" eklendi!`, 'ok');
-    renderRoutines();
-  }
-
   // ── SAVE ROUTINE ──
   async function saveRoutine() {
     const name = document.getElementById('r-name').value.trim();
@@ -6492,54 +6303,88 @@ Genel istek için 1-2 rutin yeterli.`;
     await renderWeakTopics(cards);
   }
 
-  // ── ZAYIF KONU TESPİTİ ──
+  // ── ZAYIF KONU TESPİTİ (v2) ──
   async function renderWeakTopics(cards) {
     const el = document.getElementById('weak-topics-list');
     if (!el) return;
 
-    // Sadece en az 1 kez tekrar edilmiş kartları al (interval > 0)
-    const reviewed = (cards || await dbGetAll()).filter(c => c.interval > 0 && c.subject && c.topic);
+    // ── FİLTRE: en az 1 kez gerçekten tekrar edilmiş kartlar ──
+    // repetitions >= 1 garantisi: yeni eklenen kartlar listeye girmiyor
+    const reviewed = (cards || await dbGetAll()).filter(c =>
+      c.repetitions >= 1 && c.subject && c.topic
+    );
 
     if (!reviewed.length) {
-      el.innerHTML = '<div class="weak-topics-empty">Henüz tekrar edilmiş kart yok.<br>Kartları çalıştıkça zayıf konular burada görünür.</div>';
+      el.innerHTML = `<div class="weak-topics-empty">
+        <div style="font-size:2rem;margin-bottom:8px">📭</div>
+        Henüz hiç kart tekrar edilmedi.<br>
+        Kartları çalıştıkça konuların gücü burada görünür.
+      </div>`;
       return;
     }
 
-    // Ders+Konu bazında grupla → ortalama interval hesapla
+    // ── GRUPLAMA: ders + konu bazında ──
     const groups = {};
     reviewed.forEach(c => {
       const key = `${c.subject}|||${c.topic}`;
-      if (!groups[key]) groups[key] = { subject: c.subject, topic: c.topic, total: 0, count: 0 };
-      groups[key].total += c.interval;
-      groups[key].count++;
+      if (!groups[key]) groups[key] = {
+        subject: c.subject, topic: c.topic,
+        intervals: [], eases: []
+      };
+      groups[key].intervals.push(c.interval || 1);
+      groups[key].eases.push(c.easeFactor || 2.5);
     });
 
-    // Ortalama interval'e göre sırala (küçükten büyüğe = en zayıftan en iyiye)
-    const sorted = Object.values(groups)
-      .map(g => ({ ...g, avg: g.total / g.count }))
-      .sort((a, b) => a.avg - b.avg)
-      .slice(0, 5);
+    // ── SKOR HESAPLA ──
+    // rawScore = avgInterval * (avgEase / 2.5)
+    //   → interval uzunsa konu öğrenilmiş demek
+    //   → easeFactor düşükse (zorlandı) skor düşer
+    // reliability = kart sayısına göre ağırlık (1 kart = belirsiz, 5+ kart = güvenilir)
+    // finalScore yüksek → konu güçlü, düşük → zayıf
+    const scored = Object.values(groups).map(g => {
+      const count      = g.intervals.length;
+      const avgInt     = g.intervals.reduce((a,b) => a+b, 0) / count;
+      const avgEase    = g.eases.reduce((a,b) => a+b, 0) / count;
+      const easeNorm   = avgEase / 2.5;          // 1.0 = normal, <1 = zorlandı
+      const rawScore   = avgInt * easeNorm;
+      const reliability = Math.min(1, count / 5); // 5+ kart = tam güven
+      const finalScore  = rawScore * (0.6 + 0.4 * reliability);
+      // Güç yüzdesi: 21 gün interval = "öğrenildi" eşiği
+      const strengthPct = Math.min(100, Math.round(finalScore / 21 * 100));
+      return { subject: g.subject, topic: g.topic, count, finalScore, strengthPct };
+    });
 
-    // En yüksek ortalama = bar genişliği referansı
-    const maxAvg = Math.max(...sorted.map(g => g.avg), 1);
+    // En zayıftan başla, top 5
+    const sorted = scored.sort((a, b) => a.finalScore - b.finalScore).slice(0, 5);
 
-    el.innerHTML = sorted.map((g, i) => {
-      const pct = Math.round((g.avg / maxAvg) * 100);
-      const label = g.avg < 1 ? 'Hiç öğrenilmedi' : g.avg < 3 ? 'Çok zayıf' : g.avg < 7 ? 'Zayıf' : g.avg < 14 ? 'Orta' : 'İyi';
-      const rankColors = ['#ff4d6d','#ff6b35','#ff9f1c','#9b5de5','#0077b6'];
+    el.innerHTML = sorted.map(g => {
+      const pct = g.strengthPct;
+
+      // Güçlük seviyesi
+      let badge, badgeBg, badgeColor, barColor;
+      if (pct < 15) {
+        badge = '🔴 Kritik';      badgeBg = 'rgba(255,77,109,.12)';  badgeColor = '#ff4d6d'; barColor = '#ff4d6d';
+      } else if (pct < 35) {
+        badge = '🟠 Zayıf';       badgeBg = 'rgba(255,107,53,.12)';  badgeColor = '#ff6b35'; barColor = '#ff6b35';
+      } else if (pct < 60) {
+        badge = '🟡 Gelişiyor';   badgeBg = 'rgba(255,193,7,.12)';   badgeColor = '#ffc107'; barColor = '#ffc107';
+      } else {
+        badge = '🟢 İyi';          badgeBg = 'rgba(74,222,128,.12)';  badgeColor = '#4ade80'; barColor = '#4ade80';
+      }
+
       return `
-        <div class="weak-topic-row">
-          <div class="weak-topic-rank" style="color:${rankColors[i]}">${i + 1}</div>
-          <div class="weak-topic-bar-wrap">
-            <div class="weak-topic-label">${esc(g.topic)}</div>
-            <div class="weak-topic-sub">${esc(g.subject)} · ${g.count} kart</div>
-            <div class="weak-topic-bar-track">
-              <div class="weak-topic-bar-fill" style="width:${pct}%"></div>
+        <div class="wt-row">
+          <div class="wt-left">
+            <span class="wt-badge" style="background:${badgeBg};color:${badgeColor}">${badge}</span>
+            <div class="wt-topic">${esc(g.topic)}</div>
+            <div class="wt-meta">${esc(g.subject)} · ${g.count} kart</div>
+            <div class="wt-bar-track">
+              <div class="wt-bar-fill" style="width:${pct}%;background:${barColor}"></div>
             </div>
           </div>
-          <div class="weak-topic-interval">
-            <div style="font-size:.75rem">${g.avg < 1 ? '<1g' : g.avg.toFixed(1) + 'g'}</div>
-            <div style="font-size:.6rem;color:var(--text3);margin-top:1px">${label}</div>
+          <div class="wt-right">
+            <div class="wt-pct" style="color:${barColor}">${pct}%</div>
+            <div class="wt-pct-lbl">güç</div>
           </div>
         </div>`;
     }).join('');
@@ -6934,7 +6779,6 @@ Genel istek için 1-2 rutin yeterli.`;
     activateSuper,
     // Routines
     setSchedType, toggleDayChip, saveRoutine, renderRoutines, deleteRoutine, launchRoutineStudy,
-    aiRoutineGenerate, aiRoutineAddOne, aiRoutineAddAll,
     toggleRSelMode, toggleRoutineSelect, onRoutineItemClick, selectAllRoutines, bulkDeleteRoutines,
     openTopicDropdown, filterTopics, selectTopic, clearTopicSelection, topicKeyNav, closeTopicDropdown,
     // Activity
@@ -6955,7 +6799,6 @@ Genel istek için 1-2 rutin yeterli.`;
     socialAcceptFriendRequest: (itemId, reqId, fromCode) => Social.acceptFriendRequest(itemId, reqId, fromCode),
     socialRejectFriendRequest: (itemId, reqId) => Social.rejectFriendRequest(itemId, reqId),
     blockUser: (code, name) => Social.blockUser(code, name),
-    unblockUser: (code) => Social.unblockUser(code),
     deleteChatMessage: (id) => Social.deleteChatMessage(id),
     removeFriend: (code) => Social.removeFriend(code),
     completeOnboard: () => Social.completeOnboard(),
@@ -8429,22 +8272,7 @@ const Social = (() => {
       // Engel var mı? (her iki yönde)
       const blk1 = await getDoc(doc(db, 'blocks', _myCode + '_' + code));
       const blk2 = await getDoc(doc(db, 'blocks', code + '_' + _myCode));
-      if (blk1.exists()) {
-        // Ben engelledim — kaldırma teklif et
-        AppConfirm.show({
-          title: '🔒 Engel Var',
-          msg: 'Bu kişiyi daha önce engelledin. Engeli kaldırıp arkadaşlık isteği göndermek ister misin?',
-          type: 'warning', okLabel: 'Engeli Kaldır',
-          onOk: async () => {
-            try {
-              await deleteDoc(doc(db, 'blocks', _myCode + '_' + code));
-              toast('Engel kaldırıldı. Şimdi tekrar istek gönderebilirsin.', 'ok');
-            } catch(e) { toast('Hata: ' + e.message, 'err'); }
-          }
-        });
-        return;
-      }
-      if (blk2.exists()) { toast('Bu kullanıcıya istek gönderemezsin.', 'err'); return; }
+      if (blk1.exists() || blk2.exists()) { toast('Bu kullanıcıya istek gönderemezsin.', 'err'); return; }
 
       // Bekleyen istek zaten var mı?
       const existReq = await getDoc(doc(db, 'friend_requests', _myCode + '_' + code));
@@ -8561,15 +8389,6 @@ const Social = (() => {
         } catch(e) { toast('Hata: ' + e.message, 'err'); }
       }
     });
-  }
-
-  async function unblockUser(blockedCode) {
-    if (!_fb || !_myCode) return;
-    const { db, doc, deleteDoc } = _fb;
-    try {
-      await deleteDoc(doc(db, 'blocks', _myCode + '_' + blockedCode));
-      toast('Engel kaldırıldı.', 'ok');
-    } catch(e) { toast('Hata: ' + e.message, 'err'); }
   }
 
   // Cache'den anında render (Firestore sorgusu olmadan)
@@ -9919,7 +9738,7 @@ const Social = (() => {
     init, completeOnboard, loginWithCredentials, signInWithGoogle, legacyLogin, doSignOut, resendVerificationEmail, switchOnboardMode, openAuthModal,
     forgotPassword, sendPasswordReset, togglePwdVisibility, completeMigration, _finishLogin,
     copyFriendCode, editUsername, changeMyPhoto,
-    addFriend, renderFriends, removeFriend, acceptFriendRequest, rejectFriendRequest, blockUser, unblockUser,
+    addFriend, renderFriends, removeFriend, acceptFriendRequest, rejectFriendRequest, blockUser,
     openChat, openGroupChat, closeChatWindow,
     sendChatMessage, sendChatPhoto,
     deleteChatMessage, clearChat, _msgTouchStart, _msgTouchEnd,
