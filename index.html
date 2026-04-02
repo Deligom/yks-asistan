@@ -12427,9 +12427,9 @@ Soru: ${cd.question || cd.topic || ''}
 Cevap: ${cd.answer || cd.notes || ''}`;
 
     try {
-      const MODEL = 'gemini-2.0-flash';
+      const activeModel = window.SubPlan?.getActiveModelId?.() || 'gemini-3.1-flash-lite-preview';
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${key}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
