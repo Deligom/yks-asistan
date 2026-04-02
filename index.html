@@ -2918,13 +2918,13 @@ select option{background:var(--surface2);color:var(--text)}
     <!-- LEADERBOARD PANEL -->
     <div id="social-panel-leaderboard" style="display:none">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <div style="font-family:'Syne','Segoe UI',sans-serif;font-size:1rem;font-weight:800;color:var(--text)">🏆 Haftalık Sıralama</div>
+        <div style="font-family:'Syne','Segoe UI',sans-serif;font-size:1rem;font-weight:800;color:var(--text)">🏆 Sıralama</div>
         <button onclick="Leaderboard.refresh()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--text3);font-size:.72rem;cursor:pointer;display:flex;align-items:center;gap:4px">
           <i class="fa-solid fa-rotate-right"></i> Yenile
         </button>
       </div>
-      <!-- Mode tabs -->
-      <div style="display:flex;gap:8px;margin-bottom:10px">
+      <!-- Mode tabs: Çalışkanlar / Üreticiler -->
+      <div style="display:flex;gap:8px;margin-bottom:8px">
         <button id="lb-tab-study" onclick="Leaderboard.setMode('study')"
           style="flex:1;padding:9px 0;border-radius:12px;border:1.5px solid var(--primary);background:var(--primary);color:#fff;font-weight:700;font-size:.85rem;cursor:pointer;transition:all .2s">
           🧠 Çalışkanlar
@@ -2932,6 +2932,21 @@ select option{background:var(--surface2);color:var(--text)}
         <button id="lb-tab-upload" onclick="Leaderboard.setMode('upload')"
           style="flex:1;padding:9px 0;border-radius:12px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text2);font-weight:600;font-size:.85rem;cursor:pointer;transition:all .2s">
           ⚡ Üreticiler
+        </button>
+      </div>
+      <!-- Period tabs: Haftalık / Aylık / Tüm Zamanlar -->
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <button id="lb-period-weekly" onclick="Leaderboard.setPeriod('weekly')"
+          style="flex:1;padding:7px 0;border-radius:10px;border:1.5px solid var(--primary);background:var(--primary);color:#fff;font-weight:700;font-size:.75rem;cursor:pointer;transition:all .2s">
+          📅 Haftalık
+        </button>
+        <button id="lb-period-monthly" onclick="Leaderboard.setPeriod('monthly')"
+          style="flex:1;padding:7px 0;border-radius:10px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text2);font-weight:600;font-size:.75rem;cursor:pointer;transition:all .2s">
+          🗓 Aylık
+        </button>
+        <button id="lb-period-alltime" onclick="Leaderboard.setPeriod('alltime')"
+          style="flex:1;padding:7px 0;border-radius:10px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text2);font-weight:600;font-size:.75rem;cursor:pointer;transition:all .2s">
+          🏅 Tüm Zaman
         </button>
       </div>
       <div class="lb-week-label" id="lb-week-label">Bu hafta kaç kart çalışıldı</div>
@@ -11212,11 +11227,34 @@ STRİKT KURALLAR:
 <!-- ══════ LEADERBOARD MODULE ══════ -->
 <script>
 const Leaderboard = (() => {
-  let _mode = 'study'; // 'study' | 'upload'
+  let _mode   = 'study';   // 'study' | 'upload'
+  let _period = 'weekly';  // 'weekly' | 'monthly' | 'alltime'
 
+  // ── Period key helpers ───────────────────────────────
+  function _weekKey() {
+    const d = new Date(), day = d.getDay() || 7;
+    d.setDate(d.getDate() - day + 1);
+    return `${d.getFullYear()}-W${String(Math.ceil((((d - new Date(d.getFullYear(),0,1))/86400000)+1)/7)).padStart(2,'0')}`;
+  }
+  function _monthKey() { return 'month-' + new Date().toISOString().slice(0,7); }
+  function _periodKey() {
+    if (_period === 'monthly')  return _monthKey();
+    if (_period === 'alltime')  return 'alltime';
+    return _weekKey();
+  }
+  function _periodLabel() {
+    if (_period === 'monthly') return new Date().toLocaleDateString('tr-TR', { month:'long', year:'numeric' });
+    if (_period === 'alltime') return 'Tüm Zamanlar';
+    const d = new Date(), day = d.getDay() || 7;
+    const mon = new Date(d); mon.setDate(d.getDate() - day + 1);
+    const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+    const fmt = dt => dt.toLocaleDateString('tr-TR', { day:'numeric', month:'short' });
+    return `${fmt(mon)} – ${fmt(sun)} haftası`;
+  }
+
+  // ── Mode toggle (Çalışkanlar / Üreticiler) ───────────
   function setMode(m) {
     _mode = m;
-    // Tab UI güncelle
     const studyBtn  = document.getElementById('lb-tab-study');
     const uploadBtn = document.getElementById('lb-tab-upload');
     if (studyBtn) {
@@ -11234,73 +11272,61 @@ const Leaderboard = (() => {
     render();
   }
 
-  // Haftanın pazartesi tarihini YYYY-Www formatında döndür
-  function _weekKey() {
-    const d = new Date();
-    const day = d.getDay() || 7;
-    d.setDate(d.getDate() - day + 1);
-    return `${d.getFullYear()}-W${String(Math.ceil((((d - new Date(d.getFullYear(),0,1))/86400000)+1)/7)).padStart(2,'0')}`;
+  // ── Period toggle (Haftalık / Aylık / Tüm Zamanlar) ──
+  function setPeriod(p) {
+    _period = p;
+    ['weekly','monthly','alltime'].forEach(key => {
+      const btn = document.getElementById('lb-period-' + key);
+      if (!btn) return;
+      const isActive = key === p;
+      const color = key === 'alltime' ? '#ffd166' : key === 'monthly' ? 'var(--teal)' : 'var(--primary)';
+      btn.style.background  = isActive ? color : 'var(--surface2)';
+      btn.style.color       = isActive ? (key === 'alltime' ? '#111' : '#fff') : 'var(--text2)';
+      btn.style.borderColor = isActive ? color : 'var(--border)';
+      btn.style.fontWeight  = isActive ? '700' : '600';
+    });
+    render();
   }
 
-  function _weekLabel() {
-    const d = new Date();
-    const day = d.getDay() || 7;
-    const mon = new Date(d); mon.setDate(d.getDate() - day + 1);
-    const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
-    const fmt = dt => dt.toLocaleDateString('tr-TR', { day:'numeric', month:'short' });
-    return `${fmt(mon)} – ${fmt(sun)}`;
-  }
+  // Haftanın pazartesi tarihini YYYY-Www formatında döndür (eski uyumluluk için korundu)
 
-  // Firestore'a bu haftanın skorunu +1 yaz
+  // Firestore'a skoru tüm 3 dönem için +1 yaz
   async function recordReview() {
-    const fb = window._FB;
-    if (!fb) return;
+    const fb = window._FB; if (!fb) return;
     const myCode = localStorage.getItem('social_code');
     const myName = localStorage.getItem('social_name');
     if (!myCode) return;
-
-    const week = _weekKey();
     const { db, doc, setDoc, increment, serverTimestamp } = fb;
-    // Doküman: leaderboard/{week}/scores/{userCode}
-    const ref = doc(db, 'leaderboard', week, 'scores', myCode);
-    await setDoc(ref, {
-      name:      myName || myCode,
-      code:      myCode,
-      score:     increment(1),
-      updatedAt: serverTimestamp()
-    }, { merge: true });
+    const payload = { name: myName || myCode, code: myCode, score: increment(1), updatedAt: serverTimestamp() };
+    await setDoc(doc(db, 'leaderboard', _weekKey(),  'scores', myCode), payload, { merge: true }).catch(()=>{});
+    await setDoc(doc(db, 'leaderboard', _monthKey(), 'scores', myCode), payload, { merge: true }).catch(()=>{});
+    await setDoc(doc(db, 'leaderboard', 'alltime',   'scores', myCode), payload, { merge: true }).catch(()=>{});
   }
 
-  // Firestore'dan bu haftanın skorlarını çek ve render et
+  // Firestore'dan seçili dönemin skorlarını çek ve render et
   async function render() {
     const listEl  = document.getElementById('lb-list');
     const myRowEl = document.getElementById('lb-my-row');
     const lblEl   = document.getElementById('lb-week-label');
     if (!listEl) return;
 
-    if (lblEl) lblEl.textContent = _weekLabel() + ' haftası · ' + (_mode === 'upload' ? '⚡ Üreticiler' : '🧠 Çalışkanlar');
+    const modeLabel = _mode === 'upload' ? '⚡ Üreticiler' : '🧠 Çalışkanlar';
+    if (lblEl) lblEl.textContent = _periodLabel() + ' · ' + modeLabel;
 
     listEl.innerHTML = `<div style="text-align:center;padding:30px 0;color:var(--text3)">
       <i class="fa-solid fa-spinner" style="animation:spin .8s linear infinite;font-size:1.4rem;margin-bottom:10px;display:block"></i>
       Yükleniyor…</div>`;
 
     const fb = window._FB;
-    if (!fb) {
-      listEl.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text3);font-size:.85rem">Giriş yapman gerekiyor.</div>`;
-      return;
-    }
+    if (!fb) { listEl.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text3);font-size:.85rem">Giriş yapman gerekiyor.</div>`; return; }
     const myCode = localStorage.getItem('social_code');
-    if (!myCode) {
-      listEl.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text3);font-size:.85rem">Sosyal profil oluştur.</div>`;
-      return;
-    }
+    if (!myCode) { listEl.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text3);font-size:.85rem">Sosyal profil oluştur.</div>`; return; }
 
     try {
-      const week = _weekKey();
       const { db, collection, getDocs, query, orderBy, limit } = fb;
       const sortField = _mode === 'upload' ? 'uploads' : 'score';
       const q = query(
-        collection(db, 'leaderboard', week, 'scores'),
+        collection(db, 'leaderboard', _periodKey(), 'scores'),
         orderBy(sortField, 'desc'),
         limit(50)
       );
@@ -11310,7 +11336,10 @@ const Leaderboard = (() => {
         .filter(r => _mode === 'upload' ? (r.uploads || 0) > 0 : (r.score || 0) > 0);
 
       if (!rows.length) {
-        listEl.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text3);font-size:.85rem">${_mode === 'upload' ? 'Bu hafta henüz kart yüklenmedi. İlk sen ol! 🌊' : 'Bu hafta henüz kart çalışılmadı. İlk sen ol! 🚀'}</div>`;
+        const emptyMsg = _mode === 'upload'
+          ? `${_period === 'alltime' ? 'Henüz' : 'Bu dönemde'} kart yüklenmedi. İlk sen ol! 🌊`
+          : `${_period === 'alltime' ? 'Henüz' : 'Bu dönemde'} kart çalışılmadı. İlk sen ol! 🚀`;
+        listEl.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text3);font-size:.85rem">${emptyMsg}</div>`;
         if (myRowEl) myRowEl.style.display = 'none';
         return;
       }
@@ -11322,33 +11351,47 @@ const Leaderboard = (() => {
         const isMe    = r.code === myCode;
         const rankCls = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : '';
         const letter  = (r.name || '?')[0].toUpperCase();
-        const mainVal = _mode === 'upload' ? (r.uploads || 0) : (r.score || 0);
-        const mainLbl = _mode === 'upload' ? 'yükleme' : 'kart';
-        const subHtml = _mode === 'upload'
-          ? (r.score ? `<div style="font-size:.62rem;color:var(--text3);font-weight:600">📚 ${r.score} çalışma</div>` : '')
-          : (r.uploads ? `<div style="font-size:.62rem;color:var(--teal2);font-weight:600">🌊 ${r.uploads}</div>` : '');
-        return `<div class="lb-row ${rankCls}${isMe ? ' me' : ''}">
-          <div class="lb-rank">${medals[i] || (i+1)}</div>
-          <div class="lb-avatar" style="background:${_avatarColor(r.code)}">${letter}</div>
-          <div class="lb-name">${_esc(r.name || r.code)}${isMe ? ' <span style="font-size:.65rem;color:var(--primary2);font-weight:700">(Sen)</span>' : ''}</div>
-          <div style="text-align:right">
-            <div class="lb-score">${mainVal}<span class="lb-score-lbl">${mainLbl}</span></div>
-            ${subHtml}
-          </div>
-        </div>`;
+
+        if (_mode === 'upload') {
+          const uploads    = r.uploads    || 0;
+          const totalLikes = r.totalLikes || 0;
+          return `<div class="lb-row ${rankCls}${isMe ? ' me' : ''}">
+            <div class="lb-rank">${medals[i] || (i+1)}</div>
+            <div class="lb-avatar" style="background:${_avatarColor(r.code)}">${letter}</div>
+            <div class="lb-name">${_esc(r.name || r.code)}${isMe ? ' <span style="font-size:.65rem;color:var(--teal2);font-weight:700">(Sen)</span>' : ''}</div>
+            <div style="text-align:right">
+              <div style="font-size:1.05rem;font-weight:900;color:var(--teal2);line-height:1.1">${uploads}<span style="font-size:.6rem;font-weight:600;color:var(--text3);margin-left:2px">yükleme</span></div>
+              ${totalLikes > 0 ? `<div style="font-size:.63rem;color:#ff6584;font-weight:700">❤ ${totalLikes} beğeni</div>` : ''}
+              ${r.score ? `<div style="font-size:.58rem;color:var(--text3);font-weight:500">📚 ${r.score} çalışma</div>` : ''}
+            </div>
+          </div>`;
+        } else {
+          return `<div class="lb-row ${rankCls}${isMe ? ' me' : ''}">
+            <div class="lb-rank">${medals[i] || (i+1)}</div>
+            <div class="lb-avatar" style="background:${_avatarColor(r.code)}">${letter}</div>
+            <div class="lb-name">${_esc(r.name || r.code)}${isMe ? ' <span style="font-size:.65rem;color:var(--primary2);font-weight:700">(Sen)</span>' : ''}</div>
+            <div style="text-align:right">
+              <div class="lb-score">${r.score||0}<span class="lb-score-lbl">kart</span></div>
+              ${r.uploads ? `<div style="font-size:.62rem;color:var(--teal2);font-weight:600">🌊 ${r.uploads} yükleme</div>` : ''}
+            </div>
+          </div>`;
+        }
       }).join('');
 
-      // Kendi satırı — ilk 20'de yoksa altta göster
       if (myRowEl) {
         if (myIdx >= 20) {
           const me = rows[myIdx];
           myRowEl.style.display = 'block';
-          myRowEl.innerHTML = `<div style="font-size:.72rem;color:var(--text3);margin-bottom:6px">Senin sıran</div>
+          myRowEl.innerHTML = `<div style="font-size:.72rem;color:var(--text3);margin-bottom:6px">Senin sıran: #${myIdx+1}</div>
             <div class="lb-row me">
               <div class="lb-rank">${myIdx + 1}</div>
               <div class="lb-avatar" style="background:${_avatarColor(myCode)}">${(me.name||'?')[0].toUpperCase()}</div>
               <div class="lb-name">${_esc(me.name||myCode)} <span style="font-size:.65rem;color:var(--primary2);font-weight:700">(Sen)</span></div>
-              <div class="lb-score">${me.score||0}<span class="lb-score-lbl">kart</span></div>
+              <div style="text-align:right">
+                ${_mode === 'upload'
+                  ? `<div style="font-size:1rem;font-weight:900;color:var(--teal2)">${me.uploads||0}<span style="font-size:.6rem;color:var(--text3);margin-left:2px">yükleme</span></div>${(me.totalLikes||0)>0?`<div style="font-size:.6rem;color:#ff6584;font-weight:700">❤ ${me.totalLikes}</div>`:''}`
+                  : `<div class="lb-score">${me.score||0}<span class="lb-score-lbl">kart</span></div>`}
+              </div>
             </div>`;
         } else {
           myRowEl.style.display = 'none';
@@ -11359,9 +11402,7 @@ const Leaderboard = (() => {
     }
   }
 
-  async function refresh() {
-    await render();
-  }
+  async function refresh() { await render(); }
 
   // Kullanıcı kodundan tutarlı renk üret
   function _avatarColor(code) {
@@ -11375,7 +11416,7 @@ const Leaderboard = (() => {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  return { recordReview, render, refresh, setMode };
+  return { recordReview, render, refresh, setMode, setPeriod };
 })();
 </script>
 
@@ -11432,18 +11473,32 @@ const KartHavuzu = (() => {
 
   function _isDuplicate(card) {
     const hash = _cardHash(card);
-    let hashes = [];
-    try { hashes = JSON.parse(localStorage.getItem(UPLOADS_KEY) || '[]'); } catch(e) {}
-    return hashes.includes(hash);
+    let entries = [];
+    try { entries = JSON.parse(localStorage.getItem(UPLOADS_KEY) || '[]'); } catch(e) {}
+    // Eski format (düz string array) ve yeni format ({hash,globalId}) desteği
+    return entries.some(e => (typeof e === 'string' ? e : e.hash) === hash);
   }
 
-  function _saveHash(card) {
+  function _saveHash(card, globalId) {
     const hash = _cardHash(card);
-    let hashes = [];
-    try { hashes = JSON.parse(localStorage.getItem(UPLOADS_KEY) || '[]'); } catch(e) {}
-    hashes.push(hash);
-    if (hashes.length > 200) hashes = hashes.slice(-200);
-    localStorage.setItem(UPLOADS_KEY, JSON.stringify(hashes));
+    let entries = [];
+    try { entries = JSON.parse(localStorage.getItem(UPLOADS_KEY) || '[]'); } catch(e) {}
+    // Eski düz string'leri objeye migrate et
+    entries = entries.map(e => typeof e === 'string' ? { hash: e, globalId: null } : e);
+    entries.push({ hash, globalId: globalId || null });
+    if (entries.length > 200) entries = entries.slice(-200);
+    localStorage.setItem(UPLOADS_KEY, JSON.stringify(entries));
+  }
+
+  function _removeHash(globalId) {
+    if (!globalId) return;
+    let entries = [];
+    try { entries = JSON.parse(localStorage.getItem(UPLOADS_KEY) || '[]'); } catch(e) {}
+    entries = entries.filter(e => {
+      if (typeof e === 'string') return true; // globalId'si olmayan eski kayıt → koru
+      return e.globalId !== globalId;
+    });
+    localStorage.setItem(UPLOADS_KEY, JSON.stringify(entries));
   }
 
   function _timeFilter() {
@@ -11503,7 +11558,7 @@ const KartHavuzu = (() => {
     };
 
     try {
-      await addDoc(collection(db, 'global_cards'), {
+      const docRef = await addDoc(collection(db, 'global_cards'), {
         cardData,
         uploaderCode: _myCode(),
         uploaderName: _myName(),
@@ -11512,9 +11567,12 @@ const KartHavuzu = (() => {
         downloads: 0,
         reported:  0,
         hidden:    false,
+        contentFlagged: false,
         uploadedAt: serverTimestamp()
       });
-      _saveHash(card);
+      _saveHash(card, docRef.id);
+      // İçerik kontrolü (arka planda)
+      _checkAndFlagContent(docRef.id, cardData);
       toast('🌊 Kart Havuzu\'na yüklendi!', 'ok');
       // Leaderboard upload count
       _recordUploadToLeaderboard();
@@ -11527,17 +11585,13 @@ const KartHavuzu = (() => {
     const fb = _fb(); if (!fb) return;
     const myCode = _myCode(); if (!myCode) return;
     const myName = localStorage.getItem('social_name') || myCode;
-    const week = (() => {
-      const d = new Date(), day = d.getDay() || 7;
-      d.setDate(d.getDate() - day + 1);
-      return `${d.getFullYear()}-W${String(Math.ceil((((d - new Date(d.getFullYear(),0,1))/86400000)+1)/7)).padStart(2,'0')}`;
-    })();
+    const week  = (() => { const d = new Date(), day = d.getDay() || 7; d.setDate(d.getDate() - day + 1); return `${d.getFullYear()}-W${String(Math.ceil((((d - new Date(d.getFullYear(),0,1))/86400000)+1)/7)).padStart(2,'0')}`; })();
+    const month = 'month-' + new Date().toISOString().slice(0,7);
     const { db, doc, setDoc, increment, serverTimestamp } = fb;
-    await setDoc(doc(db, 'leaderboard', week, 'scores', myCode), {
-      name: myName, code: myCode,
-      uploads: increment(1),
-      updatedAt: serverTimestamp()
-    }, { merge: true }).catch(() => {});
+    const payload = { name: myName, code: myCode, uploads: increment(1), updatedAt: serverTimestamp() };
+    await setDoc(doc(db, 'leaderboard', week,      'scores', myCode), payload, { merge: true }).catch(()=>{});
+    await setDoc(doc(db, 'leaderboard', month,     'scores', myCode), payload, { merge: true }).catch(()=>{});
+    await setDoc(doc(db, 'leaderboard', 'alltime', 'scores', myCode), payload, { merge: true }).catch(()=>{});
   }
 
   // ── Load & Render ─────────────────────────────────
@@ -11719,11 +11773,32 @@ const KartHavuzu = (() => {
       } else {
         await setDoc(voteRef, { type, votedAt: Date.now() });
       }
-      // 5+ report → otomatik gizle
+      // 15+ report → otomatik gizle
       if (type === 'report') {
         const snap = await getDoc(cardRef).catch(()=>null);
-        if (snap && (snap.data()?.reported||0) >= 5) {
+        const cardData = snap?.data() || {};
+        if ((cardData?.reported||0) >= 15) {
           await updateDoc(cardRef, { hidden: true }).catch(()=>{});
+        }
+        // Admin için reports koleksiyonuna kaydet
+        const { addDoc, collection: col, serverTimestamp: sts } = fb;
+        await addDoc(col(db, 'reports'), {
+          cardId:            globalCardId,
+          cardUploaderCode:  cardData.uploaderCode || null,
+          cardUploaderName:  cardData.uploaderName || null,
+          cardTitle:         cardData.cardData?.question?.slice(0,80) || cardData.cardData?.topic?.slice(0,80) || null,
+          reporterCode:      _myCode(),
+          reportedAt:        sts(),
+          currentReportCount: (cardData?.reported||0)
+        }).catch(()=>{});
+        // Uploader bazlı rapor istatistiği
+        if (cardData.uploaderCode) {
+          const { doc: docFn, setDoc: sdc, increment: incr } = fb;
+          await sdc(docFn(db, 'user_report_stats', cardData.uploaderCode), {
+            reportCount:    incr(1),
+            lastReportedAt: sts(),
+            username:       cardData.uploaderName || cardData.uploaderCode
+          }, { merge: true }).catch(()=>{});
         }
       }
       // Local update
@@ -11740,6 +11815,14 @@ const KartHavuzu = (() => {
         if (db2) db2.innerHTML = `👎 ${c.dislikes}`;
       }
       toast(isUnvote ? '↩ Oy geri alındı' : type === 'report' ? '⚑ Şikâyet gönderildi' : '✅ Oy verildi!', 'ok');
+      // Uploader'ın leaderboard like sayısını güncelle
+      if (type === 'like') {
+        const uploaderCode = _cards.find(x => x.id === globalCardId)?.uploaderCode;
+        if (uploaderCode) {
+          const likeDelta = isUnvote ? -1 : (prevVote === 'dislike' ? 1 : 1);
+          _updateUploaderLikes(uploaderCode, likeDelta).catch(()=>{});
+        }
+      }
     } catch(e) { toast('Hata: ' + e.message, 'err'); }
   }
 
@@ -12103,10 +12186,66 @@ const KartHavuzu = (() => {
       const { db, doc, deleteDoc } = fb;
       try {
         await deleteDoc(doc(db, 'global_cards', globalCardId));
+        _removeHash(globalCardId); // ← hash'i temizle ki tekrar yüklenebilsin
         toast('🗑 Kart havuzdan kaldırıldı.', 'ok');
         _renderMine();
       } catch(e) { toast('Hata: ' + e.message, 'err'); }
     }});
+  }
+
+  // ── Content Filter ───────────────────────────────────
+  // Admin Firestore'dan güncelleyebilir: admin_config/content_filter → { words: [...] }
+  const DEFAULT_BAD_WORDS = [
+    'sik','orospu','göt','amk','amına','piç','oğlum','bok','yarrak','orospu çocuğu',
+    'amcık','taşak','ibne','kıç','döl','fahişe','kaltak','orospunun','sikerim',
+    'ananı','ananın','bok gibi','kahpe','sürtük','pezevenk','gavat','oç','sex',
+    'porn','müstehcen','18+','erotik','sikiş','sikişme','am','götten'
+  ];
+
+  async function _checkAndFlagContent(globalCardId, cardData) {
+    const fb = _fb(); if (!fb) return;
+    const { db, doc, updateDoc, getDoc } = fb;
+    // Admin'in özel kelime listesini Firestore'dan çek (cache)
+    let badWords = [...DEFAULT_BAD_WORDS];
+    try {
+      const cfSnap = await getDoc(doc(db, 'admin_config', 'content_filter')).catch(()=>null);
+      if (cfSnap?.exists()) {
+        const extra = cfSnap.data()?.words || [];
+        badWords = [...new Set([...badWords, ...extra.map(w=>w.toLowerCase())])];
+      }
+    } catch(e) {}
+    const combined = [
+      cardData.question || '',
+      cardData.answer   || '',
+      cardData.topic    || ''
+    ].join(' ').toLowerCase();
+    const found = badWords.filter(w => combined.includes(w));
+    if (found.length > 0) {
+      await updateDoc(doc(db, 'global_cards', globalCardId), {
+        contentFlagged: true,
+        flaggedWords:   found,
+        hidden:         true
+      }).catch(()=>{});
+    }
+  }
+
+  // Uploader'ın tüm zaman leaderboard'undaki toplam like sayısını güncelle
+  async function _updateUploaderLikes(uploaderCode, delta) {
+    if (!uploaderCode || delta === 0) return;
+    const fb = _fb(); if (!fb) return;
+    const { db, doc, setDoc, increment, serverTimestamp } = fb;
+    // Tüm 3 periyot için güncelle
+    const keys = [
+      'alltime',
+      'month-' + new Date().toISOString().slice(0,7),
+      (() => { const d=new Date(),day=d.getDay()||7; d.setDate(d.getDate()-day+1); return `${d.getFullYear()}-W${String(Math.ceil((((d-new Date(d.getFullYear(),0,1))/86400000)+1)/7)).padStart(2,'0')}`; })()
+    ];
+    for (const key of keys) {
+      await setDoc(doc(db, 'leaderboard', key, 'scores', uploaderCode), {
+        totalLikes: increment(delta),
+        updatedAt:  serverTimestamp()
+      }, { merge: true }).catch(()=>{});
+    }
   }
 
   return { onEnter, reload, loadMore, setView, uploadCard, acceptConsent, vote, openPreview, closePreview, importPreviewCard, withdrawCard,
