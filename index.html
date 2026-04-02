@@ -853,9 +853,21 @@ select option{background:var(--surface2);color:var(--text)}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .modal-sheet{
   background:var(--surface);border:1px solid var(--border);
-  border-radius:24px 24px 0 0;padding:24px 20px 32px;
+  border-radius:24px 24px 0 0;
   width:100%;max-width:640px;
-  animation:slideUp .3s ease;max-height:92vh;overflow-y:auto
+  animation:slideUp .3s ease;max-height:92vh;overflow-y:auto;
+  padding:24px 20px 32px
+}
+/* Config modal: flex layout ile sabit footer */
+.modal-sheet.modal-flex{
+  padding:0;display:flex;flex-direction:column;overflow:hidden
+}
+.modal-sheet-scroll{
+  padding:24px 20px 8px;overflow-y:auto;flex:1;min-height:0
+}
+.modal-sheet-footer{
+  padding:12px 20px 28px;background:var(--surface);
+  border-top:1px solid var(--border);flex-shrink:0
 }
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .modal-handle{width:40px;height:4px;background:var(--border2);border-radius:4px;margin:0 auto 20px}
@@ -2938,27 +2950,18 @@ select option{background:var(--surface2);color:var(--text)}
       <!-- Toolbar: Sort + Time + View Mode -->
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
         <div id="kh-filter-toolbar" style="display:flex;gap:6px;flex-wrap:wrap">
-          <!-- Sıralama -->
-          <div style="flex:1;min-width:0;position:relative">
-            <select id="kh-sort" onchange="KartHavuzu.reload()"
-              style="width:100%;appearance:none;-webkit-appearance:none;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);border-radius:11px;padding:8px 28px 8px 10px;font-size:.78rem;cursor:pointer;outline:none">
-              <option value="downloads">⬇ En Çok İndirilen</option>
-              <option value="likes">❤ En Çok Beğenilen</option>
-              <option value="newest">🆕 En Yeni</option>
-            </select>
-            <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text3);font-size:.65rem">▼</span>
-          </div>
+        <!-- Sıralama -->
+          <button id="kh-sort-btn" onclick="KartHavuzu.openSortSheet()"
+            style="flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);border-radius:11px;padding:8px 10px;font-size:.77rem;cursor:pointer;font-weight:600;gap:4px">
+            <span id="kh-sort-label">⬇ En Çok İndirilen</span>
+            <span style="color:var(--text3);font-size:.6rem;flex-shrink:0">▼</span>
+          </button>
           <!-- Zaman -->
-          <div style="flex:1;min-width:0;position:relative">
-            <select id="kh-time" onchange="KartHavuzu.reload()"
-              style="width:100%;appearance:none;-webkit-appearance:none;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);border-radius:11px;padding:8px 28px 8px 10px;font-size:.78rem;cursor:pointer;outline:none">
-              <option value="all">🕐 Tüm Zamanlar</option>
-              <option value="year">📅 Bu Yıl</option>
-              <option value="month">📆 Bu Ay</option>
-              <option value="week">📋 Bu Hafta</option>
-            </select>
-            <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text3);font-size:.65rem">▼</span>
-          </div>
+          <button id="kh-time-btn" onclick="KartHavuzu.openTimeSheet()"
+            style="flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);border-radius:11px;padding:8px 10px;font-size:.77rem;cursor:pointer;font-weight:600;gap:4px">
+            <span id="kh-time-label">🕐 Tüm Zamanlar</span>
+            <span style="color:var(--text3);font-size:.6rem;flex-shrink:0">▼</span>
+          </button>
           <!-- Ders/Konu filtre butonu -->
           <button id="kh-filter-btn" onclick="KartHavuzu.toggleFilterPanel()"
             style="flex-shrink:0;background:var(--surface2);border:1.5px solid var(--border);border-radius:11px;padding:8px 13px;color:var(--text2);font-size:.78rem;cursor:pointer;display:flex;align-items:center;gap:5px;font-weight:600;transition:all .2s">
@@ -3026,6 +3029,37 @@ select option{background:var(--surface2);color:var(--text)}
 
     </div>
 
+</div>
+
+<!-- ══════ KART HAVUZU: Gizli Select'ler (JS için) ══════ -->
+<select id="kh-sort" style="display:none">
+  <option value="downloads" selected>⬇ En Çok İndirilen</option>
+  <option value="likes">❤ En Çok Beğenilen</option>
+  <option value="newest">🆕 En Yeni</option>
+</select>
+<select id="kh-time" style="display:none">
+  <option value="all" selected>🕐 Tüm Zamanlar</option>
+  <option value="year">📅 Bu Yıl</option>
+  <option value="month">📆 Bu Ay</option>
+  <option value="week">📋 Bu Hafta</option>
+</select>
+
+<!-- Sıralama Bottom Sheet -->
+<div id="kh-sort-sheet" onclick="if(event.target===this)KartHavuzu.closeSortSheet()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9600;align-items:flex-end;justify-content:center">
+  <div style="background:var(--surface);border-radius:20px 20px 0 0;padding:20px 0 32px;width:100%;max-width:520px">
+    <div style="width:38px;height:4px;background:var(--border);border-radius:4px;margin:0 auto 18px"></div>
+    <div style="font-size:.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;padding:0 20px 12px">Sıralama</div>
+    <div id="kh-sort-options"></div>
+  </div>
+</div>
+
+<!-- Zaman Bottom Sheet -->
+<div id="kh-time-sheet" onclick="if(event.target===this)KartHavuzu.closeTimeSheet()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9600;align-items:flex-end;justify-content:center">
+  <div style="background:var(--surface);border-radius:20px 20px 0 0;padding:20px 0 32px;width:100%;max-width:520px">
+    <div style="width:38px;height:4px;background:var(--border);border-radius:4px;margin:0 auto 18px"></div>
+    <div style="font-size:.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;padding:0 20px 12px">Zaman Aralığı</div>
+    <div id="kh-time-options"></div>
+  </div>
 </div>
 
 <!-- ══════ KART HAVUZU: Rıza Modalı ══════ -->
@@ -3484,7 +3518,8 @@ select option{background:var(--surface2);color:var(--text)}
 
 <!-- ══════ CONFIG MODAL ══════ -->
 <div id="config-modal" class="modal-overlay">
-  <div class="modal-sheet">
+  <div class="modal-sheet modal-flex">
+    <div class="modal-sheet-scroll">
     <div class="modal-handle"></div>
     <div class="modal-title" id="config-title">⚙️ Çalışma Ayarları</div>
 
@@ -3504,22 +3539,17 @@ select option{background:var(--surface2);color:var(--text)}
 
     <div class="config-section" id="cfg-topic-section" style="display:none">
       <div class="config-label">Konu <span style="color:var(--text3);font-weight:400">(isteğe bağlı)</span></div>
-      <!-- Seçilen konuların özeti / açma-kapama butonu -->
       <button id="cfg-topic-toggle" onclick="App.toggleTopicPanel()"
         style="width:100%;display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1.5px solid var(--border);border-radius:12px;padding:10px 14px;cursor:pointer;color:var(--text);font-size:.85rem;font-weight:600;margin-bottom:0;transition:border-color .2s">
         <span id="cfg-topic-summary">Hepsi seçili</span>
         <span id="cfg-topic-arrow" style="font-size:.75rem;color:var(--text3);transition:transform .2s">▼</span>
       </button>
-      <!-- Açılır panel -->
       <div id="cfg-topic-panel" style="display:none;margin-top:8px;background:var(--surface2);border:1.5px solid var(--border);border-radius:12px;overflow:hidden">
-        <!-- Arama -->
         <div style="padding:8px 10px;border-bottom:1px solid var(--border)">
           <input id="cfg-topic-search" type="text" placeholder="🔍 Konu ara…" oninput="App.filterTopicList()"
             style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:.82rem;outline:none;box-sizing:border-box"/>
         </div>
-        <!-- Liste -->
         <div id="cfg-topics" style="max-height:220px;overflow-y:auto;padding:4px 0"></div>
-        <!-- Alt bar -->
         <div style="padding:8px 10px;border-top:1px solid var(--border);display:flex;gap:8px">
           <button onclick="App.selectAllTopics()" style="flex:1;padding:6px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--teal2);font-size:.75rem;font-weight:700;cursor:pointer">Hepsini Seç</button>
           <button onclick="App.clearTopics()" style="flex:1;padding:6px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text3);font-size:.75rem;font-weight:700;cursor:pointer">Temizle</button>
@@ -3529,11 +3559,25 @@ select option{background:var(--surface2);color:var(--text)}
 
     <div class="config-section">
       <div class="config-label">Soru Sayısı</div>
-      <div class="chip-group">
-        <div class="chip" data-cfg="count" data-val="5"  onclick="App.cfgChip(this,'count')">5</div>
-        <div class="chip selected-primary" data-cfg="count" data-val="10" onclick="App.cfgChip(this,'count')">10</div>
-        <div class="chip" data-cfg="count" data-val="20" onclick="App.cfgChip(this,'count')">20</div>
-        <div class="chip" data-cfg="count" data-val="all" onclick="App.cfgChip(this,'count')">Hepsi</div>
+      <div style="background:var(--surface2);border:1.5px solid var(--border);border-radius:14px;padding:14px 16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <span style="font-size:.82rem;color:var(--text2)">Kart sayısı</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <button onclick="App.countStep(-1)" style="width:28px;height:28px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface);color:var(--text2);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">−</button>
+            <span id="cfg-count-display" style="font-family:'Syne','Segoe UI',sans-serif;font-size:1.4rem;font-weight:800;color:var(--primary2);min-width:52px;text-align:center">10</span>
+            <button onclick="App.countStep(1)"  style="width:28px;height:28px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface);color:var(--text2);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">+</button>
+          </div>
+        </div>
+        <input id="cfg-count-slider" type="range" min="1" max="50" value="10" oninput="App.countSlide(this.value)"
+          style="width:100%;accent-color:var(--primary);cursor:pointer;height:4px"/>
+        <div style="display:flex;justify-content:space-between;margin-top:6px">
+          <div style="display:flex;gap:6px">
+            <button onclick="App.countPreset(5)"  style="padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text3);font-size:.72rem;cursor:pointer">5</button>
+            <button onclick="App.countPreset(10)" style="padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text3);font-size:.72rem;cursor:pointer">10</button>
+            <button onclick="App.countPreset(20)" style="padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text3);font-size:.72rem;cursor:pointer">20</button>
+          </div>
+          <button onclick="App.countPreset('all')" style="padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text3);font-size:.72rem;cursor:pointer">Hepsi</button>
+        </div>
       </div>
     </div>
 
@@ -3546,10 +3590,13 @@ select option{background:var(--surface2);color:var(--text)}
         <div class="chip" data-cfg="order" data-val="reverse" onclick="App.cfgChip(this,'order')">🔁 Ters Sıralı</div>
       </div>
     </div>
+    </div><!-- /modal-sheet-scroll -->
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px;position:sticky;bottom:0;background:var(--surface);padding:14px 0 4px;margin-left:-20px;margin-right:-20px;padding-left:20px;padding-right:20px;z-index:1">
-      <button class="btn btn-ghost" onclick="App.closeConfig()"><i class="fa-solid fa-xmark"></i> İptal</button>
-      <button class="btn btn-teal" onclick="App.startStudy()"><i class="fa-solid fa-play"></i> Başla</button>
+    <div class="modal-sheet-footer">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <button class="btn btn-ghost" onclick="App.closeConfig()"><i class="fa-solid fa-xmark"></i> İptal</button>
+        <button class="btn btn-teal" onclick="App.startStudy()"><i class="fa-solid fa-play"></i> Başla</button>
+      </div>
     </div>
   </div>
 </div>
@@ -4227,9 +4274,7 @@ const App = (() => {
     panel.style.display = open ? '' : 'none';
     if (arrow) arrow.style.transform = open ? 'rotate(180deg)' : '';
     if (toggle) toggle.style.borderColor = open ? 'var(--primary)' : 'var(--border)';
-    if (open) { // açılınca ara kutuya odaklan
-      setTimeout(() => document.getElementById('cfg-topic-search')?.focus(), 50);
-    }
+    if (open) { /* Klavye açılmasın, kullanıcı isterse yazar */ }
   }
 
   function toggleTopicItem(el) {
@@ -4335,6 +4380,21 @@ const App = (() => {
     studyCfg.topics = [];
     buildTopicChips();
   }
+
+  // ── Kart Sayısı Slider ──
+  function _setCountUI(val) {
+    studyCfg.count = val;
+    const disp   = document.getElementById('cfg-count-display');
+    const slider = document.getElementById('cfg-count-slider');
+    if (disp)   disp.textContent = val === 'all' ? 'Hepsi' : String(val);
+    if (slider) slider.value = val === 'all' ? 50 : Math.min(50, parseInt(val));
+  }
+  function countSlide(v) { _setCountUI(parseInt(v)); }
+  function countStep(dir) {
+    const cur = studyCfg.count === 'all' ? 50 : parseInt(studyCfg.count);
+    _setCountUI(Math.max(1, Math.min(50, cur + dir)));
+  }
+  function countPreset(v) { _setCountUI(v); }
 
   // ── START STUDY (Serbest Çalışma — Config Modal'dan) ──
   async function startStudy() {
@@ -6696,6 +6756,9 @@ STRİKT KURALLAR:
     filterTopicList,
     selectAllTopics,
     clearTopics,
+    countSlide,
+    countStep,
+    countPreset,
     toggleAutoBackup,
     initAutoBackup,
     checkAutoBackup,
@@ -11637,19 +11700,25 @@ const KartHavuzu = (() => {
     const voteSnap = await getDoc(voteRef).catch(() => null);
     const prevVote = voteSnap?.exists() ? voteSnap.data().type : null;
 
-    if (prevVote === type) { toast('Zaten oy verdin!', 'err'); return; }
+    // Aynı oya tekrar basınca geri çek
+    const isUnvote = prevVote === type && (type === 'like' || type === 'dislike');
+    const { deleteDoc } = fb;
 
     const cardRef = doc(db, 'global_cards', globalCardId);
     const updates = {};
     if (prevVote === 'like')    updates.likes    = increment(-1);
     if (prevVote === 'dislike') updates.dislikes = increment(-1);
-    if (type === 'like')    updates.likes    = increment(1);
-    if (type === 'dislike') updates.dislikes = increment(1);
+    if (!isUnvote && type === 'like')    updates.likes    = increment(1);
+    if (!isUnvote && type === 'dislike') updates.dislikes = increment(1);
     if (type === 'report')  updates.reported = increment(1);
 
     try {
       await updateDoc(cardRef, updates);
-      await setDoc(voteRef, { type, votedAt: Date.now() });
+      if (isUnvote) {
+        await deleteDoc(voteRef).catch(()=>{});
+      } else {
+        await setDoc(voteRef, { type, votedAt: Date.now() });
+      }
       // 5+ report → otomatik gizle
       if (type === 'report') {
         const snap = await getDoc(cardRef).catch(()=>null);
@@ -11662,15 +11731,15 @@ const KartHavuzu = (() => {
       if (c) {
         if (prevVote === 'like')    c.likes    = Math.max(0, (c.likes||0) - 1);
         if (prevVote === 'dislike') c.dislikes = Math.max(0, (c.dislikes||0) - 1);
-        if (type === 'like')    c.likes    = (c.likes||0) + 1;
-        if (type === 'dislike') c.dislikes = (c.dislikes||0) + 1;
+        if (!isUnvote && type === 'like')    c.likes    = (c.likes||0) + 1;
+        if (!isUnvote && type === 'dislike') c.dislikes = (c.dislikes||0) + 1;
         // DOM güncelle
         const lb = document.getElementById('kh-vote-like-' + globalCardId);
         const db2 = document.getElementById('kh-vote-dis-' + globalCardId);
         if (lb) lb.innerHTML = `❤ ${c.likes}`;
         if (db2) db2.innerHTML = `👎 ${c.dislikes}`;
       }
-      toast(type === 'report' ? '⚑ Şikâyet gönderildi' : '✅ Oy verildi!', 'ok');
+      toast(isUnvote ? '↩ Oy geri alındı' : type === 'report' ? '⚑ Şikâyet gönderildi' : '✅ Oy verildi!', 'ok');
     } catch(e) { toast('Hata: ' + e.message, 'err'); }
   }
 
@@ -11811,6 +11880,66 @@ const KartHavuzu = (() => {
   }
 
   // ── Filter Functions ─────────────────────────────────
+
+  // ── Sort / Time Sheet ─────────────────────────────
+  const SORT_OPTS = [
+    { val:'downloads', label:'⬇ En Çok İndirilen' },
+    { val:'likes',     label:'❤ En Çok Beğenilen' },
+    { val:'newest',    label:'🆕 En Yeni' }
+  ];
+  const TIME_OPTS = [
+    { val:'all',   label:'🕐 Tüm Zamanlar' },
+    { val:'year',  label:'📅 Bu Yıl' },
+    { val:'month', label:'📆 Bu Ay' },
+    { val:'week',  label:'📋 Bu Hafta' }
+  ];
+  let _sortVal = 'downloads';
+  let _timeVal = 'all';
+
+  function _sheetRow(label, active, onclick) {
+    return `<div onclick="${onclick}" style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s" onmousedown="this.style.background='var(--surface2)'" onmouseup="this.style.background=''">
+      <span style="font-size:.95rem;font-weight:${active?'700':'500'};color:${active?'var(--primary2)':'var(--text)'}">${label}</span>
+      ${active ? '<span style="width:20px;height:20px;border-radius:50%;border:2px solid var(--primary);background:var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="color:#fff;font-size:.65rem;font-weight:900">✓</span></span>' : '<span style="width:20px;height:20px;border-radius:50%;border:2px solid var(--border);flex-shrink:0"></span>'}
+    </div>`;
+  }
+
+  function openSortSheet() {
+    const sheet = document.getElementById('kh-sort-sheet');
+    const opts  = document.getElementById('kh-sort-options');
+    if (!sheet || !opts) return;
+    opts.innerHTML = SORT_OPTS.map(o => _sheetRow(o.label, _sortVal===o.val, `KartHavuzu.pickSort('${o.val}')`)).join('');
+    sheet.style.display = 'flex';
+  }
+  function closeSortSheet() { document.getElementById('kh-sort-sheet').style.display='none'; }
+  function pickSort(val) {
+    _sortVal = val;
+    const found = SORT_OPTS.find(o=>o.val===val);
+    const lbl = document.getElementById('kh-sort-label');
+    const sel = document.getElementById('kh-sort');
+    if (lbl && found) lbl.textContent = found.label;
+    if (sel) sel.value = val;
+    closeSortSheet();
+    reload();
+  }
+
+  function openTimeSheet() {
+    const sheet = document.getElementById('kh-time-sheet');
+    const opts  = document.getElementById('kh-time-options');
+    if (!sheet || !opts) return;
+    opts.innerHTML = TIME_OPTS.map(o => _sheetRow(o.label, _timeVal===o.val, `KartHavuzu.pickTime('${o.val}')`)).join('');
+    sheet.style.display = 'flex';
+  }
+  function closeTimeSheet() { document.getElementById('kh-time-sheet').style.display='none'; }
+  function pickTime(val) {
+    _timeVal = val;
+    const found = TIME_OPTS.find(o=>o.val===val);
+    const lbl = document.getElementById('kh-time-label');
+    const sel = document.getElementById('kh-time');
+    if (lbl && found) lbl.textContent = found.label;
+    if (sel) sel.value = val;
+    closeTimeSheet();
+    reload();
+  }
 
   function toggleFilterPanel() {
     const panel = document.getElementById('kh-filter-panel');
@@ -11981,7 +12110,8 @@ const KartHavuzu = (() => {
   }
 
   return { onEnter, reload, loadMore, setView, uploadCard, acceptConsent, vote, openPreview, closePreview, importPreviewCard, withdrawCard,
-    toggleFilterPanel, toggleSubject, toggleTopicPanel, toggleTopic, filterTopicSearch, selectAllTopics, clearTopics, applyFilters, clearAllFilters };
+    toggleFilterPanel, toggleSubject, toggleTopicPanel, toggleTopic, filterTopicSearch, selectAllTopics, clearTopics, applyFilters, clearAllFilters,
+    openSortSheet, closeSortSheet, pickSort, openTimeSheet, closeTimeSheet, pickTime };
 })();
 </script>
 
