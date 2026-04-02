@@ -3133,18 +3133,13 @@ select option{background:var(--surface2);color:var(--text)}
 
     <!-- Gemini cevap alanı -->
     <div id="flag-gemini-result" style="display:none;background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.3);border-radius:10px;padding:12px;margin-bottom:14px">
-      <div style="font-size:.68rem;font-weight:700;color:var(--primary2);margin-bottom:6px">✨ GEMİNİ DÜZELTMESİ</div>
       <div id="flag-gemini-text" style="font-size:.83rem;color:var(--text);line-height:1.6"></div>
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <button onclick="KartHavuzu.applyGeminifix()" style="flex:2;padding:9px;border-radius:10px;border:none;background:var(--primary);color:#fff;font-size:.8rem;font-weight:700;cursor:pointer">✅ Uygula ve Yeniden Yükle</button>
-        <button onclick="document.getElementById('flag-gemini-result').style.display='none'" style="flex:1;padding:9px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-size:.8rem;cursor:pointer">İptal</button>
-      </div>
     </div>
 
     <!-- Butonlar -->
     <div style="display:flex;flex-direction:column;gap:8px">
       <button id="flag-gemini-btn" onclick="KartHavuzu.geminiFixContent()" style="padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;font-size:.85rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
-        <span>✨</span> Gemini ile Otomatik Düzelt
+        <span>✨</span> Gemini ile Analiz Et
       </button>
       <button onclick="KartHavuzu.closeFlagReason()" style="padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text2);font-size:.83rem;cursor:pointer">Kapat</button>
     </div>
@@ -12259,11 +12254,12 @@ const KartHavuzu = (() => {
     'sikişme','götten','orospu çocuğu','bok gibi'
   ];
 
-  // Bypass normalizasyonu: a.m.k → amk, 4m → am, boşlukları sil
+  // Bypass normalizasyonu: a.m.k → amk  |  boşlukları KORUR
+  // "idrar toplama" → "idrar toplama"  (toplama ≠ am ✓)
+  // "a.m.k"         → "amk"            (amk = amk ✓)
   function _normalizeBypass(text) {
     return text.toLowerCase()
-      .replace(/[.\-_*]+/g, '')   // nokta/tire/alt çizgi kaldır
-      .replace(/\s+/g, '')        // tüm boşlukları kaldır
+      .replace(/[.\-_*@#!?]+/g, '')  // özel karakterleri sil, boşlukları koru
       .replace(/0/g,'o').replace(/3/g,'e')
       .replace(/4/g,'a').replace(/1/g,'i').replace(/5/g,'s');
   }
@@ -12310,11 +12306,17 @@ const KartHavuzu = (() => {
       if (combinedLower.includes(w)) found.push(w);
     }
 
-    // 3. Bypass kontrolü: normalleştirilmiş metinde tüm kelimeleri ara
-    const normalized = _normalizeBypass(combined);
-    for (const w of [...exactWords, ...substringWords]) {
+    // 3. Bypass kontrolü: özel karakterler temizlenmiş ama boşluklar korunmuş metni kontrol et
+    //    "a.m.k" → "amk" → token eşleşir  |  "toplama" → "toplama" → "am" ile eşleşmez
+    const bypassNorm = _normalizeBypass(combined);
+    for (const w of exactWords) {
+      if (!found.includes(w) && _exactWordMatch(bypassNorm, w)) {
+        found.push(w + '(bypass)');
+      }
+    }
+    for (const w of substringWords) {
       const nw = _normalizeBypass(w);
-      if (!found.includes(w) && normalized.includes(nw)) {
+      if (!found.some(f => f.startsWith(w)) && bypassNorm.toLowerCase().includes(nw)) {
         found.push(w + '(bypass)');
       }
     }
@@ -12334,6 +12336,7 @@ const KartHavuzu = (() => {
   let _flagModalCardId   = null;
   let _flagModalCardData = null;
   let _geminiFixedData   = null;   // Gemini'nin önerdiği düzeltme
+  let _geminiVerdict     = null;   // 'TEMIZ' | 'DUZELT' | 'UYGUNSUZ'
 
   function _hl(text, words) {
     // Metinde tetikleyen kelimeleri kırmızı spanla işaretle
@@ -12353,6 +12356,7 @@ const KartHavuzu = (() => {
     _flagModalCardId   = cardId;
     _flagModalCardData = null;
     _geminiFixedData   = null;
+    _geminiVerdict     = null;
 
     const modal = document.getElementById('kh-flag-modal');
     if (!modal) return;
@@ -12398,68 +12402,133 @@ const KartHavuzu = (() => {
     const cd           = _flagModalCardData.cardData || {};
     const flaggedWords = _flagModalCardData.flaggedWords || [];
     const key          = await GeminiAI.getKeyPublic?.();
-    if (!key) { toast('Gemini API anahtarı bulunamadı.', 'err'); return; }
+    if (!key) { toast('Gemini API anahtarı bulunamadı. Ayarlar > Gemini bölümünden ekleyin.', 'err'); return; }
 
     const btn = document.getElementById('flag-gemini-btn');
     btn.disabled    = true;
-    btn.textContent = '⏳ Düzeltiliyor…';
+    btn.textContent = '⏳ Analiz ediliyor…';
+    document.getElementById('flag-gemini-result').style.display = 'none';
 
-    const systemPrompt = `Sen bir Türkçe eğitim içerik moderatörüsün. Aşağıdaki kart içeriği bir küfür filtresi tarafından engellendi. Tetikleyen kelimeler: [${flaggedWords.join(', ')}].
+    // 3 kategorili karar sistemi
+    const systemPrompt = `Sen bir Türkçe eğitim içerik moderatörüsün. Kart içeriğini analiz edeceksin.
 
-GÖREVIN:
-- Eğer bu kelimeler gerçekten biyoloji/fen/sosyal gibi eğitim terimleriyle çakışıyorsa (Scunthorpe Problemi), metni filtreyi geçecek şekilde eş anlamlı ya da açıklayıcı ifadelerle yeniden yaz. Orijinal anlamı koru.
-- Eğer metin gerçekten küfür veya uygunsuz içerik barındırıyorsa, yalnızca şunu yaz: UYGUNSUZ
+Karar ver:
+1. TEMİZ → İçerik bir eğitim terimidir, filtreyle yanlış eşleşme olmuş. Olduğu gibi yayına girsin.
+2. DUZELT → İçerik uygunsuz değil ama ifade tarzı yanlış anlaşılabilir. Daha net bir versiyonunu öner.
+3. UYGUNSUZ → Gerçekten küfür veya uygunsuz içerik var.
 
-Yanıtını JSON olarak ver, başka hiçbir şey yazma:
-{"question":"...","answer":"..."}
-veya yalnızca: UYGUNSUZ`;
+YANIT FORMATI (yalnızca JSON, başka hiçbir şey yazma):
+TEMİZ ise:     {"verdict":"TEMIZ","reason":"neden temiz olduğunu bir cümleyle açıkla"}
+DÜZELTİLEBİLİR: {"verdict":"DUZELT","question":"düzeltilmiş soru","answer":"düzeltilmiş cevap","reason":"neden değiştirdin"}
+UYGUNSUZ ise:  {"verdict":"UYGUNSUZ"}`;
 
-    const userMsg = `Soru: ${cd.question || ''}\nCevap: ${cd.answer || cd.notes || ''}`;
+    const userMsg = `Tetikleyen kelimeler: [${flaggedWords.join(', ')}]
+Soru: ${cd.question || cd.topic || ''}
+Cevap: ${cd.answer || cd.notes || ''}`;
 
     try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: systemPrompt }] },
-          contents: [{ role: 'user', parts: [{ text: userMsg }] }]
-        })
-      });
-      const json = await res.json();
-      const raw  = (json.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+      const MODEL = 'gemini-2.0-flash';
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system_instruction: { parts: [{ text: systemPrompt }] },
+            contents: [{ role: 'user', parts: [{ text: userMsg }] }],
+            generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
+          })
+        }
+      );
 
-      if (raw === 'UYGUNSUZ' || raw.toUpperCase().includes('UYGUNSUZ')) {
-        // Şüpheli kullanıcı sayacını artır
-        await _incrementSuspicious();
-        document.getElementById('flag-gemini-result').style.display = 'block';
-        document.getElementById('flag-gemini-text').innerHTML =
-          `<span style="color:#ff6584;font-weight:700">⛔ Bu isteğe yardımcı olamam.</span><br><span style="font-size:.78rem;color:var(--text3)">İçerik gerçekten uygunsuz tespit edildi. Hesabınıza şüpheli içerik notu eklendi.</span>`;
-        document.getElementById('flag-modal-words').closest('div').querySelector('button')?.remove();
-      } else {
-        // JSON parse
-        const cleaned = raw.replace(/```json|```/g,'').trim();
-        let parsed;
-        try { parsed = JSON.parse(cleaned); } catch(e) { throw new Error('Gemini yanıtı ayrıştırılamadı.'); }
-        _geminiFixedData = parsed;
-        document.getElementById('flag-gemini-result').style.display = 'block';
-        document.getElementById('flag-gemini-text').innerHTML =
-          `<b>Soru:</b> ${_esc(parsed.question || '')}<br><b>Cevap:</b> ${_esc(parsed.answer || '')}`;
+      if (!res.ok) {
+        const errJson = await res.json().catch(()=>({}));
+        throw new Error(errJson?.error?.message || `API hatası: HTTP ${res.status}`);
       }
+
+      const data = await res.json();
+      const raw  = (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim()
+        .replace(/```json|```/g, '').trim();
+
+      let parsed;
+      try { parsed = JSON.parse(raw); }
+      catch(e) { throw new Error('Gemini yanıtı JSON olarak ayrıştırılamadı: ' + raw.slice(0,80)); }
+
+      const resultEl = document.getElementById('flag-gemini-result');
+      const textEl   = document.getElementById('flag-gemini-text');
+      resultEl.style.display = 'block';
+
+      if (parsed.verdict === 'TEMIZ') {
+        // Otomatik gizlemeyi kaldır
+        resultEl.style.background    = 'rgba(0,212,170,.08)';
+        resultEl.style.borderColor   = 'rgba(0,212,170,.3)';
+        textEl.innerHTML = `<span style="color:var(--teal2);font-weight:700">✅ İçerik Temiz!</span><br><span style="font-size:.8rem;color:var(--text2)">${_esc(parsed.reason||'')}</span>`;
+        // Gizlemeyi otomatik kaldır
+        document.querySelector('#flag-gemini-result .apply-row')?.remove();
+        const autoApplyRow = document.createElement('div');
+        autoApplyRow.style.cssText = 'margin-top:10px';
+        autoApplyRow.innerHTML = `<button onclick="KartHavuzu.autoUnhide()" style="width:100%;padding:9px;border-radius:10px;border:none;background:var(--teal2);color:#fff;font-size:.8rem;font-weight:700;cursor:pointer">✅ Gizlemeyi Kaldır ve Yayına Al</button>`;
+        textEl.after(autoApplyRow);
+        _geminiFixedData = { ...cd }; // orijinal, değişiklik yok
+        _geminiVerdict   = 'TEMIZ';
+
+      } else if (parsed.verdict === 'DUZELT') {
+        resultEl.style.background  = 'rgba(108,99,255,.08)';
+        resultEl.style.borderColor = 'rgba(108,99,255,.3)';
+        textEl.innerHTML = `<span style="color:var(--primary2);font-weight:700">✏️ Düzeltme Önerisi</span><br><span style="font-size:.74rem;color:var(--text3)">${_esc(parsed.reason||'')}</span><br><br><b style="font-size:.76rem">Soru:</b> <span style="font-size:.82rem">${_esc(parsed.question||'')}</span><br><b style="font-size:.76rem">Cevap:</b> <span style="font-size:.82rem">${_esc(parsed.answer||'')}</span>`;
+        _geminiFixedData = { question: parsed.question, answer: parsed.answer };
+        _geminiVerdict   = 'DUZELT';
+        document.querySelector('#flag-gemini-result .apply-row')?.remove();
+        const applyRow = document.createElement('div');
+        applyRow.className = 'apply-row';
+        applyRow.style.cssText = 'display:flex;gap:8px;margin-top:10px';
+        applyRow.innerHTML = `
+          <button onclick="KartHavuzu.applyGeminifix()" style="flex:2;padding:9px;border-radius:10px;border:none;background:var(--primary);color:#fff;font-size:.8rem;font-weight:700;cursor:pointer">✅ Uygula ve Yayınla</button>
+          <button onclick="document.getElementById('flag-gemini-result').style.display='none'" style="flex:1;padding:9px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-size:.8rem;cursor:pointer">İptal</button>`;
+        textEl.after(applyRow);
+
+      } else { // UYGUNSUZ
+        resultEl.style.background  = 'rgba(255,101,132,.07)';
+        resultEl.style.borderColor = 'rgba(255,101,132,.25)';
+        textEl.innerHTML = `<span style="color:#ff6584;font-weight:700">⛔ Bu içeriğe yardımcı olamam.</span><br><span style="font-size:.78rem;color:var(--text3)">İçerik gerçekten uygunsuz olarak tespit edildi. Hesabınıza not eklendi.</span>`;
+        _geminiFixedData = null;
+        _geminiVerdict   = 'UYGUNSUZ';
+        await _incrementSuspicious();
+      }
+
     } catch(e) {
       toast('Gemini hatası: ' + e.message, 'err');
     } finally {
       btn.disabled    = false;
-      btn.textContent = '✨ Gemini ile Otomatik Düzelt';
+      btn.textContent = '✨ Gemini ile Analiz Et';
     }
   }
 
-  async function applyGeminifix() {
-    if (!_geminiFixedData || !_flagModalCardId || !_flagModalCardData) return;
+  async function autoUnhide() {
+    if (!_flagModalCardId) return;
     const fb = _fb(); if (!fb) return;
     const { db, doc, updateDoc, serverTimestamp } = fb;
-
     try {
-      const newCardData = { ...(_flagModalCardData.cardData || {}), ..._geminiFixedData };
+      await updateDoc(doc(db, 'global_cards', _flagModalCardId), {
+        hidden: false, contentFlagged: false, flaggedWords: [], updatedAt: serverTimestamp()
+      });
+      toast('✅ Kart yayına alındı!', 'ok');
+      closeFlagReason();
+      _renderMine();
+    } catch(e) { toast('Hata: ' + e.message, 'err'); }
+  }
+
+  async function applyGeminifix() {
+    if (!_flagModalCardId || !_flagModalCardData) return;
+    const fb = _fb(); if (!fb) return;
+    const { db, doc, updateDoc, serverTimestamp } = fb;
+    try {
+      // TEMIZ: orijinal içerik korunur sadece gizleme kaldırılır
+      // DUZELT: Gemini'nin önerdiği metin uygulanır
+      const newCardData = _geminiVerdict === 'DUZELT' && _geminiFixedData
+        ? { ...(_flagModalCardData.cardData || {}), ..._geminiFixedData }
+        : (_flagModalCardData.cardData || {});
+
       await updateDoc(doc(db, 'global_cards', _flagModalCardId), {
         cardData:       newCardData,
         contentFlagged: false,
@@ -12467,7 +12536,7 @@ veya yalnızca: UYGUNSUZ`;
         hidden:         false,
         updatedAt:      serverTimestamp()
       });
-      toast('✅ Kart düzeltildi ve yeniden yayınlandı!', 'ok');
+      toast('✅ Kart yayına alındı!', 'ok');
       closeFlagReason();
       _renderMine();
     } catch(e) {
@@ -12511,7 +12580,7 @@ veya yalnızca: UYGUNSUZ`;
   return { onEnter, reload, loadMore, setView, uploadCard, acceptConsent, vote, openPreview, closePreview, importPreviewCard, withdrawCard,
     toggleFilterPanel, toggleSubject, toggleTopicPanel, toggleTopic, filterTopicSearch, selectAllTopics, clearTopics, applyFilters, clearAllFilters,
     openSortSheet, closeSortSheet, pickSort, openTimeSheet, closeTimeSheet, pickTime,
-    openFlagReason, closeFlagReason, geminiFixContent, applyGeminifix };
+    openFlagReason, closeFlagReason, geminiFixContent, applyGeminifix, autoUnhide };
 })();
 </script>
 
