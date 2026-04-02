@@ -876,7 +876,7 @@ select option{background:var(--surface2);color:var(--text)}
 .chip.selected-primary{border-color:var(--primary);background:rgba(108,99,255,0.2);color:var(--primary2)}
 .chip.selected-accent{border-color:var(--accent);background:rgba(255,101,132,0.15);color:var(--accent2)}
 .chip.selected-teal{border-color:var(--teal);background:rgba(0,212,170,0.15);color:var(--teal2)}
-.subject-chips{display:flex;flex-wrap:wrap;gap:8px;max-height:130px;overflow-y:auto}
+.subject-chips{display:flex;flex-wrap:wrap;gap:6px}
 
 /* ── STUDY VIEW ── */
 .prog-wrap{display:flex;align-items:center;gap:10px;margin-bottom:16px}
@@ -3547,7 +3547,7 @@ select option{background:var(--surface2);color:var(--text)}
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px;position:sticky;bottom:0;background:var(--surface);padding:12px 0 2px;z-index:1">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px;position:sticky;bottom:0;background:var(--surface);padding:14px 0 4px;margin-left:-20px;margin-right:-20px;padding-left:20px;padding-right:20px;z-index:1">
       <button class="btn btn-ghost" onclick="App.closeConfig()"><i class="fa-solid fa-xmark"></i> İptal</button>
       <button class="btn btn-teal" onclick="App.startStudy()"><i class="fa-solid fa-play"></i> Başla</button>
     </div>
@@ -4276,7 +4276,7 @@ const App = (() => {
     toggleTopicItem(el);
   }
 
-  function buildSubjectChips() {
+    function buildSubjectChips() {
     const cat     = studyCfg.cat;
     const allSubs = cat === 'all'
       ? [...new Set([...SUBJECTS.TYT, ...SUBJECTS.AYT])]
@@ -4284,9 +4284,13 @@ const App = (() => {
 
     const cont = document.getElementById('cfg-subjects');
     const allSelected = studyCfg.subjects.length === 0;
-    cont.innerHTML = '<div class="chip' + (allSelected ? ' selected-teal' : '') + '" data-sub="all" onclick="App.toggleSubChip(this)">Hepsi</div>' +
+    // Küçük chip stili — tümü kaydırmasız sığsın
+    const chipStyle = 'padding:5px 10px;border-radius:20px;font-size:.73rem;font-weight:600;border:1.5px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer;user-select:none;transition:all .15s';
+    const selStyle  = 'padding:5px 10px;border-radius:20px;font-size:.73rem;font-weight:600;border:1.5px solid var(--primary);background:rgba(108,99,255,.2);color:var(--primary2);cursor:pointer;user-select:none;transition:all .15s';
+    const tealStyle = 'padding:5px 10px;border-radius:20px;font-size:.73rem;font-weight:600;border:1.5px solid var(--teal);background:rgba(0,212,170,.15);color:var(--teal2);cursor:pointer;user-select:none;transition:all .15s';
+    cont.innerHTML = `<div style="${allSelected ? tealStyle : chipStyle}" data-sub="all" onclick="App.toggleSubChip(this)">Hepsi</div>` +
       allSubs.map(s =>
-        `<div class="chip${studyCfg.subjects.includes(s) ? ' selected-primary' : ''}" data-sub="${s}" onclick="App.toggleSubChip(this)">${s}</div>`
+        `<div style="${studyCfg.subjects.includes(s) ? selStyle : chipStyle}" data-sub="${s}" onclick="App.toggleSubChip(this)">${s}</div>`
       ).join('');
   }
 
@@ -4307,27 +4311,26 @@ const App = (() => {
 
   function toggleSubChip(el) {
     const sub = el.dataset.sub;
+    const chipStyle = 'padding:5px 10px;border-radius:20px;font-size:.73rem;font-weight:600;border:1.5px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer;user-select:none;transition:all .15s';
+    const selStyle  = 'padding:5px 10px;border-radius:20px;font-size:.73rem;font-weight:600;border:1.5px solid var(--primary);background:rgba(108,99,255,.2);color:var(--primary2);cursor:pointer;user-select:none;transition:all .15s';
+    const tealStyle = 'padding:5px 10px;border-radius:20px;font-size:.73rem;font-weight:600;border:1.5px solid var(--teal);background:rgba(0,212,170,.15);color:var(--teal2);cursor:pointer;user-select:none;transition:all .15s';
     if (sub === 'all') {
       studyCfg.subjects = [];
-      document.querySelectorAll('#cfg-subjects [data-sub]').forEach(c => {
-        c.className = c.className.replace(/selected-\w+/g,'').trim();
-      });
-      el.classList.add('selected-teal');
+      document.querySelectorAll('#cfg-subjects [data-sub]').forEach(c => { c.style.cssText = chipStyle; });
+      el.style.cssText = tealStyle;
       studyCfg.topics = [];
       buildTopicChips();
       return;
     }
-    // deselect "Hepsi"
     const allChip = document.querySelector('#cfg-subjects [data-sub="all"]');
-    if (allChip) allChip.className = allChip.className.replace(/selected-\w+/g,'').trim();
-
+    if (allChip) allChip.style.cssText = chipStyle;
     const idx = studyCfg.subjects.indexOf(sub);
     if (idx === -1) {
       studyCfg.subjects.push(sub);
-      el.classList.add('selected-primary');
+      el.style.cssText = selStyle;
     } else {
       studyCfg.subjects.splice(idx, 1);
-      el.className = el.className.replace(/selected-\w+/g,'').trim();
+      el.style.cssText = chipStyle;
     }
     studyCfg.topics = [];
     buildTopicChips();
@@ -11566,14 +11569,21 @@ const KartHavuzu = (() => {
         ? c.cardData.question.slice(0,55) + (c.cardData.question.length > 55 ? '…' : '')
         : (c.cardData?.topic || 'Bilgi Notu');
       const name = (c.uploaderName || '?').slice(0,10) + ((c.uploaderName||'').length > 10 ? '…' : '');
-      return `<div ondblclick="if(localStorage.getItem('kh_dblclick_preview')==='1')KartHavuzu.openPreview('${c.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px">
-        <div style="flex-shrink:0;width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--primary),var(--primary2));display:flex;align-items:center;justify-content:center;font-size:.9rem">⚡</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:.78rem;color:var(--teal2);font-weight:700;margin-bottom:2px">${_esc(c.cardData?.category||'')} · ${_esc(c.cardData?.subject||'')}</div>
-          <div style="font-size:.85rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(title)}</div>
-          <div style="font-size:.68rem;color:var(--text3);margin-top:2px">${_esc(name)} · ❤ ${c.likes||0} · ⬇ ${c.downloads||0}</div>
+      return `<div ondblclick="if(localStorage.getItem('kh_dblclick_preview')==='1')KartHavuzu.openPreview('${c.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:10px 12px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <div style="flex-shrink:0;width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--primary),var(--primary2));display:flex;align-items:center;justify-content:center;font-size:.85rem">⚡</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:.75rem;color:var(--teal2);font-weight:700;margin-bottom:1px">${_esc(c.cardData?.category||'')} · ${_esc(c.cardData?.subject||'')}</div>
+            <div style="font-size:.83rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(title)}</div>
+            <div style="font-size:.65rem;color:var(--text3);margin-top:1px">👤 ${_esc(name)}</div>
+          </div>
         </div>
-        <button onclick="KartHavuzu.openPreview('${c.id}')" style="flex-shrink:0;background:rgba(0,212,170,.12);border:1px solid rgba(0,212,170,.3);border-radius:8px;padding:6px 10px;color:var(--teal2);font-size:.75rem;cursor:pointer;font-weight:600">👁 Bak</button>
+        <div style="display:flex;gap:6px">
+          <button onclick="KartHavuzu.vote('${c.id}','like')" id="kh-vote-like-${c.id}" style="flex:1;background:rgba(255,101,132,.1);border:1px solid rgba(255,101,132,.2);border-radius:8px;padding:5px 4px;color:#ff6584;font-size:.72rem;cursor:pointer;font-weight:700">❤ ${c.likes||0}</button>
+          <button onclick="KartHavuzu.vote('${c.id}','dislike')" id="kh-vote-dis-${c.id}" style="flex:1;background:rgba(108,99,255,.1);border:1px solid rgba(108,99,255,.2);border-radius:8px;padding:5px 4px;color:var(--primary2);font-size:.72rem;cursor:pointer;font-weight:700">👎 ${c.dislikes||0}</button>
+          <button onclick="KartHavuzu.openPreview('${c.id}')" style="flex:1;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.25);border-radius:8px;padding:5px 4px;color:var(--teal2);font-size:.72rem;cursor:pointer;font-weight:700">⬇ ${c.downloads||0}</button>
+          <button onclick="KartHavuzu.openPreview('${c.id}')" style="flex:2;background:linear-gradient(135deg,var(--primary),var(--primary2));border:none;border-radius:8px;padding:5px 6px;color:#fff;font-size:.72rem;cursor:pointer;font-weight:700">👁 Bak / Aktar</button>
+        </div>
       </div>`;
     }).join('');
   }
