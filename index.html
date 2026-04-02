@@ -1065,6 +1065,72 @@ select option{background:var(--surface2);color:var(--text)}
   font-size:.8rem;color:var(--text3);line-height:1.7
 }
 
+/* ── ROUTİNE AI ASISTANI ── */
+.rai-card {
+  margin-bottom:16px;
+  border:1.5px solid rgba(120,80,255,.35);
+  background:linear-gradient(135deg,rgba(120,80,255,.07) 0%,rgba(0,212,170,.05) 100%);
+}
+.rai-header {
+  display:flex;align-items:center;gap:10px;margin-bottom:10px
+}
+.rai-icon { font-size:1.3rem;flex-shrink:0 }
+.rai-title {
+  font-family:var(--font-heading);font-size:.92rem;font-weight:800;color:var(--text)
+}
+.rai-badge {
+  font-size:.56rem;font-weight:900;letter-spacing:.07em;
+  background:linear-gradient(90deg,var(--primary),var(--teal2));
+  color:#fff;padding:2px 7px;border-radius:20px;margin-left:7px
+}
+.rai-subtitle {
+  font-size:.68rem;color:var(--text3);margin-bottom:10px;line-height:1.5
+}
+.rai-chips {
+  display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px
+}
+.rai-chip {
+  font-size:.68rem;padding:5px 10px;border-radius:20px;
+  background:var(--surface2);border:1px solid var(--border);
+  color:var(--text2);cursor:pointer;transition:all .15s;white-space:nowrap
+}
+.rai-chip:active { background:rgba(120,80,255,.15);border-color:var(--primary) }
+.rai-input-row {
+  display:flex;gap:8px;align-items:flex-end
+}
+.rai-textarea {
+  flex:1;background:var(--surface2);border:1.5px solid var(--border);
+  border-radius:14px;padding:11px 14px;color:var(--text);
+  font-size:.82rem;resize:none;font-family:inherit;line-height:1.5;
+  transition:border-color .2s;outline:none
+}
+.rai-textarea:focus { border-color:var(--primary) }
+.rai-send-btn {
+  width:44px;height:44px;border-radius:14px;border:none;flex-shrink:0;
+  background:linear-gradient(135deg,var(--primary),var(--teal2));
+  color:#fff;font-size:1rem;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;transition:opacity .2s
+}
+.rai-send-btn:disabled { opacity:.45;cursor:not-allowed }
+.rai-response { margin-top:12px }
+.rai-bubble {
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:14px;padding:13px 14px;font-size:.8rem;
+  border-left:3px solid var(--teal2)
+}
+.rai-bubble-err { border-left-color:#ff4d6d;color:#ff4d6d }
+.rai-bubble-loading { color:var(--text3);display:flex;align-items:center;gap:8px }
+.rai-msg { color:var(--text);margin-bottom:10px;line-height:1.6 }
+.rai-created-list { display:flex;flex-direction:column;gap:6px }
+.rai-created-row {
+  display:flex;align-items:center;gap:8px;
+  background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.2);
+  border-radius:10px;padding:8px 10px
+}
+.rai-created-row span { font-size:.76rem;color:var(--text2);line-height:1.4 }
+@keyframes rai-spin { to { transform:rotate(360deg) } }
+.rai-spin { animation:rai-spin .8s linear infinite }
+
 .bulk-delete-bar{
   position:fixed;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px) + 12px);left:50%;
   transform:translateX(-50%) translateY(20px);
@@ -2258,7 +2324,32 @@ select option{background:var(--surface2);color:var(--text)}
   <div class="page-header">
     <h1>Rutinler</h1>
     <p>Düzenli çalışma planını yönet</p>
+  </div>
 
+  <!-- ✨ AI Rutin Asistanı -->
+  <div class="card rai-card">
+    <div class="rai-header">
+      <span class="rai-icon">✨</span>
+      <div>
+        <span class="rai-title">AI Rutin Asistanı</span>
+        <span class="rai-badge">YENİ</span>
+      </div>
+    </div>
+    <div class="rai-subtitle">Ne çalışmak istediğini yaz, AI senin için rutin oluştursun.</div>
+    <div class="rai-chips">
+      <span class="rai-chip" onclick="RoutineAI.setExample(this)">Zayıf konularım için rutin oluştur</span>
+      <span class="rai-chip" onclick="RoutineAI.setExample(this)">Hafta içi her gün Matematik</span>
+      <span class="rai-chip" onclick="RoutineAI.setExample(this)">AYT Kimya her 2 günde bir</span>
+    </div>
+    <div class="rai-input-row">
+      <textarea id="rai-input" class="rai-textarea" rows="2"
+        placeholder="Örn: Biyolojide zorlanıyorum, her 2 günde bir tekrar yap"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();RoutineAI.send()}"></textarea>
+      <button class="rai-send-btn" id="rai-send-btn" onclick="RoutineAI.send()">
+        <i class="fa-solid fa-paper-plane"></i>
+      </button>
+    </div>
+    <div id="rai-response" class="rai-response" style="display:none"></div>
   </div>
 
   <div class="card">
@@ -13453,5 +13544,207 @@ const AppConfirm = (() => {
     </div>
   </div>
 </div>
+<!-- ══════ ROUTİNE AI ASISTANI ══════ -->
+<script>
+const RoutineAI = (() => {
+  const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
+  const MODEL    = 'gemini-2.0-flash';
+
+  // ── Ana gönder fonksiyonu ──
+  async function send() {
+    const inputEl  = document.getElementById('rai-input');
+    const sendBtn  = document.getElementById('rai-send-btn');
+    const respEl   = document.getElementById('rai-response');
+
+    const userMsg = inputEl.value.trim();
+    if (!userMsg) { if (window.toast) toast('Bir şeyler yaz!', 'err'); return; }
+
+    // API anahtarı al
+    const key = await GeminiAI.getKeyPublic?.();
+    if (!key) {
+      if (window.toast) toast('Gemini API anahtarı bulunamadı. Ayarlar > Gemini\'den ekle.', 'err');
+      return;
+    }
+
+    // Loading state
+    sendBtn.disabled = true;
+    respEl.style.display = 'block';
+    respEl.innerHTML = `<div class="rai-bubble rai-bubble-loading">
+      <i class="fa-solid fa-spinner rai-spin"></i> Düşünüyorum…
+    </div>`;
+
+    try {
+      // Context verilerini topla
+      const [routines, cards] = await Promise.all([routineGetAll(), dbGetAll()]);
+      const weakTopics = _getWeakTopics(cards);
+
+      // Prompt oluştur
+      const prompt = _buildPrompt(userMsg, routines, weakTopics);
+
+      const res = await fetch(`${API_BASE}${MODEL}:generateContent?key=${key}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: 'Sen bir YKS çalışma asistanısın. Sadece istenen JSON formatını döndür, başka hiçbir şey yazma.' }] },
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.4, maxOutputTokens: 1024 }
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error?.message || `Sunucu hatası (${res.status})`);
+      }
+
+      const data = await res.json();
+      const raw  = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const parsed = _parseJSON(raw);
+
+      if (!parsed || !Array.isArray(parsed.routines) || !parsed.routines.length) {
+        throw new Error('Rutin oluşturulamadı. Daha açık bir istek dene.');
+      }
+
+      // Rutinleri kaydet
+      for (const r of parsed.routines) {
+        const entry = {
+          name:      r.name || 'AI Rutini',
+          category:  r.category === 'AYT' ? 'AYT' : 'TYT',
+          subject:   r.subject  || 'Matematik',
+          topic:     r.topic    || null,
+          schedType: r.schedType === 'days' ? 'days' : 'interval',
+          interval:  Math.max(1, Math.min(30, parseInt(r.interval) || 2)),
+          days:      Array.isArray(r.days) ? r.days : [],
+          createdAt: Date.now()
+        };
+        await routinePut(entry);
+      }
+
+      // Oluşturulan rutinleri göster
+      const routineRows = parsed.routines.map(r => {
+        const schedLabel = r.schedType === 'days'
+          ? _daysLabel(r.days)
+          : `Her ${r.interval || 2} günde bir`;
+        return `<div class="rai-created-row">
+          <i class="fa-solid fa-repeat" style="color:var(--teal2);font-size:.8rem;flex-shrink:0"></i>
+          <span><b>${_esc(r.name)}</b><br>
+            <span style="color:var(--text3)">${_esc(r.subject)}${r.topic ? ' · ' + _esc(r.topic) : ''} · ${schedLabel}</span>
+          </span>
+        </div>`;
+      }).join('');
+
+      respEl.innerHTML = `<div class="rai-bubble">
+        <div class="rai-msg">${_esc(parsed.message || 'Rutinler oluşturuldu!')}</div>
+        <div class="rai-created-list">${routineRows}</div>
+      </div>`;
+
+      inputEl.value = '';
+      if (typeof App !== 'undefined') App.renderRoutines();
+      if (window.toast) toast(`✅ ${parsed.routines.length} rutin eklendi!`, 'ok');
+
+    } catch (e) {
+      respEl.innerHTML = `<div class="rai-bubble rai-bubble-err">❌ ${e.message}</div>`;
+    } finally {
+      sendBtn.disabled = false;
+    }
+  }
+
+  // ── Zayıf konuları hesapla (renderWeakTopics ile aynı mantık) ──
+  function _getWeakTopics(cards) {
+    const reviewed = cards.filter(c => c.repetitions >= 1 && c.subject && c.topic);
+    if (!reviewed.length) return [];
+    const groups = {};
+    reviewed.forEach(c => {
+      const key = `${c.subject}|||${c.topic}`;
+      if (!groups[key]) groups[key] = { subject: c.subject, topic: c.topic, intervals: [], eases: [] };
+      groups[key].intervals.push(c.interval || 1);
+      groups[key].eases.push(c.easeFactor || 2.5);
+    });
+    return Object.values(groups)
+      .map(g => {
+        const avgInt  = g.intervals.reduce((a,b) => a+b, 0) / g.intervals.length;
+        const avgEase = g.eases.reduce((a,b) => a+b, 0) / g.eases.length;
+        return { subject: g.subject, topic: g.topic, score: avgInt * (avgEase / 2.5) };
+      })
+      .sort((a, b) => a.score - b.score)
+      .slice(0, 5)
+      .map(g => `${g.subject} / ${g.topic}`);
+  }
+
+  // ── Gemini'ye gönderilecek prompt ──
+  function _buildPrompt(userMsg, routines, weakTopics) {
+    const routineList = routines.length
+      ? routines.map(r => `"${r.name}" (${r.subject})`).join(', ')
+      : 'Henüz rutin yok';
+    const weakList = weakTopics.length
+      ? weakTopics.join(', ')
+      : 'Veri yok';
+
+    return `YKS öğrencisi için çalışma rutini oluştur.
+
+TYT DERSLERİ: Türkçe, Matematik, Geometri, Fizik, Kimya, Biyoloji, Tarih, Coğrafya, Felsefe, Din Kültürü
+AYT DERSLERİ: Matematik, Geometri, Fizik, Kimya, Biyoloji, Edebiyat, Tarih-1, Tarih-2, Coğrafya-1, Coğrafya-2, Felsefe Grubu
+
+MEVCUT RUTİNLER: ${routineList}
+KULLANICININ ZAYIF KONULARI: ${weakList}
+
+ALAN KURALLARI:
+- "category": "TYT" veya "AYT"
+- "subject": yukarıdaki listelerden tam eşleşme
+- "schedType": "interval" (X günde bir) veya "days" (haftanın belirli günleri)
+- "interval": 1-14 arası tamsayı (schedType="interval" ise zorunlu)
+- "days": dizi [0=Paz,1=Pzt,2=Sal,3=Çar,4=Per,5=Cum,6=Cmt] (schedType="days" ise zorunlu)
+- "topic": konudan bahsedildiyse yaz, yoksa null
+- 1-3 rutin öner, mevcut rutinlerle aynı isim kullanma
+- "Zayıf konularım" gibi isteklerde zayıf konu listesini kullan
+
+SADECE ŞUNU DÖNDÜR (başka hiçbir şey yazma):
+{
+  "message": "kısa Türkçe motive edici açıklama",
+  "routines": [
+    {
+      "name": "string",
+      "category": "TYT",
+      "subject": "Matematik",
+      "topic": null,
+      "schedType": "interval",
+      "interval": 2
+    }
+  ]
+}
+
+Kullanıcı isteği: "${userMsg}"`;
+  }
+
+  // ── JSON parse (güvenli) ──
+  function _parseJSON(raw) {
+    const clean = raw.replace(/```json|```/g, '').trim();
+    try { return JSON.parse(clean); } catch (_) {}
+    const m = clean.match(/\{[\s\S]*\}/);
+    if (m) { try { return JSON.parse(m[0]); } catch (_) {} }
+    return null;
+  }
+
+  // ── Gün isimlerini formatla ──
+  function _daysLabel(days) {
+    const NAMES = ['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'];
+    if (!Array.isArray(days) || !days.length) return '?';
+    return days.sort((a,b) => a-b).map(d => NAMES[d] || '?').join(', ');
+  }
+
+  // ── HTML escape (window.esc yoksa fallback) ──
+  function _esc(s) {
+    if (typeof esc === 'function') return esc(String(s || ''));
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Örnek chip tıklandığında input'u doldur ──
+  function setExample(el) {
+    const inp = document.getElementById('rai-input');
+    if (inp) { inp.value = el.textContent.trim(); inp.focus(); }
+  }
+
+  return { send, setExample };
+})();
+</script>
 </body>
 </html>
