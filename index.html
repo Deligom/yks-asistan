@@ -11,12 +11,6 @@
 <title>YKS Çalışma Asistanı</title>
 <link rel="manifest" href="manifest.json"/>
 <link rel="apple-touch-icon" href="icon-192.png"/>
-<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
-<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js">
-<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js">
-<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" crossorigin="anonymous"/>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js" crossorigin="anonymous"></script>
 <style>
@@ -785,6 +779,45 @@ select option{background:var(--surface2);color:var(--text)}
   background:rgba(0,0,0,0.7);color:#fff;border:none;
   width:30px;height:30px;border-radius:50%;cursor:pointer;
   display:flex;align-items:center;justify-content:center;font-size:.85rem
+}
+
+/* ── IMAGE CROP MODAL ── */
+#ai-crop-modal {
+  position:fixed;inset:0;z-index:9999;
+  background:#000;
+  display:none;flex-direction:column;
+}
+#ai-crop-modal.active { display:flex; }
+#ai-crop-container {
+  flex:1;position:relative;
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+#ai-crop-canvas {
+  touch-action:none;
+  display:block;
+}
+.crop-top-bar {
+  position:absolute;top:0;left:0;right:0;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:12px 16px;
+  background:linear-gradient(to bottom,rgba(0,0,0,.7),transparent);
+  z-index:2;pointer-events:none;
+}
+.crop-top-bar button { pointer-events:all; }
+.crop-btn-icon {
+  width:40px;height:40px;border-radius:50%;
+  background:rgba(255,255,255,.15);border:none;
+  color:#fff;font-size:1.1rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(4px);
+}
+.crop-btn-confirm {
+  position:absolute;bottom:28px;right:24px;z-index:2;
+  background:#fff;color:#111;border:none;border-radius:100px;
+  padding:12px 24px;font-size:1rem;font-weight:700;
+  cursor:pointer;display:flex;align-items:center;gap:8px;
+  box-shadow:0 4px 20px rgba(0,0,0,.4);
 }
 
 /* ── TOAST ── */
@@ -6175,7 +6208,7 @@ STRİKT KURALLAR:
 
     // cardIds varsa: SADECE o kartları kullan — topic eşleşmesinden gelen extra kart ekleme
     if (Array.isArray(r.cardIds) && r.cardIds.length) {
-      const pinned = r.cardIds.map(cid => all.find(c => c.uid === cid)).filter(Boolean);
+      const pinned = r.cardIds.map(cid => all.find(c => c.id === cid)).filter(Boolean);
       if (pinned.length) filtered = pinned;
     }
 
@@ -10260,20 +10293,175 @@ const GeminiAI = (() => {
     _updateChatTitle();
   }
 
+  // ── CROP STATE ──
+  let _cropImg = null, _cropMime = null;
+  let _cropX = 0, _cropY = 0, _cropW = 0, _cropH = 0;
+  let _cropDrag = null; // {mode:'move'|'tl'|'tr'|'bl'|'br', sx,sy, ox,oy,ow,oh}
+  let _cropCanvas = null, _cropCtx = null, _cropScale = 1;
+  const HANDLE = 22; // handle size px (touch-friendly)
+
   function onPhotoSelected(e) {
     const file = e.target.files[0];
     if (!file) return;
+    _cropMime = file.type;
     const reader = new FileReader();
     reader.onload = ev => {
-      const dataUrl = ev.target.result;
-      const base64 = dataUrl.split(',')[1];
-      _pendingPhoto = { base64, mimeType: file.type, dataUrl };
-      const preview = document.getElementById('ai-photo-preview');
-      const thumb = document.getElementById('ai-photo-thumb');
-      if (preview && thumb) { thumb.src = dataUrl; preview.style.display = 'block'; }
+      const img = new Image();
+      img.onload = () => {
+        _cropImg = img;
+        _cropOpenModal();
+      };
+      img.src = ev.target.result;
       e.target.value = '';
     };
     reader.readAsDataURL(file);
+  }
+
+  function _cropOpenModal() {
+    const modal = document.getElementById('ai-crop-modal');
+    const container = document.getElementById('ai-crop-container');
+    _cropCanvas = document.getElementById('ai-crop-canvas');
+    _cropCtx = _cropCanvas.getContext('2d');
+
+    // Size canvas to fit screen
+    const vw = container.clientWidth  || window.innerWidth;
+    const vh = container.clientHeight || window.innerHeight * 0.85;
+    _cropScale = Math.min(vw / _cropImg.naturalWidth, vh / _cropImg.naturalHeight);
+    _cropCanvas.width  = Math.round(_cropImg.naturalWidth  * _cropScale);
+    _cropCanvas.height = Math.round(_cropImg.naturalHeight * _cropScale);
+
+    // Default crop: full image with 10% inset
+    const pad = Math.min(_cropCanvas.width, _cropCanvas.height) * 0.08;
+    _cropX = pad; _cropY = pad;
+    _cropW = _cropCanvas.width  - pad * 2;
+    _cropH = _cropCanvas.height - pad * 2;
+
+    _cropDraw();
+    _cropCanvas.addEventListener('touchstart', _cropTouchStart, { passive: false });
+    _cropCanvas.addEventListener('touchmove',  _cropTouchMove,  { passive: false });
+    _cropCanvas.addEventListener('touchend',   _cropTouchEnd,   { passive: false });
+    _cropCanvas.addEventListener('mousedown',  _cropMouseDown);
+    modal.classList.add('active');
+  }
+
+  function _cropDraw() {
+    const c = _cropCtx, cw = _cropCanvas.width, ch = _cropCanvas.height;
+    c.clearRect(0, 0, cw, ch);
+    // Draw image
+    c.drawImage(_cropImg, 0, 0, cw, ch);
+    // Dark overlay outside crop
+    c.fillStyle = 'rgba(0,0,0,0.55)';
+    c.fillRect(0, 0, cw, _cropY);                          // top
+    c.fillRect(0, _cropY + _cropH, cw, ch - _cropY - _cropH); // bottom
+    c.fillRect(0, _cropY, _cropX, _cropH);                 // left
+    c.fillRect(_cropX + _cropW, _cropY, cw - _cropX - _cropW, _cropH); // right
+    // Crop border
+    c.strokeStyle = '#fff';
+    c.lineWidth = 1.5;
+    c.strokeRect(_cropX, _cropY, _cropW, _cropH);
+    // Rule of thirds grid (subtle)
+    c.strokeStyle = 'rgba(255,255,255,0.25)';
+    c.lineWidth = 0.8;
+    for (let i = 1; i < 3; i++) {
+      c.beginPath(); c.moveTo(_cropX + _cropW * i / 3, _cropY); c.lineTo(_cropX + _cropW * i / 3, _cropY + _cropH); c.stroke();
+      c.beginPath(); c.moveTo(_cropX, _cropY + _cropH * i / 3); c.lineTo(_cropX + _cropW, _cropY + _cropH * i / 3); c.stroke();
+    }
+    // Corner handles
+    c.fillStyle = '#fff';
+    const h = HANDLE / 2;
+    [[_cropX, _cropY], [_cropX + _cropW, _cropY], [_cropX, _cropY + _cropH], [_cropX + _cropW, _cropY + _cropH]].forEach(([x, y]) => {
+      c.beginPath(); c.arc(x, y, 6, 0, Math.PI * 2); c.fill();
+    });
+  }
+
+  function _cropGetPoint(e) {
+    const rect = _cropCanvas.getBoundingClientRect();
+    const sx = _cropCanvas.width  / rect.width;
+    const sy = _cropCanvas.height / rect.height;
+    if (e.touches) {
+      return { x: (e.touches[0].clientX - rect.left) * sx, y: (e.touches[0].clientY - rect.top) * sy };
+    }
+    return { x: (e.clientX - rect.left) * sx, y: (e.clientY - rect.top) * sy };
+  }
+
+  function _cropHitTest(px, py) {
+    const H = HANDLE + 4;
+    if (Math.hypot(px - _cropX, py - _cropY) < H) return 'tl';
+    if (Math.hypot(px - (_cropX + _cropW), py - _cropY) < H) return 'tr';
+    if (Math.hypot(px - _cropX, py - (_cropY + _cropH)) < H) return 'bl';
+    if (Math.hypot(px - (_cropX + _cropW), py - (_cropY + _cropH)) < H) return 'br';
+    if (px > _cropX && px < _cropX + _cropW && py > _cropY && py < _cropY + _cropH) return 'move';
+    return null;
+  }
+
+  function _cropStart(px, py) {
+    const mode = _cropHitTest(px, py);
+    if (!mode) return;
+    _cropDrag = { mode, sx: px, sy: py, ox: _cropX, oy: _cropY, ow: _cropW, oh: _cropH };
+  }
+
+  function _cropMove(px, py) {
+    if (!_cropDrag) return;
+    const dx = px - _cropDrag.sx, dy = py - _cropDrag.sy;
+    const cw = _cropCanvas.width, ch = _cropCanvas.height;
+    const MIN = 40;
+    let { ox, oy, ow, oh } = _cropDrag;
+
+    if (_cropDrag.mode === 'move') {
+      _cropX = Math.max(0, Math.min(cw - ow, ox + dx));
+      _cropY = Math.max(0, Math.min(ch - oh, oy + dy));
+    } else {
+      let x1 = ox, y1 = oy, x2 = ox + ow, y2 = oy + oh;
+      if (_cropDrag.mode === 'tl') { x1 = Math.min(x2 - MIN, Math.max(0, ox + dx)); y1 = Math.min(y2 - MIN, Math.max(0, oy + dy)); }
+      if (_cropDrag.mode === 'tr') { x2 = Math.max(x1 + MIN, Math.min(cw, ox + ow + dx)); y1 = Math.min(y2 - MIN, Math.max(0, oy + dy)); }
+      if (_cropDrag.mode === 'bl') { x1 = Math.min(x2 - MIN, Math.max(0, ox + dx)); y2 = Math.max(y1 + MIN, Math.min(ch, oy + oh + dy)); }
+      if (_cropDrag.mode === 'br') { x2 = Math.max(x1 + MIN, Math.min(cw, ox + ow + dx)); y2 = Math.max(y1 + MIN, Math.min(ch, oy + oh + dy)); }
+      _cropX = x1; _cropY = y1; _cropW = x2 - x1; _cropH = y2 - y1;
+    }
+    _cropDraw();
+  }
+
+  function _cropTouchStart(e) { e.preventDefault(); const p = _cropGetPoint(e); _cropStart(p.x, p.y); }
+  function _cropTouchMove(e)  { e.preventDefault(); const p = _cropGetPoint(e); _cropMove(p.x, p.y); }
+  function _cropTouchEnd(e)   { _cropDrag = null; }
+  function _cropMouseDown(e)  { const p = _cropGetPoint(e); _cropStart(p.x, p.y); window.addEventListener('mousemove', _cropMouseMoveGlobal); window.addEventListener('mouseup', _cropMouseUpGlobal); }
+  function _cropMouseMoveGlobal(e) { const p = _cropGetPoint(e); _cropMove(p.x, p.y); }
+  function _cropMouseUpGlobal()    { _cropDrag = null; window.removeEventListener('mousemove', _cropMouseMoveGlobal); window.removeEventListener('mouseup', _cropMouseUpGlobal); }
+
+  function _cropCloseModal() {
+    const modal = document.getElementById('ai-crop-modal');
+    modal.classList.remove('active');
+    if (_cropCanvas) {
+      _cropCanvas.removeEventListener('touchstart', _cropTouchStart);
+      _cropCanvas.removeEventListener('touchmove',  _cropTouchMove);
+      _cropCanvas.removeEventListener('touchend',   _cropTouchEnd);
+      _cropCanvas.removeEventListener('mousedown',  _cropMouseDown);
+    }
+  }
+
+  function _cropCancel() {
+    _cropCloseModal();
+    _cropImg = null;
+  }
+
+  function _cropConfirm() {
+    // Extract cropped region from original image (not scaled canvas)
+    const sx = _cropX / _cropScale;
+    const sy = _cropY / _cropScale;
+    const sw = _cropW / _cropScale;
+    const sh = _cropH / _cropScale;
+    const out = document.createElement('canvas');
+    out.width  = Math.round(sw);
+    out.height = Math.round(sh);
+    out.getContext('2d').drawImage(_cropImg, sx, sy, sw, sh, 0, 0, out.width, out.height);
+    const dataUrl = out.toDataURL(_cropMime || 'image/jpeg', 0.92);
+    const base64  = dataUrl.split(',')[1];
+    _pendingPhoto = { base64, mimeType: _cropMime || 'image/jpeg', dataUrl };
+    const preview = document.getElementById('ai-photo-preview');
+    const thumb   = document.getElementById('ai-photo-thumb');
+    if (preview && thumb) { thumb.src = dataUrl; preview.style.display = 'block'; }
+    _cropCloseModal();
+    _cropImg = null;
   }
 
   function removePhoto() {
@@ -11445,6 +11633,7 @@ STRİKT KURALLAR:
   return { onEnter, saveKey, showSettings, saveSettings, send, newChat, clearCurrentChat, summarize,
     openHistory, closeHistory, loadSession, deleteSession, renameSession, commitRename,
     createCard, createCardWithPhoto, createSoruKarti, closeCardModal, confirmImport, onPhotoSelected, removePhoto,
+    _cropCancel, _cropConfirm,
     openGenConfig, closeGenConfig, setGenCount, setGenDetail, confirmGenConfig,
     removeCard, openEditCard, closeEditCard, submitEditCard,
     openAIEditRecord,
@@ -13934,5 +14123,21 @@ Kullanıcı isteği: "${userMsg}"`;
   return { send, setExample };
 })();
 </script>
+
+<!-- ══════ IMAGE CROP MODAL ══════ -->
+<div id="ai-crop-modal">
+  <div class="crop-top-bar">
+    <button class="crop-btn-icon" onclick="GeminiAI._cropCancel()" title="Vazgeç">✕</button>
+    <span style="color:#fff;font-size:.85rem;font-weight:600;opacity:.8">Kırp</span>
+    <div style="width:40px"></div>
+  </div>
+  <div id="ai-crop-container">
+    <canvas id="ai-crop-canvas"></canvas>
+  </div>
+  <button class="crop-btn-confirm" onclick="GeminiAI._cropConfirm()">
+    <span>✓</span> Ekle
+  </button>
+</div>
+
 </body>
 </html>
