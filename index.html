@@ -422,6 +422,10 @@ button, a {
 .page-header h1{font-size:1.7rem;font-weight:800;letter-spacing:-.02em;
   background:linear-gradient(135deg,var(--text),var(--primary2));
   -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+/* Emoji'ler -webkit-text-fill-color:transparent ile beyaz kare olur — study view override */
+#view-study .page-header h1{
+  background:none;-webkit-text-fill-color:unset;color:var(--text)
+}
 .page-header p{font-size:.85rem;color:var(--text2);margin-top:5px}
 
 /* ── GLASS CARD ── */
@@ -1394,7 +1398,7 @@ select option{background:var(--surface2);color:var(--text)}
 /* ── TOPIC SEARCH (searchable autocomplete) ── */
 .topic-search-wrap{position:relative}
 .topic-search-wrap input{
-  width:100%;padding:13px 15px 13px 38px;
+  width:100%;padding:13px 15px 13px 42px;
   border:1.5px solid var(--border);border-radius:var(--radius-sm);
   font-family:'DM Sans','Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:.92rem;
   background:var(--surface2);color:var(--text);outline:none;
@@ -1402,8 +1406,8 @@ select option{background:var(--surface2);color:var(--text)}
 }
 .topic-search-wrap input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(108,99,255,.12)}
 .topic-search-icon{
-  position:absolute;left:13px;top:50%;transform:translateY(-50%);
-  color:var(--text3);font-size:.9rem;pointer-events:none
+  position:absolute;left:14px;top:50%;transform:translateY(-50%);
+  color:var(--text3);font-size:.85rem;pointer-events:none;z-index:1
 }
 .topic-dropdown{
   position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:500;
@@ -13738,15 +13742,16 @@ ${statsLines || 'Henüz kart yok'}
 
 ALAN KURALLARI:
 - "category": "TYT" veya "AYT"
-- "subject": yukarıdaki listelerden tam eşleşme (KÇÇ gibi kısaltmaları doğru derse/konuya çevir)
+- "subject": yukarıdaki listelerden tam eşleşme (KÇÇ gibi kısaltmaları doğru derse çevir)
 - "schedType": "interval" veya "days"
 - "interval": 1-14 tamsayı
 - "days": [0=Paz,1=Pzt,2=Sal,3=Çar,4=Per,5=Cum,6=Cmt]
-- "topic": konu adı veya null
-- "cardIds": [] (boş liste; kullanıcı prompt'ta belirli ID'ler yazdıysa oraya ekle)
+- "topic": SADECE yukarıdaki KONU İSTATİSTİKLERİ listesinde gerçekten var olan bir konu adı yaz (birebir aynı yazım). Listede yoksa null yaz, asla uydurma.
+- "cardIds": [] (kullanıcı ID belirtmişse ekle, yoksa boş bırak)
 - Bugünü ve istenen günleri dikkate al ("cumartesi için" → days:[6])
 - Mevcut rutinlerle aynı isim kullanma
 - 1-3 rutin öner
+- "Deneme analizi", "sınav analizi", "branş denemesi" gibi rutin oluşturma — bunlar rutine uygun değil, bunun yerine o konunun kart tekrarını öner
 
 SADECE ŞUNU DÖNDÜR:
 {
