@@ -13635,22 +13635,33 @@ const RoutineAI = (() => {
         throw new Error('Rutin oluşturulamadı. Daha açık bir istek dene.');
       }
 
-      // Rutinleri kaydet
+      // Rutinleri kaydet — topic DB'de var mı kontrol et
+      // cards zaten yukarıda çekildi
+      const validTopics = new Set(
+        cards.filter(c => c.subject && c.topic)
+             .map(c => `${c.category}|||${c.subject}|||${c.topic}`)
+      );
+
       for (const r of parsed.routines) {
-        // cardIds: kullanıcının prompt'ta belirttiği ID'ler varsa + AI seçtikleri
         const cardIds = Array.isArray(r.cardIds) && r.cardIds.length
           ? r.cardIds.map(Number).filter(n => !isNaN(n))
           : [];
 
+        const cat  = r.category === 'AYT' ? 'AYT' : 'TYT';
+        const sub  = r.subject || '';
+        // Topic doğrulama: DB'de yoksa null'a düşür
+        const topicKey = `${cat}|||${sub}|||${r.topic}`;
+        const topic = r.topic && validTopics.has(topicKey) ? r.topic : null;
+
         const entry = {
           name:      r.name || 'AI Rutini',
-          category:  r.category === 'AYT' ? 'AYT' : 'TYT',
-          subject:   r.subject  || 'Matematik',
-          topic:     r.topic    || null,
+          category:  cat,
+          subject:   sub || 'Matematik',
+          topic,
           schedType: r.schedType === 'days' ? 'days' : 'interval',
           interval:  Math.max(1, Math.min(30, parseInt(r.interval) || 2)),
           days:      Array.isArray(r.days) ? r.days : [],
-          cardIds:   cardIds,   // ← yeni alan
+          cardIds,
           createdAt: Date.now()
         };
         await routinePut(entry);
@@ -13697,7 +13708,7 @@ const RoutineAI = (() => {
       const key = `${c.category}|||${c.subject}|||${c.topic}`;
       if (!groups[key]) groups[key] = {
         category: c.category, subject: c.subject, topic: c.topic,
-        total: 0, overdue: 0, hard: 0, avgEase: 0, eases: []
+        total: 0, overdue: 0, hard: 0, eases: []
       };
       const g = groups[key];
       g.total++;
@@ -13714,18 +13725,17 @@ const RoutineAI = (() => {
 
   // ── Prompt builder ──
   function _buildPrompt(userMsg, routines, topicStats) {
-    // Bugünün tarihi ve günü
-    const DAYS_TR = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
-    const now     = new Date();
+    const DAYS_TR  = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+    const now      = new Date();
     const todayStr = `${DAYS_TR[now.getDay()]}, ${now.toLocaleDateString('tr-TR')}`;
 
     const routineList = routines.length
       ? routines.map(r => `"${r.name}" (${r.category} ${r.subject}${r.topic ? '/' + r.topic : ''})`).join(', ')
       : 'Henüz rutin yok';
 
-    // Konu istatistiklerini kompakt satırlara dönüştür (max 40 konu)
+    // Her satır: CATEGORY | SUBJECT | TOPIC (birebir DB değerleri — AI bunları kullanacak)
     const statsLines = topicStats.slice(0, 40).map(g =>
-      `${g.category} ${g.subject}/${g.topic}: ${g.total} kart, ${g.overdue} gecikmiş, ${g.hard} zorlu, ease:${g.avgEase}`
+      `  category="${g.category}" subject="${g.subject}" topic="${g.topic}" → ${g.total} kart, ${g.overdue} gecikmiş, ${g.hard} zorlu`
     ).join('\n');
 
     return `YKS öğrencisi için çalışma rutini oluştur.
@@ -13737,31 +13747,31 @@ AYT DERSLERİ: Matematik, Geometri, Fizik, Kimya, Biyoloji, Edebiyat, Tarih-1, T
 
 MEVCUT RUTİNLER: ${routineList}
 
-KULLANICININ KONU İSTATİSTİKLERİ (kart sayısı / gecikme / zorluk / ease factörü):
-${statsLines || 'Henüz kart yok'}
+KULLANICININ KART VERİTABANI (her satır bir konu grubu — birebir bu değerleri kullan):
+${statsLines || '(Henüz kart yok)'}
 
-ALAN KURALLARI:
-- "category": "TYT" veya "AYT"
-- "subject": yukarıdaki listelerden tam eşleşme (KÇÇ gibi kısaltmaları doğru derse çevir)
+ALAN KURALLARI (ÇOK ÖNEMLİ):
+- JSON'daki "category", "subject", "topic" değerleri TAMAMEN yukarıdaki veritabanından kopyalanmalı
+- Örn: category="AYT" subject="Kimya" topic="Çözünürlük Dengesi (Kçç)" → JSON'a aynen bu değerler girer
+- Asla kendi başına konu adı uydurma, listede olmayan topic yazma — listede yoksa topic: null yaz
 - "schedType": "interval" veya "days"
 - "interval": 1-14 tamsayı
 - "days": [0=Paz,1=Pzt,2=Sal,3=Çar,4=Per,5=Cum,6=Cmt]
-- "topic": SADECE yukarıdaki KONU İSTATİSTİKLERİ listesinde gerçekten var olan bir konu adı yaz (birebir aynı yazım). Listede yoksa null yaz, asla uydurma.
-- "cardIds": [] (kullanıcı ID belirtmişse ekle, yoksa boş bırak)
+- "cardIds": [] (kullanıcı ID belirtmişse ekle, yoksa boş)
 - Bugünü ve istenen günleri dikkate al ("cumartesi için" → days:[6])
 - Mevcut rutinlerle aynı isim kullanma
 - 1-3 rutin öner
-- "Deneme analizi", "sınav analizi", "branş denemesi" gibi rutin oluşturma — bunlar rutine uygun değil, bunun yerine o konunun kart tekrarını öner
+- "Deneme analizi", "sınav analizi", "branş denemesi" gibi rutin oluşturma
 
-SADECE ŞUNU DÖNDÜR:
+SADECE ŞUNU DÖNDÜR (başka hiçbir şey yazma):
 {
   "message": "kısa Türkçe açıklama",
   "routines": [
     {
       "name": "string",
-      "category": "TYT",
-      "subject": "Matematik",
-      "topic": null,
+      "category": "AYT",
+      "subject": "Kimya",
+      "topic": "Çözünürlük Dengesi (Kçç)",
       "schedType": "days",
       "days": [6],
       "interval": 1,
