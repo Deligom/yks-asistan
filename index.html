@@ -1592,6 +1592,8 @@ select option{background:var(--surface2);color:var(--text)}
   .form-group input,
   .form-group textarea{padding:11px 13px;font-size:.92rem;min-height:44px}
   .form-group textarea{min-height:80px}
+  /* topic search: ikon için sol padding korunmalı */
+  .form-group .topic-search-wrap input{padding:11px 13px 11px 44px}
 
   /* page headers */
   .page-header{margin-bottom:16px}
@@ -3873,12 +3875,34 @@ function settingsDel(key) {
   });
 }
 
+// ── 8 haneli benzersiz kart UID üretici ──
+function generateUID() {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let uid = '';
+  const arr = new Uint8Array(8);
+  crypto.getRandomValues(arr);
+  arr.forEach(b => { uid += chars[b % chars.length]; });
+  return uid;
+}
+
 function dbGetAll() {
   return new Promise((resolve, reject) => {
     const tx  = db.transaction(STORE, 'readonly');
     const req = tx.objectStore(STORE).getAll();
-    req.onsuccess = e => resolve(e.target.result);
-    req.onerror   = e => reject(e.target.error);
+    req.onsuccess = e => {
+      const cards = e.target.result;
+      // ── Mevcut kartlara uid yoksa ekle (bir kerelik migration) ──
+      const needsUid = cards.filter(c => !c.uid);
+      if (needsUid.length > 0) {
+        needsUid.forEach(c => { c.uid = generateUID(); });
+        const writeTx = db.transaction(STORE, 'readwrite');
+        const store   = writeTx.objectStore(STORE);
+        needsUid.forEach(c => store.put(c));
+        // writeTx hata alsa da kartları zaten bellekte güncelledik
+      }
+      resolve(cards);
+    };
+    req.onerror = e => reject(e.target.error);
   });
 }
 
@@ -3892,6 +3916,7 @@ function dbGet(id) {
 }
 
 function dbPut(card) {
+  if (!card.uid) card.uid = generateUID(); // UID yoksa otomatik ata
   return new Promise((resolve, reject) => {
     const tx  = db.transaction(STORE, 'readwrite');
     const req = tx.objectStore(STORE).put(card);
@@ -4935,7 +4960,7 @@ const App = (() => {
                 ${_diffBadgeHTML(c)}
               </div>
               <div class="record-question">${esc(preview)}</div>
-              <div class="record-meta">${ds} · ${c.interval > 0 ? c.interval + ' günlük aralık' : 'Henüz çalışılmadı'}</div>
+              <div class="record-meta">${ds} · <span style="font-family:monospace;color:var(--text3);font-size:.65rem">#${c.uid||c.id}</span> · ${c.interval > 0 ? c.interval + ' günlük aralık' : 'Henüz çalışılmadı'}</div>
             </div>
             <div class="record-actions" style="${selMode ? 'display:none' : ''}">
               <button class="btn btn-edit-sm" onclick="event.stopPropagation();App.openEdit(${c.id})"><i class="fa-solid fa-pen"></i></button>
@@ -5266,8 +5291,8 @@ const App = (() => {
     // ID satırını güncelle
     const idTxt  = document.getElementById('preview-card-id-txt');
     const idCopy = document.getElementById('preview-card-id-copy');
-    if (idTxt)  idTxt.textContent  = `#${card.id}`;
-    if (idCopy) idCopy.dataset.cid = card.id;
+    if (idTxt)  idTxt.textContent  = `#${card.uid || card.id}`;
+    if (idCopy) idCopy.dataset.cid = card.uid || card.id;
 
     const content = document.getElementById('edit-preview-content');
     content.innerHTML = `
@@ -13610,7 +13635,10 @@ const RoutineAI = (() => {
     try {
       const [routines, cards] = await Promise.all([routineGetAll(), dbGetAll()]);
       const topicStats  = _buildTopicStats(cards);
-      const prompt      = _buildPrompt(userMsg, routines, topicStats);
+      // Kullanıcı mesajında kart ID'si varsa gerçek içeriği prompt'a ekle
+      const mentionedIds = _extractMentionedIds(userMsg);
+      const cardDetails  = mentionedIds.length ? _buildCardDetails(mentionedIds, cards) : null;
+      const prompt      = _buildPrompt(userMsg, routines, topicStats, cardDetails);
 
       const res = await fetch(`${API_BASE}${MODEL}:generateContent?key=${key}`, {
         method: 'POST',
@@ -13651,8 +13679,9 @@ const RoutineAI = (() => {
       );
 
       for (const r of parsed.routines) {
+        // cardIds: uid string veya sayı olabilir
         const cardIds = Array.isArray(r.cardIds) && r.cardIds.length
-          ? r.cardIds.map(Number).filter(n => !isNaN(n))
+          ? r.cardIds.map(x => String(x).trim()).filter(x => x)
           : [];
 
         const cat  = r.category === 'AYT' ? 'AYT' : 'TYT';
@@ -13665,7 +13694,7 @@ const RoutineAI = (() => {
         const cardMode = ['hap','foto','mixed'].includes(r.cardMode) ? r.cardMode : 'mixed';
 
         const entry = {
-          name:      r.name || 'AI Rutini',
+          name:      _cleanRoutineName(r.name || 'AI Rutini', sub || 'Matematik'),
           category:  cat,
           subject:   sub || 'Matematik',
           topic,
@@ -13738,7 +13767,7 @@ const RoutineAI = (() => {
   }
 
   // ── Prompt builder ──
-  function _buildPrompt(userMsg, routines, topicStats) {
+  function _buildPrompt(userMsg, routines, topicStats, cardDetails) {
     const DAYS_TR  = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
     const now      = new Date();
     const todayStr = `${DAYS_TR[now.getDay()]}, ${now.toLocaleDateString('tr-TR')}`;
@@ -13773,8 +13802,9 @@ ${hapLines || '(Henüz hap kart yok)'}
 YANLIŞ SORU KARTLARI (foto kartlar — yanlış yapılan soru fotoğrafları):
 ${fotoLines || '(Henüz yanlış soru kartı yok)'}
 
-ALAN KURALLARI (ÇOK ÖNEMLİ — KURALI İHLAL ETME):
-- Her rutin objesi yalnızca TEK bir "subject" içerir. "Biyoloji ve Fizik" gibi bileşik isimler YASAK.
+${cardDetails ? 'KULLANICI TARAFINDAN BELİRTİLEN KARTLAR (KESİNLİKLE BU BİLGİLERİ KULLAN — TAHMİN YAPMA):\n' + cardDetails + '\n' : ''}ALAN KURALLARI (ÇOK ÖNEMLİ — KURALI İHLAL ETME):
+- Her rutin objesi yalnızca TEK bir "subject" içerir. "Biyoloji ve Fizik" veya "Fizik ve Kimya" gibi bileşik isimler KESİNLİKLE YASAK — ne name alanında ne subject alanında.
+- "name" alanına da SADECE tek bir dersin adı yazılabilir. "Biyoloji ve Fizik Tekrarı" yazmak YASAKTIR; "Biyoloji Tekrarı" yaz.
 - Birden fazla ders gerekiyorsa ayrı ayrı rutin objesi oluştur (max 3 rutin).
 - JSON'daki "category", "subject", "topic" değerleri TAMAMEN yukarıdaki listelerden kopyalanmalı.
 - Listede olmayan topic yazma — listede yoksa topic: null yaz.
@@ -13782,7 +13812,7 @@ ALAN KURALLARI (ÇOK ÖNEMLİ — KURALI İHLAL ETME):
     * Kullanıcı "yanlış soru/yaptiğim" diyorsa → "foto", YANLIŞ SORU listesinden topic seç.
     * Kullanıcı "hap bilgi/konu tekrarı" diyorsa → "hap", HAP BİLGİ listesinden topic seç.
     * Belirtilmemişse → "mixed".
-- Kullanıcı kart ID'si verirse → "cardIds" dizisine ekle; yoksa boş bırak [].
+- Kullanıcı kart UID'si verirse (8 haneli harf+rakam, ör: "a3b8f2c1") → "cardIds" dizisine ekle; yoksa boş bırak [].
 - "schedType": "interval" veya "days".
 - "interval": 1-14 tamsayı. "days": [0=Paz,1=Pzt,2=Sal,3=Çar,4=Per,5=Cum,6=Cmt].
 - Bugünü ve istenen günleri dikkate al ("cumartesi için" → days:[6]).
@@ -13827,6 +13857,67 @@ Kullanıcı isteği: "${userMsg}"`;
   function _esc(s) {
     if (typeof esc === 'function') return esc(String(s || ''));
     return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Kullanıcı mesajındaki kart UID'lerini çıkar (8 haneli alfanümerik) ──
+  function _extractMentionedIds(msg) {
+    const uids = new Set();
+    const patterns = [
+      /#([a-z0-9]{8})\b/gi,
+      /\b([a-z0-9]{8})\s*(?:nolu|numaral[ıi]|id(?:li)?)\s*kart/gi,
+      /kart\s*(?:no|id)?\s*:?\s*([a-z0-9]{8})\b/gi,
+      /\b([a-z0-9]{8})\s*(?:ve|,|ile)\s*([a-z0-9]{8})/gi,
+    ];
+    for (const re of patterns) {
+      let m;
+      while ((m = re.exec(msg)) !== null) {
+        for (let i = 1; i < m.length; i++) {
+          if (m[i] && /^[a-z0-9]{8}$/i.test(m[i])) uids.add(m[i].toLowerCase());
+        }
+      }
+    }
+    return [...uids];
+  }
+
+  // ── Belirtilen UID'lerin kart içeriklerini prompt için hazırla ──
+  function _buildCardDetails(uids, cards) {
+    const uidMap = {};
+    cards.forEach(c => { if (c.uid) uidMap[c.uid] = c; });
+    const lines = [];
+    for (const uid of uids) {
+      const c = uidMap[uid];
+      if (!c) {
+        lines.push(`  Kart #${uid}: Bulunamadı`);
+        continue;
+      }
+      const typeLabel = c.type === 'foto' ? 'Yanlış Soru Kartı' : 'Hap Bilgi Kartı';
+      const question  = c.type === 'foto' ? '' : (c.question ? ` | Soru: "${String(c.question).slice(0,80)}"` : '');
+      lines.push(`  Kart #${uid}: ${c.category || '?'} · ${c.subject || '?'} · ${c.topic || 'konu yok'} [${typeLabel}]${question}`);
+    }
+    return lines.join('\n');
+  }
+
+  // ── Birleşik konu adlarını temizle ("Biyoloji ve Fizik …" → "Biyoloji …") ──
+  function _cleanRoutineName(name, subject) {
+    const ALL_SUBJECTS = [
+      'Türkçe','Matematik','Geometri','Fizik','Kimya','Biyoloji',
+      'Tarih','Coğrafya','Felsefe','Din Kültürü','Edebiyat',
+      'Tarih-1','Tarih-2','Coğrafya-1','Coğrafya-2','Felsefe Grubu'
+    ];
+    const found = ALL_SUBJECTS.filter(s => name.includes(s));
+    if (found.length > 1) {
+      // Atanan subject dışındaki ders adlarını ve "ve" bağlaçlarını kaldır
+      let cleaned = name;
+      for (const s of ALL_SUBJECTS) {
+        if (s !== subject) {
+          cleaned = cleaned.replace(new RegExp(s.replace(/[-]/g,'\\$&'), 'g'), '');
+        }
+      }
+      cleaned = cleaned.replace(/\s+ve\s+/gi, ' ').replace(/\s{2,}/g, ' ').trim();
+      if (!cleaned) cleaned = subject + ' Tekrarı';
+      return cleaned;
+    }
+    return name;
   }
 
   function setExample(el) {
