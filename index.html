@@ -5245,13 +5245,26 @@ const App = (() => {
       modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10500;align-items:center;justify-content:center;padding:16px';
       modal.innerHTML = `<div style="background:var(--surface1,#12122a);border:1px solid var(--border);border-radius:20px;padding:20px 16px;width:100%;max-width:440px;max-height:80vh;overflow-y:auto">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-          <div style="font-weight:800;font-size:.95rem;color:var(--text)">👁 Ön İzleme</div>
-          <button onclick="document.getElementById('edit-preview-modal').style.display='none'" style="background:none;border:none;color:var(--text3);font-size:1.1rem;cursor:pointer">✕</button>
+          <div style="display:flex;align-items:center;gap:8px;min-width:0">
+            <div style="font-weight:800;font-size:.95rem;color:var(--text);white-space:nowrap">👁 Ön İzleme</div>
+            <div id="preview-card-id-row" style="display:flex;align-items:center;gap:4px;overflow:hidden">
+              <span id="preview-card-id-txt" style="font-size:.6rem;color:var(--text3);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px"></span>
+              <button id="preview-card-id-copy" onclick="App._copyPreviewId()" title="ID kopyala"
+                style="background:none;border:none;padding:2px 4px;cursor:pointer;color:var(--text3);font-size:.65rem;flex-shrink:0;line-height:1">⧉</button>
+            </div>
+          </div>
+          <button onclick="document.getElementById('edit-preview-modal').style.display='none'" style="background:none;border:none;color:var(--text3);font-size:1.1rem;cursor:pointer;flex-shrink:0">✕</button>
         </div>
         <div id="edit-preview-content"></div>
       </div>`;
       document.body.appendChild(modal);
     }
+    // ID satırını güncelle
+    const idTxt  = document.getElementById('preview-card-id-txt');
+    const idCopy = document.getElementById('preview-card-id-copy');
+    if (idTxt)  idTxt.textContent  = `#${card.id}`;
+    if (idCopy) idCopy.dataset.cid = card.id;
+
     const content = document.getElementById('edit-preview-content');
     content.innerHTML = `
       ${card.topic ? `<div style="font-size:.7rem;color:var(--teal2);font-weight:700;margin-bottom:6px">${esc(card.topic)}</div>` : ''}
@@ -5259,6 +5272,17 @@ const App = (() => {
       <div class="fc-answer-label"><i class="fa-solid fa-check-circle"></i> Çözüm / Not</div>
       <div class="fc-answer">${formatAnswer(card.answer || '')}</div>`;
     modal.style.display = 'flex';
+  }
+
+  function _copyPreviewId() {
+    const btn = document.getElementById('preview-card-id-copy');
+    const cid = btn?.dataset?.cid;
+    if (!cid) return;
+    navigator.clipboard.writeText(String(cid)).then(() => {
+      btn.textContent = '✓';
+      btn.style.color = 'var(--teal2)';
+      setTimeout(() => { btn.textContent = '⧉'; btn.style.color = 'var(--text3)'; }, 1500);
+    }).catch(() => toast('Kopyalanamadı', 'err'));
   }
 
   async function saveEdit() {
@@ -6112,6 +6136,14 @@ STRİKT KURALLAR:
     let filtered = all.filter(c => c.category === r.category && c.subject === r.subject);
     if (r.topic) filtered = filtered.filter(c => c.topic === r.topic);
 
+    // cardIds varsa: önce pinned kartlar, kalanı SM-2 sıralamasıyla tamamla
+    if (Array.isArray(r.cardIds) && r.cardIds.length) {
+      const pinnedSet = new Set(r.cardIds);
+      const pinned    = r.cardIds.map(cid => all.find(c => c.id === cid)).filter(Boolean);
+      const rest      = filtered.filter(c => !pinnedSet.has(c.id));
+      filtered        = [...pinned, ...rest];
+    }
+
     if (!filtered.length) {
       toast('Bu rutine ait kart bulunamadı! Önce kart ekle.', 'err');
       return;
@@ -6861,7 +6893,7 @@ STRİKT KURALLAR:
     renderRecords, deleteCard, clearAll, toggleRecords, recGoPage, _updateRecTopicFilter,
     toggleSelMode, toggleCardSelect, onRecordCardClick, bulkDelete, bulkShare, selectAll,
     openEdit, closeEdit, saveEdit, updateEditSubjects,
-    previewEditCard, openAIEditFromOverlay, previewRecordCard,
+    previewEditCard, openAIEditFromOverlay, previewRecordCard, _copyPreviewId,
     importJSON, copyPrompt, copyPromptBilgi, copyPromptSoru, switchImportTab, togglePrompt,
     setAddMode,
     previewImportPhoto, removeImportPhoto, importJSONSoru, importFotoCardFromAI,
@@ -13559,14 +13591,12 @@ const RoutineAI = (() => {
     const userMsg = inputEl.value.trim();
     if (!userMsg) { if (window.toast) toast('Bir şeyler yaz!', 'err'); return; }
 
-    // API anahtarı al
     const key = await GeminiAI.getKeyPublic?.();
     if (!key) {
       if (window.toast) toast('Gemini API anahtarı bulunamadı. Ayarlar > Gemini\'den ekle.', 'err');
       return;
     }
 
-    // Loading state
     sendBtn.disabled = true;
     respEl.style.display = 'block';
     respEl.innerHTML = `<div class="rai-bubble rai-bubble-loading">
@@ -13574,12 +13604,9 @@ const RoutineAI = (() => {
     </div>`;
 
     try {
-      // Context verilerini topla
       const [routines, cards] = await Promise.all([routineGetAll(), dbGetAll()]);
-      const weakTopics = _getWeakTopics(cards);
-
-      // Prompt oluştur
-      const prompt = _buildPrompt(userMsg, routines, weakTopics);
+      const topicStats  = _buildTopicStats(cards);
+      const prompt      = _buildPrompt(userMsg, routines, topicStats);
 
       const res = await fetch(`${API_BASE}${MODEL}:generateContent?key=${key}`, {
         method: 'POST',
@@ -13596,8 +13623,8 @@ const RoutineAI = (() => {
         throw new Error(err?.error?.message || `Sunucu hatası (${res.status})`);
       }
 
-      const data = await res.json();
-      const raw  = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const data   = await res.json();
+      const raw    = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
       const parsed = _parseJSON(raw);
 
       if (!parsed || !Array.isArray(parsed.routines) || !parsed.routines.length) {
@@ -13606,6 +13633,11 @@ const RoutineAI = (() => {
 
       // Rutinleri kaydet
       for (const r of parsed.routines) {
+        // cardIds: kullanıcının prompt'ta belirttiği ID'ler varsa + AI seçtikleri
+        const cardIds = Array.isArray(r.cardIds) && r.cardIds.length
+          ? r.cardIds.map(Number).filter(n => !isNaN(n))
+          : [];
+
         const entry = {
           name:      r.name || 'AI Rutini',
           category:  r.category === 'AYT' ? 'AYT' : 'TYT',
@@ -13614,20 +13646,24 @@ const RoutineAI = (() => {
           schedType: r.schedType === 'days' ? 'days' : 'interval',
           interval:  Math.max(1, Math.min(30, parseInt(r.interval) || 2)),
           days:      Array.isArray(r.days) ? r.days : [],
+          cardIds:   cardIds,   // ← yeni alan
           createdAt: Date.now()
         };
         await routinePut(entry);
       }
 
-      // Oluşturulan rutinleri göster
+      // Sonuç göster
       const routineRows = parsed.routines.map(r => {
         const schedLabel = r.schedType === 'days'
           ? _daysLabel(r.days)
           : `Her ${r.interval || 2} günde bir`;
+        const idNote = Array.isArray(r.cardIds) && r.cardIds.length
+          ? `<br><span style="color:var(--text3);font-size:.65rem">📌 ${r.cardIds.length} kart pinlendi</span>`
+          : '';
         return `<div class="rai-created-row">
           <i class="fa-solid fa-repeat" style="color:var(--teal2);font-size:.8rem;flex-shrink:0"></i>
           <span><b>${_esc(r.name)}</b><br>
-            <span style="color:var(--text3)">${_esc(r.subject)}${r.topic ? ' · ' + _esc(r.topic) : ''} · ${schedLabel}</span>
+            <span style="color:var(--text3)">${_esc(r.subject)}${r.topic ? ' · ' + _esc(r.topic) : ''} · ${schedLabel}</span>${idNote}
           </span>
         </div>`;
       }).join('');
@@ -13648,66 +13684,83 @@ const RoutineAI = (() => {
     }
   }
 
-  // ── Zayıf konuları hesapla (renderWeakTopics ile aynı mantık) ──
-  function _getWeakTopics(cards) {
-    const reviewed = cards.filter(c => c.repetitions >= 1 && c.subject && c.topic);
-    if (!reviewed.length) return [];
+  // ── Tüm kartları subject+topic bazında istatistikle özetle ──
+  function _buildTopicStats(cards) {
+    const now    = Date.now();
     const groups = {};
-    reviewed.forEach(c => {
-      const key = `${c.subject}|||${c.topic}`;
-      if (!groups[key]) groups[key] = { subject: c.subject, topic: c.topic, intervals: [], eases: [] };
-      groups[key].intervals.push(c.interval || 1);
-      groups[key].eases.push(c.easeFactor || 2.5);
+    cards.forEach(c => {
+      if (!c.subject || !c.topic) return;
+      const key = `${c.category}|||${c.subject}|||${c.topic}`;
+      if (!groups[key]) groups[key] = {
+        category: c.category, subject: c.subject, topic: c.topic,
+        total: 0, overdue: 0, hard: 0, avgEase: 0, eases: []
+      };
+      const g = groups[key];
+      g.total++;
+      if (c.nextReviewDate && c.nextReviewDate < now) g.overdue++;
+      if ((c.easeFactor || 2.5) < 1.9 || (c.lapses || 0) >= 2) g.hard++;
+      g.eases.push(c.easeFactor || 2.5);
     });
-    return Object.values(groups)
-      .map(g => {
-        const avgInt  = g.intervals.reduce((a,b) => a+b, 0) / g.intervals.length;
-        const avgEase = g.eases.reduce((a,b) => a+b, 0) / g.eases.length;
-        return { subject: g.subject, topic: g.topic, score: avgInt * (avgEase / 2.5) };
-      })
-      .sort((a, b) => a.score - b.score)
-      .slice(0, 5)
-      .map(g => `${g.subject} / ${g.topic}`);
+    return Object.values(groups).map(g => {
+      g.avgEase = (g.eases.reduce((a,b)=>a+b,0) / g.eases.length).toFixed(2);
+      delete g.eases;
+      return g;
+    }).sort((a,b) => b.overdue - a.overdue || b.hard - a.hard);
   }
 
-  // ── Gemini'ye gönderilecek prompt ──
-  function _buildPrompt(userMsg, routines, weakTopics) {
+  // ── Prompt builder ──
+  function _buildPrompt(userMsg, routines, topicStats) {
+    // Bugünün tarihi ve günü
+    const DAYS_TR = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+    const now     = new Date();
+    const todayStr = `${DAYS_TR[now.getDay()]}, ${now.toLocaleDateString('tr-TR')}`;
+
     const routineList = routines.length
-      ? routines.map(r => `"${r.name}" (${r.subject})`).join(', ')
+      ? routines.map(r => `"${r.name}" (${r.category} ${r.subject}${r.topic ? '/' + r.topic : ''})`).join(', ')
       : 'Henüz rutin yok';
-    const weakList = weakTopics.length
-      ? weakTopics.join(', ')
-      : 'Veri yok';
+
+    // Konu istatistiklerini kompakt satırlara dönüştür (max 40 konu)
+    const statsLines = topicStats.slice(0, 40).map(g =>
+      `${g.category} ${g.subject}/${g.topic}: ${g.total} kart, ${g.overdue} gecikmiş, ${g.hard} zorlu, ease:${g.avgEase}`
+    ).join('\n');
 
     return `YKS öğrencisi için çalışma rutini oluştur.
+
+BUGÜN: ${todayStr}
 
 TYT DERSLERİ: Türkçe, Matematik, Geometri, Fizik, Kimya, Biyoloji, Tarih, Coğrafya, Felsefe, Din Kültürü
 AYT DERSLERİ: Matematik, Geometri, Fizik, Kimya, Biyoloji, Edebiyat, Tarih-1, Tarih-2, Coğrafya-1, Coğrafya-2, Felsefe Grubu
 
 MEVCUT RUTİNLER: ${routineList}
-KULLANICININ ZAYIF KONULARI: ${weakList}
+
+KULLANICININ KONU İSTATİSTİKLERİ (kart sayısı / gecikme / zorluk / ease factörü):
+${statsLines || 'Henüz kart yok'}
 
 ALAN KURALLARI:
 - "category": "TYT" veya "AYT"
-- "subject": yukarıdaki listelerden tam eşleşme
-- "schedType": "interval" (X günde bir) veya "days" (haftanın belirli günleri)
-- "interval": 1-14 arası tamsayı (schedType="interval" ise zorunlu)
-- "days": dizi [0=Paz,1=Pzt,2=Sal,3=Çar,4=Per,5=Cum,6=Cmt] (schedType="days" ise zorunlu)
-- "topic": konudan bahsedildiyse yaz, yoksa null
-- 1-3 rutin öner, mevcut rutinlerle aynı isim kullanma
-- "Zayıf konularım" gibi isteklerde zayıf konu listesini kullan
+- "subject": yukarıdaki listelerden tam eşleşme (KÇÇ gibi kısaltmaları doğru derse/konuya çevir)
+- "schedType": "interval" veya "days"
+- "interval": 1-14 tamsayı
+- "days": [0=Paz,1=Pzt,2=Sal,3=Çar,4=Per,5=Cum,6=Cmt]
+- "topic": konu adı veya null
+- "cardIds": [] (boş liste; kullanıcı prompt'ta belirli ID'ler yazdıysa oraya ekle)
+- Bugünü ve istenen günleri dikkate al ("cumartesi için" → days:[6])
+- Mevcut rutinlerle aynı isim kullanma
+- 1-3 rutin öner
 
-SADECE ŞUNU DÖNDÜR (başka hiçbir şey yazma):
+SADECE ŞUNU DÖNDÜR:
 {
-  "message": "kısa Türkçe motive edici açıklama",
+  "message": "kısa Türkçe açıklama",
   "routines": [
     {
       "name": "string",
       "category": "TYT",
       "subject": "Matematik",
       "topic": null,
-      "schedType": "interval",
-      "interval": 2
+      "schedType": "days",
+      "days": [6],
+      "interval": 1,
+      "cardIds": []
     }
   ]
 }
@@ -13715,7 +13768,6 @@ SADECE ŞUNU DÖNDÜR (başka hiçbir şey yazma):
 Kullanıcı isteği: "${userMsg}"`;
   }
 
-  // ── JSON parse (güvenli) ──
   function _parseJSON(raw) {
     const clean = raw.replace(/```json|```/g, '').trim();
     try { return JSON.parse(clean); } catch (_) {}
@@ -13724,20 +13776,17 @@ Kullanıcı isteği: "${userMsg}"`;
     return null;
   }
 
-  // ── Gün isimlerini formatla ──
   function _daysLabel(days) {
     const NAMES = ['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'];
     if (!Array.isArray(days) || !days.length) return '?';
     return days.sort((a,b) => a-b).map(d => NAMES[d] || '?').join(', ');
   }
 
-  // ── HTML escape (window.esc yoksa fallback) ──
   function _esc(s) {
     if (typeof esc === 'function') return esc(String(s || ''));
     return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  // ── Örnek chip tıklandığında input'u doldur ──
   function setExample(el) {
     const inp = document.getElementById('rai-input');
     if (inp) { inp.value = el.textContent.trim(); inp.focus(); }
