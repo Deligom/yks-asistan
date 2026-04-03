@@ -6169,7 +6169,7 @@ STRİKT KURALLAR:
 
     // cardIds varsa: SADECE o kartları kullan — topic eşleşmesinden gelen extra kart ekleme
     if (Array.isArray(r.cardIds) && r.cardIds.length) {
-      const pinned = r.cardIds.map(cid => all.find(c => c.id === cid)).filter(Boolean);
+      const pinned = r.cardIds.map(cid => all.find(c => c.uid === cid)).filter(Boolean);
       if (pinned.length) filtered = pinned;
     }
 
