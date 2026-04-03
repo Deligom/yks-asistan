@@ -1398,16 +1398,17 @@ select option{background:var(--surface2);color:var(--text)}
 /* ── TOPIC SEARCH (searchable autocomplete) ── */
 .topic-search-wrap{position:relative}
 .topic-search-wrap input{
-  width:100%;padding:13px 15px 13px 42px;
+  width:100%;padding:13px 15px 13px 44px;
   border:1.5px solid var(--border);border-radius:var(--radius-sm);
   font-family:'DM Sans','Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:.92rem;
   background:var(--surface2);color:var(--text);outline:none;
-  transition:border-color .2s,box-shadow .2s;min-height:48px
+  transition:border-color .2s,box-shadow .2s;min-height:48px;box-sizing:border-box
 }
 .topic-search-wrap input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(108,99,255,.12)}
 .topic-search-icon{
   position:absolute;left:14px;top:50%;transform:translateY(-50%);
-  color:var(--text3);font-size:.85rem;pointer-events:none;z-index:1
+  color:var(--text3);font-size:.82rem;pointer-events:none;z-index:1;
+  width:14px;height:14px
 }
 .topic-dropdown{
   position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:500;
@@ -6136,18 +6137,14 @@ STRİKT KURALLAR:
     const all = await dbGetAll();
     const now = Date.now();
 
-    // Rutinin konusuna göre filtrele — cardMode varsa kart tipine göre de filtrele
+    // Rutinin konusuna göre filtrele (hem hap hem foto)
     let filtered = all.filter(c => c.category === r.category && c.subject === r.subject);
     if (r.topic) filtered = filtered.filter(c => c.topic === r.topic);
-    if (r.cardMode === 'hap')  filtered = filtered.filter(c => c.type === 'hap');
-    if (r.cardMode === 'foto') filtered = filtered.filter(c => c.type === 'foto');
 
-    // cardIds varsa: önce pinned kartlar, kalanı SM-2 sıralamasıyla tamamla
+    // cardIds varsa: SADECE o kartları kullan — topic eşleşmesinden gelen extra kart ekleme
     if (Array.isArray(r.cardIds) && r.cardIds.length) {
-      const pinnedSet = new Set(r.cardIds);
-      const pinned    = r.cardIds.map(cid => all.find(c => c.id === cid)).filter(Boolean);
-      const rest      = filtered.filter(c => !pinnedSet.has(c.id));
-      filtered        = [...pinned, ...rest];
+      const pinned = r.cardIds.map(cid => all.find(c => c.id === cid)).filter(Boolean);
+      if (pinned.length) filtered = pinned;
     }
 
     if (!filtered.length) {
@@ -13633,14 +13630,6 @@ const RoutineAI = (() => {
       const raw    = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
       const parsed = _parseJSON(raw);
 
-      // ── Token sayacını güncelle ──
-      if (window.SubPlan) {
-        const meta   = data?.usageMetadata;
-        const tokens = meta?.totalTokenCount || (meta?.promptTokenCount||0) + (meta?.candidatesTokenCount||0) || 50;
-        SubPlan.recordTokens(tokens);
-        SubPlan.recordModelUse('gemini-flash');
-      }
-
       if (!parsed || !Array.isArray(parsed.routines) || !parsed.routines.length) {
         throw new Error('Rutin oluşturulamadı. Daha açık bir istek dene.');
       }
@@ -13663,15 +13652,11 @@ const RoutineAI = (() => {
         const topicKey = `${cat}|||${sub}|||${r.topic}`;
         const topic = r.topic && validTopics.has(topicKey) ? r.topic : null;
 
-        // cardMode doğrulama
-        const cardMode = ['hap','foto','mixed'].includes(r.cardMode) ? r.cardMode : 'mixed';
-
         const entry = {
           name:      r.name || 'AI Rutini',
           category:  cat,
           subject:   sub || 'Matematik',
           topic,
-          cardMode,
           schedType: r.schedType === 'days' ? 'days' : 'interval',
           interval:  Math.max(1, Math.min(30, parseInt(r.interval) || 2)),
           days:      Array.isArray(r.days) ? r.days : [],
@@ -13718,16 +13703,14 @@ const RoutineAI = (() => {
     const now    = Date.now();
     const groups = {};
     cards.forEach(c => {
-      if (!c.subject) return;
-      const topic = c.topic || '__notopic__';
-      const key = `${c.category}|||${c.subject}|||${topic}`;
+      if (!c.subject || !c.topic) return;
+      const key = `${c.category}|||${c.subject}|||${c.topic}`;
       if (!groups[key]) groups[key] = {
-        category: c.category, subject: c.subject, topic: c.topic || null,
-        total: 0, hapCount: 0, fotoCount: 0, overdue: 0, hard: 0, eases: []
+        category: c.category, subject: c.subject, topic: c.topic,
+        total: 0, overdue: 0, hard: 0, eases: []
       };
       const g = groups[key];
       g.total++;
-      if (c.type === 'foto') g.fotoCount++; else g.hapCount++;
       if (c.nextReviewDate && c.nextReviewDate < now) g.overdue++;
       if ((c.easeFactor || 2.5) < 1.9 || (c.lapses || 0) >= 2) g.hard++;
       g.eases.push(c.easeFactor || 2.5);
@@ -13749,16 +13732,9 @@ const RoutineAI = (() => {
       ? routines.map(r => `"${r.name}" (${r.category} ${r.subject}${r.topic ? '/' + r.topic : ''})`).join(', ')
       : 'Henüz rutin yok';
 
-    // HAP kartı olan konular
-    const hapTopics = topicStats.filter(g => g.hapCount > 0);
-    const hapLines = hapTopics.slice(0, 40).map(g =>
-      `  category="${g.category}" subject="${g.subject}" topic="${g.topic || ''}" → hap:${g.hapCount}, gecikmiş:${g.overdue}, zorlu:${g.hard}`
-    ).join('\n');
-
-    // FOTO (yanlış soru) kartı olan konular
-    const fotoTopics = topicStats.filter(g => g.fotoCount > 0);
-    const fotoLines = fotoTopics.slice(0, 40).map(g =>
-      `  category="${g.category}" subject="${g.subject}" topic="${g.topic || ''}" → foto:${g.fotoCount}, gecikmiş:${g.overdue}`
+    // Her satır: CATEGORY | SUBJECT | TOPIC (birebir DB değerleri — AI bunları kullanacak)
+    const statsLines = topicStats.slice(0, 40).map(g =>
+      `  category="${g.category}" subject="${g.subject}" topic="${g.topic}" → ${g.total} kart, ${g.overdue} gecikmiş, ${g.hard} zorlu`
     ).join('\n');
 
     return `YKS öğrencisi için çalışma rutini oluştur.
@@ -13770,21 +13746,13 @@ AYT DERSLERİ: Matematik, Geometri, Fizik, Kimya, Biyoloji, Edebiyat, Tarih-1, T
 
 MEVCUT RUTİNLER: ${routineList}
 
-HAP BİLGİ KARTLARI (bilgi/ezber kartları — metin tabanlı):
-${hapLines || '(Henüz hap kart yok)'}
-
-YANLIŞ SORU KARTLARI (foto kartlar — yanlış yapılan soru fotoğrafları):
-${fotoLines || '(Henüz yanlış soru kartı yok)'}
+KULLANICININ KART VERİTABANI (her satır bir konu grubu — birebir bu değerleri kullan):
+${statsLines || '(Henüz kart yok)'}
 
 ALAN KURALLARI (ÇOK ÖNEMLİ):
-- JSON'daki "category", "subject", "topic" değerleri TAMAMEN yukarıdaki listelerden kopyalanmalı
-- Asla kendi başına konu adı uydurma — listede yoksa topic: null yaz
-- "cardMode" alanı ZORUNLU:
-    * "hap"   → kullanıcı hap bilgi/ezber kartı tekrarı istiyorsa
-    * "foto"  → kullanıcı yanlış soru / soru bankası tekrarı istiyorsa
-    * "mixed" → her ikisi birlikte
-- Kullanıcı "yanlış soru", "yanlış yaptigim", "soru bankası" diyorsa → cardMode: "foto", YANLIŞ SORU KARTLARI listesinden topic seç
-- Kullanıcı "hap bilgi", "bilgi tekrarı", "konu tekrarı" diyorsa → cardMode: "hap", HAP BİLGİ KARTLARI listesinden topic seç
+- JSON'daki "category", "subject", "topic" değerleri TAMAMEN yukarıdaki veritabanından kopyalanmalı
+- Örn: category="AYT" subject="Kimya" topic="Çözünürlük Dengesi (Kçç)" → JSON'a aynen bu değerler girer
+- Asla kendi başına konu adı uydurma, listede olmayan topic yazma — listede yoksa topic: null yaz
 - "schedType": "interval" veya "days"
 - "interval": 1-14 tamsayı
 - "days": [0=Paz,1=Pzt,2=Sal,3=Çar,4=Per,5=Cum,6=Cmt]
@@ -13803,7 +13771,6 @@ SADECE ŞUNU DÖNDÜR (başka hiçbir şey yazma):
       "category": "AYT",
       "subject": "Kimya",
       "topic": "Çözünürlük Dengesi (Kçç)",
-      "cardMode": "hap",
       "schedType": "days",
       "days": [6],
       "interval": 1,
