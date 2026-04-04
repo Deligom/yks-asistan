@@ -8001,33 +8001,42 @@ const Social = (() => {
 
               // ── BAN KONTROLÜ ──────────────────────────────────────────
               if (data.banned) {
-                const banUntil = data.banUntil; // null = kalıcı, number = ms timestamp
+                const banUntil = data.banUntil;
                 const isPermanent = !banUntil;
                 const isActive = isPermanent || Date.now() < banUntil;
 
                 if (isActive) {
-                  // Oturumu kapat
                   try { await _fb.signOut(_fb.auth); } catch(_) {}
-                  // Ban ekranını göster
-                  const banMsg = isPermanent
-                    ? 'Hesabın kalıcı olarak askıya alınmıştır.'
-                    : `Hesabın ${new Date(banUntil).toLocaleDateString('tr-TR')} tarihine kadar askıya alınmıştır.`;
+
+                  let banMsg, banDetail;
+                  if (isPermanent) {
+                    banMsg = 'Hesabın kalıcı olarak askıya alınmıştır.';
+                    banDetail = 'Bu karar geri alınamaz. Hata olduğunu düşünüyorsan uygulama geliştiricisiyle iletişime geç.';
+                  } else {
+                    const until = new Date(banUntil);
+                    const hoursLeft = Math.ceil((banUntil - Date.now()) / 3600000);
+                    const dateStr = until.toLocaleDateString('tr-TR', { day:'numeric', month:'long', year:'numeric' });
+                    const timeStr = until.toLocaleTimeString('tr-TR', { hour:'2-digit', minute:'2-digit' });
+                    banMsg = `Hesabın geçici olarak askıya alınmıştır.`;
+                    banDetail = `<b>${dateStr} saat ${timeStr}</b> itibarıyla otomatik açılacak.<br><span style="color:#6b7280">(yaklaşık ${hoursLeft} saat)</span>`;
+                  }
+
                   document.getElementById('onboard-overlay').style.display = 'flex';
                   document.getElementById('onboard-overlay').innerHTML = `
-                    <div style="text-align:center;padding:40px 24px;max-width:380px">
+                    <div style="text-align:center;padding:40px 24px;max-width:400px">
                       <div style="font-size:3rem;margin-bottom:16px">🚫</div>
-                      <div style="font-size:1.1rem;font-weight:800;margin-bottom:10px;color:#ef4444">Hesap Askıya Alındı</div>
-                      <div style="font-size:.85rem;color:#8892a4;line-height:1.7;margin-bottom:8px">${banMsg}</div>
-                      ${data.banReason ? `<div style="font-size:.78rem;color:#4a5568;margin-top:8px">Sebep: ${data.banReason}</div>` : ''}
+                      <div style="font-size:1.1rem;font-weight:800;margin-bottom:12px;color:#ef4444">Hesap Askıya Alındı</div>
+                      <div style="font-size:.88rem;color:#9ca3af;line-height:1.8;margin-bottom:12px">${banMsg}</div>
+                      ${data.banReason && data.banReason !== 'Admin decision' && data.banReason !== 'Admin kararı'
+                        ? `<div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:10px 14px;font-size:.8rem;color:#fca5a5;margin-bottom:12px">Sebep: ${data.banReason}</div>`
+                        : `<div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:10px 14px;font-size:.8rem;color:#fca5a5;margin-bottom:12px">Sebep: Topluluk kuralları ihlali</div>`
+                      }
+                      <div style="font-size:.78rem;color:#6b7280;line-height:1.7">${banDetail}</div>
                     </div>`;
                   return;
                 } else {
-                  // Süresi dolmuş ban — temizle (sessizce)
                   try {
-                    await _fb.updateDoc(snap.docs[0].ref, {
-                      banned: false,
-                      banUntil: _fb.deleteField ? _fb.deleteField() : null,
-                    });
+                    await _fb.updateDoc(snap.docs[0].ref, { banned: false, banUntil: _fb.deleteField ? _fb.deleteField() : null });
                   } catch(_) {}
                 }
               }
