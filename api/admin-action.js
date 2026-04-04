@@ -93,6 +93,17 @@ async function deleteUser(db, userCode) {
   return { userCode, cardsHidden: cardsSnap.size, message: userCode + ' deleted, ' + cardsSnap.size + ' cards hidden.' };
 }
 
+async function setTokens(db, userCode, amount) {
+  if (!userCode) throw new Error('userCode required');
+  if (typeof amount !== 'number' || amount < 0) throw new Error('Invalid amount');
+  const snap = await db.collection('users').where('code', '==', userCode).limit(1).get();
+  if (snap.empty) throw new Error('User not found: ' + userCode);
+  const firebaseUid = snap.docs[0].data().firebaseUid;
+  const docId = firebaseUid || userCode;
+  await db.collection('tokenBalance').doc(docId).set({ tokens: amount, updatedAt: Date.now() }, { merge: true });
+  return { userCode, amount, message: userCode + ' token balance set to ' + amount + '.' };
+}
+
 async function resolveReport(db, reportId) {
   if (!reportId) throw new Error('reportId required');
   const ref = db.collection('reports').doc(reportId);
@@ -122,6 +133,7 @@ module.exports = async function handler(req, res) {
       case 'unban_user':     result = await unbanUser(db, userCode); break;
       case 'delete_user':    result = await deleteUser(db, userCode); break;
       case 'resolve_report': result = await resolveReport(db, reportId); break;
+      case 'set_tokens':     result = await setTokens(db, userCode, Number(req.body.amount)); break;
       default: return err(res, 'Unknown action: ' + action);
     }
     console.log('[admin-action]', action, { cardId, userCode, result: result.message });
