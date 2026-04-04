@@ -37,16 +37,13 @@ async function fetchFlat(db, colName) {
 }
 
 // Üst doküman YOK ama subcollection var (chats/{id}/messages)
-// collectionGroup ile tüm mesajları çek, chatId'ye göre grupla
 async function fetchChats(db) {
   const result = {};
   const snap = await db.collectionGroup('messages').get();
 
   snap.forEach(d => {
-    // path: chats/{chatId}/messages/{msgId}
-    // veya groups/{groupId}/messages/{msgId}
     const pathParts = d.ref.path.split('/');
-    if (pathParts[0] !== 'chats') return; // sadece chats altındakileri al
+    if (pathParts[0] !== 'chats') return;
 
     const chatId = pathParts[1];
     if (!result[chatId]) {
@@ -58,7 +55,7 @@ async function fetchChats(db) {
   return result;
 }
 
-// groups/{groupId}/messages subcollection'ı dahil et
+// groups/{groupId}/messages subcollection
 async function fetchGroups(db) {
   const result = {};
   const snap = await db.collection('groups').get();
@@ -80,7 +77,6 @@ async function fetchInbox(db) {
   const snap = await db.collectionGroup('items').get();
 
   snap.forEach(d => {
-    // path: inbox/{userCode}/items/{itemId}
     const pathParts = d.ref.path.split('/');
     if (pathParts[0] !== 'inbox') return;
 
@@ -100,7 +96,6 @@ async function fetchAiSessions(db) {
   const snap = await db.collectionGroup('sessions').get();
 
   snap.forEach(d => {
-    // path: ai_sessions/{userCode}/sessions/{sessionId}
     const pathParts = d.ref.path.split('/');
     if (pathParts[0] !== 'ai_sessions') return;
 
@@ -125,7 +120,23 @@ module.exports = async function handler(req, res) {
   try {
     const db = admin.firestore();
 
-    const [users, chats, friends, groups, inbox, leaderboard, push_tokens, ai_sessions] = await Promise.all([
+    const [
+      users,
+      chats,
+      friends,
+      groups,
+      inbox,
+      leaderboard,
+      push_tokens,
+      ai_sessions,
+      // --- YENİ KOLEKSİYONLAR ---
+      reports,
+      global_cards,
+      blocks,
+      friend_requests,
+      tokenBalance,
+      user_report_stats,
+    ] = await Promise.all([
       fetchFlat(db, 'users'),
       fetchChats(db),
       fetchFlat(db, 'friends'),
@@ -133,13 +144,36 @@ module.exports = async function handler(req, res) {
       fetchInbox(db),
       fetchFlat(db, 'leaderboard'),
       fetchFlat(db, 'push_tokens'),
-      fetchAiSessions(db),     // ai_sessions/{user}/sessions
+      fetchAiSessions(db),
+      // --- YENİ ---
+      fetchFlat(db, 'reports'),
+      fetchFlat(db, 'global_cards'),
+      fetchFlat(db, 'blocks'),
+      fetchFlat(db, 'friend_requests'),
+      fetchFlat(db, 'tokenBalance'),
+      fetchFlat(db, 'user_report_stats'),
     ]);
 
     const backup = {
       exportedAt: new Date().toISOString(),
       projectId: process.env.FIREBASE_PROJECT_ID || 'yks-asistan-10a95',
-      collections: { users, chats, friends, groups, inbox, leaderboard, push_tokens, ai_sessions }
+      collections: {
+        users,
+        chats,
+        friends,
+        groups,
+        inbox,
+        leaderboard,
+        push_tokens,
+        ai_sessions,
+        // --- YENİ ---
+        reports,
+        global_cards,
+        blocks,
+        friend_requests,
+        tokenBalance,
+        user_report_stats,
+      }
     };
 
     const json    = JSON.stringify(backup, null, 2);
