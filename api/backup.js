@@ -11,7 +11,7 @@ if (!admin.apps.length) {
   });
 }
 
-const BACKUP_SECRET = process.env.BACKUP_SECRET || 'yks-backup-2026';
+const BACKUP_SECRET = process.env.YKS_ADMIN_KEY || process.env.BACKUP_SECRET || 'yks-backup-2026';
 
 function serialize(doc) {
   const data = doc.data() || {};
