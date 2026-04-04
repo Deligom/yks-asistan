@@ -817,6 +817,41 @@ select option{background:var(--surface2);color:var(--text)}
 #ai-crop-canvas {
   touch-action:none;
   display:block;
+  position:relative;
+  z-index:1;
+}
+@keyframes crop-rgb-spin {
+  from { transform: translate(-50%,-50%) rotate(0deg); }
+  to   { transform: translate(-50%,-50%) rotate(360deg); }
+}
+#crop-rgb-aura {
+  position:absolute;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  overflow:hidden;
+}
+#crop-rgb-aura::before {
+  content:'';
+  position:absolute;
+  top:50%; left:50%;
+  width:220%; height:220%;
+  transform:translate(-50%,-50%);
+  background: conic-gradient(
+    from 0deg,
+    rgba(59,130,246,.7),
+    rgba(139,92,246,.65),
+    rgba(236,72,153,.6),
+    rgba(239,68,68,.5),
+    rgba(249,115,22,.5),
+    rgba(234,179,8,.55),
+    rgba(34,197,94,.55),
+    rgba(20,184,166,.6),
+    rgba(6,182,212,.65),
+    rgba(59,130,246,.7)
+  );
+  animation: crop-rgb-spin 7s linear infinite;
+  filter: blur(35px);
 }
 .crop-top-bar {
   position:absolute;top:0;left:0;right:0;
@@ -12392,6 +12427,7 @@ const KartHavuzu = (() => {
             <div style="font-size:.83rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(title)}</div>
             <div style="font-size:.65rem;color:var(--text3);margin-top:1px">👤 ${_esc(name)}</div>
           </div>
+          <button onclick="KartHavuzu.vote('${c.id}','report')" style="background:none;border:none;color:var(--text3);font-size:.75rem;cursor:pointer;padding:4px 6px;flex-shrink:0;opacity:.7">⚑</button>
         </div>
         <div style="display:flex;gap:6px">
           <button onclick="KartHavuzu.vote('${c.id}','like')" id="kh-vote-like-${c.id}" style="flex:1;background:rgba(255,101,132,.1);border:1px solid rgba(255,101,132,.2);border-radius:8px;padding:5px 4px;color:#ff6584;font-size:.72rem;cursor:pointer;font-weight:700">❤ ${c.likes||0}</button>
@@ -14280,6 +14316,7 @@ Kullanıcı isteği: "${userMsg}"`;
     <div style="width:40px"></div>
   </div>
   <div id="ai-crop-container">
+    <div id="crop-rgb-aura"></div>
     <canvas id="ai-crop-canvas"></canvas>
   </div>
   <button class="crop-btn-confirm" onclick="GeminiAI._cropConfirm()">
