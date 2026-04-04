@@ -4933,19 +4933,41 @@ const App = (() => {
 
   async function launchSubjectStudy(subject) {
     const all = await dbGetAll();
-    const queue = all
-      .filter(c => c.subject === subject)
-      .sort(() => Math.random() - 0.5);
+    const now = Date.now();
+    const subjectCards = all.filter(c => c.subject === subject);
 
-    if (!queue.length) {
+    if (!subjectCards.length) {
       toast('Bu derse ait kart bulunamadı!', 'err');
       return;
     }
+
+    // Vadesi geçmiş kartlar (AI öneri ile tutarlı — en gecikmiş önce)
+    const due = subjectCards
+      .filter(c => c.nextReviewDate && c.nextReviewDate <= now)
+      .sort((a, b) => a.nextReviewDate - b.nextReviewDate);
+
+    // Henüz hiç çalışılmamış yeni kartlar
+    const newCards = subjectCards.filter(c => !c.nextReviewDate);
+
+    // Sırası gelmemiş kartlar (fallback)
+    const notDue = subjectCards.filter(c => c.nextReviewDate && c.nextReviewDate > now);
+
+    // Önce vadesi geçmiş, sonra yeni, normalde gelmeyenler sona
+    let queue = [...due, ...newCards];
+    const dueLabel = due.length > 0
+      ? `${due.length} vadesi geçmiş${newCards.length > 0 ? ` + ${newCards.length} yeni` : ''}`
+      : (newCards.length > 0 ? `${newCards.length} yeni kart` : 'Serbest Çalışma');
+
+    // Vadesi geçmiş veya yeni kart yoksa tüm dersi aç
+    if (!queue.length) {
+      queue = notDue.sort(() => Math.random() - 0.5);
+    }
+
     studyQueue = queue;
     studyIdx = 0; _maxStudyIdx = 0;
     studyMode  = 'mixed';
     document.getElementById('study-mode-title').textContent = `📚 ${subject}`;
-    document.getElementById('study-mode-sub').textContent   = `${queue.length} kart · Rastgele`;
+    document.getElementById('study-mode-sub').textContent   = `${queue.length} kart · ${dueLabel}`;
     go('study');
     renderStudyCard();
   }
