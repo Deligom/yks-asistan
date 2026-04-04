@@ -588,14 +588,35 @@ button, a {
 }
 .home-hero .hero-icon{
   font-size:2.8rem;margin-bottom:4px;
-  filter:drop-shadow(0 0 20px rgba(108,99,255,0.6))
+  filter:drop-shadow(0 0 20px rgba(108,99,255,0.6));
+  animation:heroIconFloat 3s ease-in-out infinite, heroIconGlow 3s ease-in-out infinite
 }
 .home-hero h1{
   font-size:1.7rem;font-weight:800;letter-spacing:-.03em;
   background:linear-gradient(135deg,#fff 0%,var(--primary2) 60%,var(--accent) 100%);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent
+  background-size:200% 200%;
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  animation:heroTitleShimmer 4s ease-in-out infinite, heroFadeUp .7s ease both
 }
-.home-hero p{font-size:.85rem;color:var(--text2);max-width:280px;line-height:1.5}
+.home-hero p{font-size:.85rem;color:var(--text2);max-width:280px;line-height:1.5;
+  animation:heroFadeUp .7s .15s ease both}
+@keyframes heroIconFloat{
+  0%,100%{transform:translateY(0)}
+  50%{transform:translateY(-6px)}
+}
+@keyframes heroIconGlow{
+  0%,100%{filter:drop-shadow(0 0 14px rgba(108,99,255,.55))}
+  50%{filter:drop-shadow(0 0 28px rgba(108,99,255,.9)) drop-shadow(0 0 8px rgba(255,101,132,.4))}
+}
+@keyframes heroTitleShimmer{
+  0%{background-position:0% 50%}
+  50%{background-position:100% 50%}
+  100%{background-position:0% 50%}
+}
+@keyframes heroFadeUp{
+  from{opacity:0;transform:translateY(12px)}
+  to{opacity:1;transform:translateY(0)}
+}
 
 .mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}
 .mode-card{
@@ -1524,6 +1545,7 @@ select option{background:var(--surface2);color:var(--text)}
 .chart-title{font-family:'Syne','Segoe UI','Helvetica Neue',Arial,sans-serif;font-weight:700;font-size:1rem;
   background:linear-gradient(135deg,var(--text),var(--primary2));
   -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.chart-title .chart-title-emoji{-webkit-text-fill-color:initial;background:none;display:inline-block}
 .chart-legend{display:flex;gap:12px}
 .chart-legend-item{display:flex;align-items:center;gap:5px;font-size:.7rem;color:var(--text3);font-weight:600}
 .chart-legend-dot{width:9px;height:9px;min-width:9px;min-height:9px;border-radius:50%;flex-shrink:0}
@@ -2204,20 +2226,23 @@ select option{background:var(--surface2);color:var(--text)}
       <div id="plan-card-free" onclick="SubPlan.openUpgradeModal()" style="border-radius:10px;padding:10px 8px;text-align:center;border:1.5px solid var(--teal);background:rgba(0,200,150,.08);cursor:pointer">
         <div style="font-size:1.1rem">🆓</div>
         <div style="font-size:.75rem;font-weight:700;color:var(--text1);margin-top:3px">Free</div>
-        <div style="font-size:.65rem;color:var(--text3);margin-top:2px">200K token</div>
+        <div style="font-size:.65rem;color:var(--text3);margin-top:2px">100K token</div>
         <div style="font-size:.7rem;font-weight:700;color:var(--teal);margin-top:4px">Ücretsiz</div>
       </div>
       <div id="plan-card-plus" onclick="SubPlan.buyPlan('plus')" style="border-radius:10px;padding:10px 8px;text-align:center;border:1.5px solid var(--border);background:var(--surface2);cursor:pointer">
         <div style="font-size:1.1rem">⭐</div>
         <div style="font-size:.75rem;font-weight:700;color:var(--text2);margin-top:3px">Plus</div>
-        <div style="font-size:.65rem;color:var(--text3);margin-top:2px">500K token</div>
-        <div style="font-size:.7rem;font-weight:700;color:var(--primary);margin-top:4px">Al →</div>
-      </div>
-      <div id="plan-card-pro" onclick="SubPlan.buyPlan('pro')" style="border-radius:10px;padding:10px 8px;text-align:center;border:1.5px solid var(--border);background:var(--surface2);cursor:pointer">
-        <div style="font-size:1.1rem">👑</div>
-        <div style="font-size:.75rem;font-weight:700;color:var(--text2);margin-top:3px">Pro</div>
         <div style="font-size:.65rem;color:var(--text3);margin-top:2px">1M token</div>
-        <div style="font-size:.7rem;font-weight:700;color:var(--accent);margin-top:4px">Al →</div>
+        <div style="font-size:.6rem;color:var(--text3);margin-top:1px;opacity:.7">$7.99/ay</div>
+        <div style="font-size:.7rem;font-weight:700;color:var(--primary);margin-top:3px">Al →</div>
+      </div>
+      <div id="plan-card-pro" onclick="SubPlan.buyPlan('pro')" style="border-radius:10px;padding:10px 8px;text-align:center;border:1.5px solid var(--border);background:var(--surface2);cursor:pointer;position:relative;overflow:hidden">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#f59e0b,var(--accent))"></div>
+        <div style="font-size:1.1rem">💎</div>
+        <div style="font-size:.75rem;font-weight:700;color:var(--text2);margin-top:3px">Ultra</div>
+        <div style="font-size:.65rem;color:var(--text3);margin-top:2px">2M token</div>
+        <div style="font-size:.6rem;color:var(--text3);margin-top:1px;opacity:.7">$9.99/ay</div>
+        <div style="font-size:.7rem;font-weight:700;color:var(--accent);margin-top:3px">Al →</div>
       </div>
     </div>
   </div>
@@ -2246,26 +2271,19 @@ select option{background:var(--surface2);color:var(--text)}
   <div class="section-title">🤖 AI Model Seçimi</div>
   <div class="card" style="margin-bottom:16px">
     <div style="font-size:.75rem;color:var(--text3);margin-bottom:12px">Planına göre kullanabileceğin modeli seç</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <div id="model-btn-lite" onclick="SubPlan.selectModel('lite')"
-        style="border-radius:12px;padding:12px 8px;text-align:center;border:2px solid var(--primary);background:rgba(108,99,255,.1);cursor:pointer;transition:all .2s;position:relative">
-        <div style="font-size:1rem;margin-bottom:3px">⚡</div>
-        <div style="font-size:.72rem;font-weight:700;color:var(--text1)">3.1 Lite</div>
-        <div style="font-size:.6rem;color:var(--teal);margin-top:2px">Ücretsiz</div>
+        style="border-radius:12px;padding:14px 8px;text-align:center;border:2px solid var(--primary);background:rgba(108,99,255,.1);cursor:pointer;transition:all .2s;position:relative">
+        <div style="font-size:1.1rem;margin-bottom:4px">⚡</div>
+        <div style="font-size:.78rem;font-weight:700;color:var(--text1)">3.1 Lite</div>
+        <div style="font-size:.65rem;color:var(--teal);margin-top:3px">Ücretsiz</div>
       </div>
       <div id="model-btn-flash" onclick="SubPlan.selectModel('flash')"
-        style="border-radius:12px;padding:12px 8px;text-align:center;border:2px solid var(--border);background:var(--surface2);cursor:pointer;transition:all .2s;position:relative">
-        <div style="font-size:1rem;margin-bottom:3px">🚀</div>
-        <div style="font-size:.72rem;font-weight:700;color:var(--text2)">3.0 Flash</div>
-        <div style="font-size:.6rem;color:var(--text3);margin-top:2px">Plus+</div>
+        style="border-radius:12px;padding:14px 8px;text-align:center;border:2px solid var(--border);background:var(--surface2);cursor:pointer;transition:all .2s;position:relative">
+        <div style="font-size:1.1rem;margin-bottom:4px">🚀</div>
+        <div style="font-size:.78rem;font-weight:700;color:var(--text2)">3.0 Flash</div>
+        <div style="font-size:.65rem;color:var(--text3);margin-top:3px">Plus+</div>
         <div id="flash-lock" style="position:absolute;top:4px;right:6px;font-size:.65rem">🔒</div>
-      </div>
-      <div id="model-btn-pro" onclick="SubPlan.selectModel('pro')"
-        style="border-radius:12px;padding:12px 8px;text-align:center;border:2px solid var(--border);background:var(--surface2);cursor:pointer;transition:all .2s;position:relative">
-        <div style="font-size:1rem;margin-bottom:3px">👑</div>
-        <div style="font-size:.72rem;font-weight:700;color:var(--text2)">3.1 Pro</div>
-        <div style="font-size:.6rem;color:var(--text3);margin-top:2px">Pro+</div>
-        <div id="pro-lock" style="position:absolute;top:4px;right:6px;font-size:.65rem">🔒</div>
       </div>
     </div>
     <div id="model-info-bar" style="margin-top:10px;font-size:.72rem;color:var(--text3);text-align:center"></div>
@@ -2485,7 +2503,7 @@ select option{background:var(--surface2);color:var(--text)}
   <!-- Weekly Chart -->
   <div class="chart-wrap" style="cursor:pointer" onclick="App.openDayModal(event)" title="Güne tıkla: detayları gör">
     <div class="chart-header">
-      <div class="chart-title">📊 Son 7 Gün <span style="font-size:.65rem;color:var(--text3);font-weight:400">(güne tıkla)</span></div>
+      <div class="chart-title"><span class="chart-title-emoji">📊</span> Son 7 Gün <span style="font-size:.65rem;color:var(--text3);font-weight:400">(güne tıkla)</span></div>
       <div class="chart-legend">
         <div class="chart-legend-item"><div class="chart-legend-dot" style="background:#4ade80"></div>Tekrar (hap)</div>
         <div class="chart-legend-item"><div class="chart-legend-dot" style="background:#f87171"></div>Tekrar (soru)</div>
@@ -4897,6 +4915,52 @@ const App = (() => {
     renderStudyCard();
   }
 
+  // Zayıf konu kartından direkt çalışma modu — sadece o konu
+  async function launchWeakTopicStudy(subject, topic) {
+    const all = await dbGetAll();
+    const queue = all
+      .filter(c => c.subject === subject && c.topic === topic)
+      .sort((a, b) => (a.easeFactor||2.5) - (b.easeFactor||2.5)); // en zor önce
+    if (!queue.length) { toast('Bu konuya ait kart bulunamadı!', 'err'); return; }
+    studyQueue = queue;
+    studyIdx = 0; _maxStudyIdx = 0;
+    studyMode  = 'mixed';
+    document.getElementById('study-mode-title').textContent = `🎯 ${topic}`;
+    document.getElementById('study-mode-sub').textContent   = `${queue.length} kart · En zor önce · ${subject}`;
+    go('study');
+    renderStudyCard();
+    toast(`🎯 "${topic}" konusu başlıyor!`, 'ok');
+  }
+
+  // Mobil çift-tap algılama (touchstart + click tabanlı)
+  const _wtTapState = new WeakMap();
+  function _wtTouchStart(el) {
+    const now = Date.now();
+    const last = _wtTapState.get(el) || 0;
+    _wtTapState.set(el, now);
+    if (now - last < 350) {
+      el.style.transform = 'scale(.97)';
+      setTimeout(() => { el.style.transform = ''; }, 150);
+    }
+  }
+  let _wtClickTimer = null;
+  function _wtSingleClick(el, subject, topic) {
+    // Çift tıklama kontrolü: 350ms içinde ikinci click → launchWeakTopicStudy
+    if (_wtClickTimer) {
+      clearTimeout(_wtClickTimer);
+      _wtClickTimer = null;
+      el.style.transform = 'scale(.96)';
+      setTimeout(() => { el.style.transform = ''; }, 150);
+      launchWeakTopicStudy(subject, topic);
+    } else {
+      _wtClickTimer = setTimeout(() => {
+        _wtClickTimer = null;
+        // tek tıklama: kısa titreşim feedback
+        if (navigator.vibrate) navigator.vibrate(20);
+      }, 350);
+    }
+  }
+
   async function startHardStudy() {
     const all   = await dbGetAll();
     const queue = all
@@ -6563,12 +6627,19 @@ STRİKT KURALLAR:
         badge = '🟢 İyi';          badgeBg = 'rgba(74,222,128,.12)';  badgeColor = '#4ade80'; barColor = '#4ade80';
       }
 
+      const subjectEsc = esc(g.subject).replace(/'/g,"&#39;");
+      const topicEsc   = esc(g.topic).replace(/'/g,"&#39;");
+
       return `
-        <div class="wt-row">
+        <div class="wt-row" style="cursor:pointer;transition:transform .15s,box-shadow .15s"
+          ondblclick="App.launchWeakTopicStudy('${subjectEsc}','${topicEsc}')"
+          ontouchstart="App._wtTouchStart(this)"
+          onclick="App._wtSingleClick(this,'${subjectEsc}','${topicEsc}')"
+          title="Çift tıkla → Bu konuyu çalış">
           <div class="wt-left">
             <span class="wt-badge" style="background:${badgeBg};color:${badgeColor}">${badge}</span>
             <div class="wt-topic">${esc(g.topic)}</div>
-            <div class="wt-meta">${esc(g.subject)} · ${g.count} kart</div>
+            <div class="wt-meta">${esc(g.subject)} · ${g.count} kart <span style="font-size:.6rem;color:var(--text3);margin-left:4px">· 2× çalış</span></div>
             <div class="wt-bar-track">
               <div class="wt-bar-fill" style="width:${pct}%;background:${barColor}"></div>
             </div>
@@ -7048,7 +7119,8 @@ STRİKT KURALLAR:
     initAutoBackup,
     checkAutoBackup,
     startHardStudy,
-    launchSubjectStudy,
+    launchSubjectStudy, launchWeakTopicStudy,
+    _wtSingleClick, _wtTouchStart,
     renderWeakTopics,
     formatAnswer
   };
@@ -11647,8 +11719,10 @@ STRİKT KURALLAR:
 <div id="upgrade-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9300;align-items:flex-end;justify-content:center">
   <div style="background:var(--surface);border-radius:20px 20px 0 0;padding:24px 20px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto">
     <div style="width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px"></div>
-    <div style="font-family:'Syne','Segoe UI',Arial,sans-serif;font-size:1.2rem;font-weight:800;margin-bottom:6px">👑 Plan Seç</div>
+    <div style="font-family:'Syne','Segoe UI',Arial,sans-serif;font-size:1.2rem;font-weight:800;margin-bottom:4px">✨ Plan Seç</div>
     <div style="font-size:.82rem;color:var(--text3);margin-bottom:20px">Planını yükselt, daha fazla AI gücü kullan</div>
+
+    <!-- FREE -->
     <div style="border:2px solid var(--teal);border-radius:14px;padding:16px;margin-bottom:12px;background:rgba(0,200,150,.06)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <div style="display:flex;align-items:center;gap:8px">
@@ -11657,30 +11731,45 @@ STRİKT KURALLAR:
         </div>
         <div style="font-weight:800;font-size:1rem;color:var(--teal)">₺0/ay</div>
       </div>
-      <div style="font-size:.75rem;color:var(--text3);line-height:1.7">✅ 3.1 Lite — sınırsız<br>🔒 3.0 Flash — günlük 3 hak<br>🔒 3.1 Pro — haftalık 3 deneme<br>📊 200K token/ay</div>
+      <div style="font-size:.75rem;color:var(--text3);line-height:1.7">✅ 3.1 Lite — sınırsız<br>🔒 3.0 Flash — günlük 3 hak<br>📊 100K token/ay</div>
     </div>
-    <div style="border:2px solid var(--primary);border-radius:14px;padding:16px;margin-bottom:12px;background:rgba(108,99,255,.05)">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+
+    <!-- PLUS -->
+    <div style="border:2px solid var(--primary);border-radius:14px;padding:16px;margin-bottom:12px;background:rgba(108,99,255,.05);position:relative">
+      <div style="position:absolute;top:-1px;right:16px;background:var(--primary);border-radius:0 0 8px 8px;padding:2px 10px;font-size:.65rem;font-weight:800;color:#fff;letter-spacing:.05em">⭐ POPÜLER</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:1.3rem">⭐</span>
-          <div><div style="font-weight:700;font-size:.92rem">Plus</div><div style="font-size:.72rem;color:var(--primary)">Popüler</div></div>
+          <div><div style="font-weight:700;font-size:.92rem">Plus</div><div style="font-size:.72rem;color:var(--primary)">En çok tercih edilen</div></div>
         </div>
-        <div style="font-weight:800;font-size:1rem;color:var(--primary)">₺XX/ay</div>
+        <div style="text-align:right">
+          <div style="font-weight:800;font-size:1.1rem;color:var(--primary)">$7.99</div>
+          <div style="font-size:.65rem;color:var(--text3)">/ay</div>
+        </div>
       </div>
-      <div style="font-size:.75rem;color:var(--text3);line-height:1.7;margin-bottom:12px">✅ 3.1 Lite — sınırsız<br>✅ 3.0 Flash — sınırsız<br>🔒 3.1 Pro — günlük 5 hak<br>📊 500K token/ay</div>
+      <div style="font-size:.72rem;color:var(--text3);background:rgba(108,99,255,.08);border-radius:8px;padding:6px 10px;margin-bottom:10px">📊 1.000.000 token/ay &nbsp;·&nbsp; <span style="color:var(--primary);font-weight:700">~$0.008/K token</span></div>
+      <div style="font-size:.75rem;color:var(--text3);line-height:1.7;margin-bottom:12px">✅ 3.1 Lite — sınırsız<br>✅ 3.0 Flash — sınırsız<br>📊 1M token/ay</div>
       <button onclick="SubPlan.buyPlan('plus')" style="width:100%;background:var(--primary);border:none;border-radius:10px;padding:10px;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer">⭐ Plus'a Geç</button>
     </div>
-    <div style="border:2px solid var(--accent);border-radius:14px;padding:16px;margin-bottom:20px;background:rgba(255,101,132,.05)">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+
+    <!-- ULTRA -->
+    <div style="border:2px solid #f59e0b;border-radius:14px;padding:16px;margin-bottom:20px;background:linear-gradient(135deg,rgba(245,158,11,.06),rgba(255,101,132,.06));position:relative;overflow:hidden">
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#f59e0b,var(--accent),#f59e0b)"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
         <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:1.3rem">👑</span>
-          <div><div style="font-weight:700;font-size:.92rem">Pro</div><div style="font-size:.72rem;color:var(--accent)">Her şey dahil</div></div>
+          <span style="font-size:1.3rem">💎</span>
+          <div><div style="font-weight:700;font-size:.92rem">Ultra</div><div style="font-size:.72rem;color:#f59e0b">Maksimum güç</div></div>
         </div>
-        <div style="font-weight:800;font-size:1rem;color:var(--accent)">₺XX/ay</div>
+        <div style="text-align:right">
+          <div style="font-weight:800;font-size:1.1rem;color:#f59e0b">$9.99</div>
+          <div style="font-size:.65rem;color:var(--text3)">/ay</div>
+        </div>
       </div>
-      <div style="font-size:.75rem;color:var(--text3);line-height:1.7;margin-bottom:12px">✅ 3.1 Lite — sınırsız<br>✅ 3.0 Flash — sınırsız<br>✅ 3.1 Pro — sınırsız<br>📊 1M token/ay</div>
-      <button onclick="SubPlan.buyPlan('pro')" style="width:100%;background:var(--accent);border:none;border-radius:10px;padding:10px;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer">👑 Pro'ya Geç</button>
+      <div style="font-size:.72rem;color:var(--text3);background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:6px 10px;margin-bottom:10px">📊 2.000.000 token/ay &nbsp;·&nbsp; <span style="color:#f59e0b;font-weight:700">~$0.005/K token</span></div>
+      <div style="font-size:.75rem;color:var(--text3);line-height:1.7;margin-bottom:12px">✅ 3.1 Lite — sınırsız<br>✅ 3.0 Flash — sınırsız<br>📊 2M token/ay<br>⚡ Öncelikli yanıt hızı</div>
+      <button onclick="SubPlan.buyPlan('pro')" style="width:100%;background:linear-gradient(135deg,#f59e0b,var(--accent));border:none;border-radius:10px;padding:10px;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer">💎 Ultra'ya Geç</button>
     </div>
+
     <button onclick="SubPlan.closeUpgradeModal()" class="btn" style="width:100%;background:var(--surface2);color:var(--text2)">Kapat</button>
   </div>
 </div>
@@ -11689,11 +11778,11 @@ STRİKT KURALLAR:
 <div id="token-shop-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9300;align-items:flex-end;justify-content:center">
   <div style="background:var(--surface);border-radius:20px 20px 0 0;padding:24px 20px;width:100%;max-width:480px">
     <div style="width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px"></div>
-    <div style="font-family:'Syne','Segoe UI',Arial,sans-serif;font-size:1.2rem;font-weight:800;margin-bottom:6px">🪙 Ekstra Token Al</div>
-    <div style="font-size:.82rem;color:var(--text3);margin-bottom:20px">Her 1.000 token = <strong style="color:var(--primary)">$0.01</strong></div>
+    <div style="font-family:'Syne','Segoe UI',Arial,sans-serif;font-size:1.2rem;font-weight:800;margin-bottom:4px">🪙 Ekstra Token Al</div>
+    <div style="font-size:.8rem;color:var(--text3);margin-bottom:18px">Büyük paketlerde birim maliyet düşer — dilediğin zaman süresi dolmaz</div>
 
     <!-- REKLAM İZLE BUTONU -->
-    <div style="background:linear-gradient(135deg,rgba(255,180,0,.12),rgba(255,120,0,.08));border:1.5px solid #f59e0b;border-radius:14px;padding:16px;margin-bottom:16px">
+    <div style="background:linear-gradient(135deg,rgba(255,180,0,.12),rgba(255,120,0,.08));border:1.5px solid #f59e0b;border-radius:14px;padding:14px;margin-bottom:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <div>
           <div style="font-weight:800;font-size:.95rem;color:#f59e0b">🎬 Reklam İzle</div>
@@ -11708,14 +11797,52 @@ STRİKT KURALLAR:
       <div style="font-size:.68rem;color:var(--text3);text-align:center;margin-top:8px">Günlük en fazla 10 reklam izlenebilir</div>
     </div>
 
-    <!-- ÖDEME İLE SATIN AL -->
-    <div class="form-group" style="margin-bottom:8px">
-      <label style="font-size:.8rem">💳 Ödemeyle Token Al</label>
-      <input id="token-amount-input" type="number" min="10000" step="10000" value="100000" oninput="SubPlan.calcTokenPrice()"
-        style="background:var(--bg2);border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text1);font-size:1rem;width:100%;box-sizing:border-box;outline:none"/>
+    <!-- STATİK TOKEN PAKETLERİ -->
+    <div style="font-size:.78rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">💳 Ödemeyle Token Al</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+
+      <!-- 50K -->
+      <div style="background:var(--surface2);border:1.5px solid var(--border);border-radius:14px;padding:14px;text-align:center;cursor:pointer;transition:border-color .2s" onclick="SubPlan.buyTokenPack(50000)" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="font-size:1.3rem;margin-bottom:4px">🪙</div>
+        <div style="font-weight:800;font-size:1rem;color:var(--text1)">50K</div>
+        <div style="font-size:.68rem;color:var(--text3);margin:2px 0 6px">token</div>
+        <div style="font-weight:800;font-size:.95rem;color:var(--primary)">$0.75</div>
+        <div style="font-size:.62rem;color:var(--text3);margin-top:3px;background:var(--bg2);border-radius:6px;padding:2px 6px">$0.015 / K token</div>
+      </div>
+
+      <!-- 100K -->
+      <div style="background:var(--surface2);border:1.5px solid var(--border);border-radius:14px;padding:14px;text-align:center;cursor:pointer;transition:border-color .2s;position:relative" onclick="SubPlan.buyTokenPack(100000)" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="position:absolute;top:-1px;right:10px;background:var(--teal);border-radius:0 0 6px 6px;padding:1px 7px;font-size:.58rem;font-weight:800;color:#000">%13 tasarruf</div>
+        <div style="font-size:1.3rem;margin-bottom:4px">🪙🪙</div>
+        <div style="font-weight:800;font-size:1rem;color:var(--text1)">100K</div>
+        <div style="font-size:.68rem;color:var(--text3);margin:2px 0 6px">token</div>
+        <div style="font-weight:800;font-size:.95rem;color:var(--primary)">$1.30</div>
+        <div style="font-size:.62rem;color:var(--teal);margin-top:3px;background:rgba(0,200,150,.08);border-radius:6px;padding:2px 6px;font-weight:700">$0.013 / K token</div>
+      </div>
+
+      <!-- 500K -->
+      <div style="background:var(--surface2);border:1.5px solid var(--border);border-radius:14px;padding:14px;text-align:center;cursor:pointer;transition:border-color .2s;position:relative" onclick="SubPlan.buyTokenPack(500000)" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="position:absolute;top:-1px;right:10px;background:var(--primary);border-radius:0 0 6px 6px;padding:1px 7px;font-size:.58rem;font-weight:800;color:#fff">%20 tasarruf</div>
+        <div style="font-size:1.3rem;margin-bottom:4px">💰</div>
+        <div style="font-weight:800;font-size:1rem;color:var(--text1)">500K</div>
+        <div style="font-size:.68rem;color:var(--text3);margin:2px 0 6px">token</div>
+        <div style="font-weight:800;font-size:.95rem;color:var(--primary)">$6.00</div>
+        <div style="font-size:.62rem;color:var(--primary);margin-top:3px;background:rgba(108,99,255,.08);border-radius:6px;padding:2px 6px;font-weight:700">$0.012 / K token</div>
+      </div>
+
+      <!-- 1M -->
+      <div style="background:linear-gradient(135deg,rgba(245,158,11,.06),rgba(255,101,132,.06));border:1.5px solid #f59e0b;border-radius:14px;padding:14px;text-align:center;cursor:pointer;transition:border-color .2s;position:relative" onclick="SubPlan.buyTokenPack(1000000)" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='#f59e0b'">
+        <div style="position:absolute;top:-1px;right:10px;background:linear-gradient(90deg,#f59e0b,var(--accent));border-radius:0 0 6px 6px;padding:1px 7px;font-size:.58rem;font-weight:800;color:#fff">%33 tasarruf</div>
+        <div style="font-size:1.3rem;margin-bottom:4px">💎</div>
+        <div style="font-weight:800;font-size:1rem;color:var(--text1)">1M</div>
+        <div style="font-size:.68rem;color:var(--text3);margin:2px 0 6px">token</div>
+        <div style="font-weight:800;font-size:.95rem;color:#f59e0b">$10.00</div>
+        <div style="font-size:.62rem;color:#f59e0b;margin-top:3px;background:rgba(245,158,11,.08);border-radius:6px;padding:2px 6px;font-weight:700">$0.010 / K token</div>
+      </div>
+
     </div>
-    <div id="token-price-display" style="font-size:.78rem;color:var(--text3);margin-bottom:16px;padding:8px 12px;background:var(--surface2);border-radius:8px;text-align:center"></div>
-    <div style="font-size:.78rem;color:var(--text3);margin-bottom:16px;padding:10px 12px;background:rgba(108,99,255,.08);border:1px solid var(--primary);border-radius:10px;line-height:1.6">
+
+    <div style="font-size:.78rem;color:var(--text3);margin-bottom:14px;padding:10px 12px;background:rgba(108,99,255,.08);border:1px solid var(--primary);border-radius:10px;line-height:1.6">
       💳 Ödeme sistemi yakında aktif olacak. Şimdilik <b style="color:var(--primary)">iletişim</b> üzerinden token satın alabilirsin.
     </div>
     <button onclick="SubPlan.closeTokenShop()" class="btn" style="width:100%;background:var(--surface2);color:var(--text2)">Kapat</button>
@@ -13282,16 +13409,15 @@ window.SubPlan = (() => {
   // ────────────────────────────────────────────────────────────────────────
 
   const PLANS = {
-    free: { name:'Free', icon:'🆓', tokenLimit:200_000, modelLimit:['lite','flash','pro'] },
-    plus: { name:'Plus', icon:'⭐', tokenLimit:500_000, modelLimit:['lite','flash','pro'] },
-    pro:  { name:'Pro',  icon:'👑', tokenLimit:1_000_000, modelLimit:['lite','flash','pro'] },
+    free:  { name:'Free',  icon:'🆓', tokenLimit:100_000,   modelLimit:['lite','flash'] },
+    plus:  { name:'Plus',  icon:'⭐', tokenLimit:1_000_000,  modelLimit:['lite','flash'] },
+    pro:   { name:'Ultra', icon:'💎', tokenLimit:2_000_000,  modelLimit:['lite','flash'] },
   };
   const MODEL_IDS = {
     lite:  'gemini-3.1-flash-lite-preview',
     flash: 'gemini-3-flash-preview',
-    pro:   'gemini-3.1-pro-preview',
   };
-  const FREE_FLASH_DAILY = 3, FREE_PRO_WEEKLY = 3, PLUS_PRO_DAILY = 5;
+  const FREE_FLASH_DAILY = 3;
 
   let _plan = 'free', _uid = null, _usageDoc = null, _extraTokens = 0;
   let _selectedModel = localStorage.getItem('sub_selected_model') || 'lite';
@@ -13357,7 +13483,7 @@ window.SubPlan = (() => {
         }
       }
       const usageSnap = await fb.getDoc(fb.doc(fb.db,'usage',`${uid}_${month}`));
-      _usageDoc = usageSnap.exists() ? usageSnap.data() : {tokens:0,flashDaily:{},proWeekly:{},proDaily:{}};
+      _usageDoc = usageSnap.exists() ? usageSnap.data() : {tokens:0,flashDaily:{}};
     } catch(e) { console.warn('SubPlan.loadPlan:',e); }
     renderSettings();
   }
@@ -13369,7 +13495,7 @@ window.SubPlan = (() => {
     try {
       const fb = await _fb();
       await fb.setDoc(fb.doc(fb.db,'usage',`${uid}_${month}`), {tokens:((_usageDoc?.tokens||0)+count)},{merge:true});
-      if (!_usageDoc) _usageDoc = {tokens:0,flashDaily:{},proWeekly:{},proDaily:{}};
+      if (!_usageDoc) _usageDoc = {tokens:0,flashDaily:{}};
       _usageDoc.tokens = (_usageDoc.tokens||0)+count;
     } catch(e) { console.warn('recordTokens:',e); if(window.toast) toast('⚠️ Token kayıt hatası: '+e.message,'err'); }
     renderUsageBar();
@@ -13386,20 +13512,6 @@ window.SubPlan = (() => {
         if (!_usageDoc) _usageDoc={};
         if (!_usageDoc.flashDaily) _usageDoc.flashDaily={};
         _usageDoc.flashDaily[t]=cur+1;
-      } else if (modelKey==='pro') {
-        if (_plan==='free') {
-          const w=_weekKey(), cur=_usageDoc?.proWeekly?.[w]||0;
-          await fb.setDoc(ref,{proWeekly:{[w]:cur+1}},{merge:true});
-          if (!_usageDoc) _usageDoc={};
-          if (!_usageDoc.proWeekly) _usageDoc.proWeekly={};
-          _usageDoc.proWeekly[w]=cur+1;
-        } else if (_plan==='plus') {
-          const t=_todayKey(), cur=_usageDoc?.proDaily?.[t]||0;
-          await fb.setDoc(ref,{proDaily:{[t]:cur+1}},{merge:true});
-          if (!_usageDoc) _usageDoc={};
-          if (!_usageDoc.proDaily) _usageDoc.proDaily={};
-          _usageDoc.proDaily[t]=cur+1;
-        }
       }
     } catch(e) { console.warn('recordModelUse:',e); }
     renderQuotaRows();
@@ -13412,16 +13524,7 @@ window.SubPlan = (() => {
       const used = _usageDoc?.flashDaily?.[_todayKey()]||0;
       if (used>=FREE_FLASH_DAILY) return {ok:false, reason:`Bugünkü Flash hakkın bitti (${FREE_FLASH_DAILY}/${FREE_FLASH_DAILY}). Yarın yenilenir.`};
     }
-    if (modelKey==='pro') {
-      if (_plan==='free') {
-        const used = _usageDoc?.proWeekly?.[_weekKey()]||0;
-        if (used>=FREE_PRO_WEEKLY) return {ok:false, reason:`Bu haftaki Pro hakkın bitti. Pazartesi yenilenir.`};
-      } else if (_plan==='plus') {
-        const used = _usageDoc?.proDaily?.[_todayKey()]||0;
-        if (used>=PLUS_PRO_DAILY) return {ok:false, reason:`Bugünkü Pro hakkın bitti. Yarın yenilenir.`};
-      }
-    }
-    const limit = (PLANS[_plan]?.tokenLimit||200_000) + _extraTokens;
+    const limit = (PLANS[_plan]?.tokenLimit||100_000) + _extraTokens;
     if ((_usageDoc?.tokens||0) >= limit) return {ok:false, reason:`Aylık token kotanı doldurdun. Ekstra token satın al!`};
     return {ok:true};
   }
@@ -13433,12 +13536,10 @@ window.SubPlan = (() => {
     _selectedModel = key;
     localStorage.setItem('sub_selected_model', key);
     renderModelBtns();
-    const names = {lite:'3.1 Lite ⚡', flash:'3.0 Flash 🚀', pro:'3.1 Pro 👑'};
-    // Kota bilgisini göster (seçim yapılır, kota bitince AI kullanımında uyarır)
+    const names = {lite:'3.1 Lite ⚡', flash:'3.0 Flash 🚀'};
     const quotaInfo = {
       lite: '',
-      flash: _plan==='free' ? `Günlük ${FREE_FLASH_DAILY} hak` : _plan==='plus' ? 'Sınırsız' : 'Sınırsız',
-      pro:   _plan==='free' ? `Haftalık ${FREE_PRO_WEEKLY} hak` : _plan==='plus' ? `Günlük ${PLUS_PRO_DAILY} hak` : 'Sınırsız',
+      flash: _plan==='free' ? `Günlük ${FREE_FLASH_DAILY} hak` : 'Sınırsız',
     };
     const hint = quotaInfo[key] ? ` (${quotaInfo[key]})` : '';
     if (window.toast) toast(`${names[key]} seçildi${hint}`, 'ok');
@@ -13451,8 +13552,8 @@ window.SubPlan = (() => {
     if (name) name.textContent=p.name;
     ['free','plus','pro'].forEach(pl => {
       const el=document.getElementById('plan-card-'+pl); if (!el) return;
-      const colors = {free:'var(--teal)',plus:'var(--primary)',pro:'var(--accent)'};
-      const bgs    = {free:'rgba(0,200,150,.1)',plus:'rgba(108,99,255,.1)',pro:'rgba(255,101,132,.1)'};
+      const colors = {free:'var(--teal)',plus:'var(--primary)',pro:'#f59e0b'};
+      const bgs    = {free:'rgba(0,200,150,.1)',plus:'rgba(108,99,255,.1)',pro:'rgba(245,158,11,.1)'};
       if (pl===_plan) { el.style.borderColor=colors[pl]; el.style.background=bgs[pl]; }
       else            { el.style.borderColor='var(--border)'; el.style.background='var(--surface2)'; }
     });
@@ -13460,7 +13561,7 @@ window.SubPlan = (() => {
   }
 
   function renderUsageBar() {
-    const limit=(PLANS[_plan]?.tokenLimit||200_000)+_extraTokens;
+    const limit=(PLANS[_plan]?.tokenLimit||100_000)+_extraTokens;
     const used=_usageDoc?.tokens||0, pct=Math.min(100,(used/limit)*100);
     const bar=document.getElementById('token-bar');
     const usedEl=document.getElementById('token-used-display'), limEl=document.getElementById('token-limit-display');
@@ -13472,7 +13573,7 @@ window.SubPlan = (() => {
   }
 
   function renderModelBtns() {
-    ['lite','flash','pro'].forEach(key => {
+    ['lite','flash'].forEach(key => {
       const btn=document.getElementById('model-btn-'+key), lock=document.getElementById(key+'-lock');
       if (!btn) return;
       const isActive = _selectedModel===key;
@@ -13484,7 +13585,7 @@ window.SubPlan = (() => {
       if (lock) lock.style.display=quotaFull?'':'none';
     });
     const info=document.getElementById('model-info-bar');
-    if (info) { const n={lite:'3.1 Flash Lite — hızlı ve ücretsiz',flash:'3.0 Flash — daha güçlü',pro:'3.1 Pro — en zeki model'}; info.textContent=n[_selectedModel]||''; }
+    if (info) { const n={lite:'3.1 Flash Lite — hızlı ve ücretsiz',flash:'3.0 Flash — daha güçlü'}; info.textContent=n[_selectedModel]||''; }
   }
 
   function renderQuotaRows() {
@@ -13492,13 +13593,8 @@ window.SubPlan = (() => {
     let rows=[];
     if (_plan==='free') {
       rows.push({label:'🚀 Flash (günlük)', used:_usageDoc?.flashDaily?.[_todayKey()]||0, max:FREE_FLASH_DAILY, color:'var(--primary)'});
-      rows.push({label:'👑 Pro (haftalık)',  used:_usageDoc?.proWeekly?.[_weekKey()]||0,  max:FREE_PRO_WEEKLY,  color:'var(--accent)'});
-    } else if (_plan==='plus') {
-      rows.push({label:'🚀 Flash', used:'∞', max:'∞', color:'var(--primary)'});
-      rows.push({label:'👑 Pro (günlük)', used:_usageDoc?.proDaily?.[_todayKey()]||0, max:PLUS_PRO_DAILY, color:'var(--accent)'});
     } else {
       rows.push({label:'🚀 Flash', used:'∞', max:'∞', color:'var(--primary)'});
-      rows.push({label:'👑 Pro',   used:'∞', max:'∞', color:'var(--accent)'});
     }
     el.innerHTML = rows.map(r=>`<div style="display:flex;align-items:center;justify-content:space-between;font-size:.76rem"><span style="color:var(--text2)">${r.label}</span><span style="font-weight:700;color:${r.color}">${r.used} / ${r.max}</span></div>`).join('');
   }
@@ -13646,19 +13742,27 @@ window.SubPlan = (() => {
   }
   // ────────────────────────────────────────────────────────────────────────
   function calcTokenPrice() {
-    const inp=document.getElementById('token-amount-input'), disp=document.getElementById('token-price-display');
-    if (!inp||!disp) return;
-    const amount=parseInt(inp.value)||0; if(amount<=0){disp.textContent='';return;}
-    const usd=((amount/1000)*0.01).toFixed(2), tl=(usd*38).toFixed(0);
-    const fmt=amount>=1_000_000?(amount/1_000_000).toFixed(1)+'M':(amount/1_000).toFixed(0)+'K';
-    disp.innerHTML=`<b>${fmt} token</b> → <b style="color:var(--primary)">$${usd}</b> <span style="color:var(--text3)">(≈ ₺${tl})</span>`;
+    // Geriye dönük uyumluluk için korundu
+  }
+
+  function buyTokenPack(amount) {
+    const packs = {
+      50000:   { price:'$0.75',  unitCost:'$0.015/K' },
+      100000:  { price:'$1.30',  unitCost:'$0.013/K' },
+      500000:  { price:'$6.00',  unitCost:'$0.012/K' },
+      1000000: { price:'$10.00', unitCost:'$0.010/K' },
+    };
+    const pack = packs[amount];
+    const fmt = amount >= 1_000_000 ? (amount/1_000_000).toFixed(0)+'M' : (amount/1_000).toFixed(0)+'K';
+    if (window.toast) toast(`💳 ${fmt} token paketi (${pack?.price}) — ödeme sistemi yakında aktif!`, 'ok');
   }
 
   function onEnter() { loadPlan(); }
 
   return { onEnter, loadPlan, recordTokens, recordModelUse, canUseModel,
            getActiveModelId, getActiveModelKey, selectModel,
-           openUpgradeModal, closeUpgradeModal, buyPlan, openTokenShop, closeTokenShop, calcTokenPrice,
+           openUpgradeModal, closeUpgradeModal, buyPlan, openTokenShop, closeTokenShop,
+           calcTokenPrice, buyTokenPack,
            watchAd, skipAd };
 })();
 </script>
