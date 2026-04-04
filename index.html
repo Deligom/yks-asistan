@@ -3019,7 +3019,7 @@ select option{background:var(--surface2);color:var(--text)}
       <div class="card" style="margin-bottom:14px">
         <div class="section-title" style="margin-bottom:10px">➕ Arkadaş Ekle</div>
         <div style="display:flex;gap:8px">
-          <input type="text" id="add-friend-input" class="form-input" placeholder="Arkadaşlık kodunu gir" style="flex:1;font-family:monospace;font-size:.85rem"/>
+          <input type="text" id="add-friend-input" class="form-input" placeholder="Arkadaşlık kodunu gir" style="flex:1;font-family:monospace;font-size:.7rem"/>
           <button class="btn btn-primary" style="padding:10px 16px;white-space:nowrap" onclick="App.addFriend()">
             <i class="fa-solid fa-user-plus"></i>
           </button>
@@ -9200,6 +9200,9 @@ const Social = (() => {
   async function _pushToUser(userCode, text, isGroup) {
     try {
       const { db, doc, getDoc } = _fb;
+      // Alıcı göndereni engellemiş mi? → bildirim gönderme
+      const blkSnap = await getDoc(doc(db, 'blocks', userCode + '_' + _myCode));
+      if (blkSnap.exists()) return;
       const tokenDoc = await getDoc(doc(db, 'push_tokens', userCode));
       if (!tokenDoc.exists()) return;
       const token = tokenDoc.data().token;
