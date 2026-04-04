@@ -100,7 +100,8 @@ async function setTokens(db, userCode, amount) {
   if (snap.empty) throw new Error('User not found: ' + userCode);
   const firebaseUid = snap.docs[0].data().firebaseUid;
   const docId = firebaseUid || userCode;
-  await db.collection('tokenBalance').doc(docId).set({ tokens: amount, updatedAt: Date.now() }, { merge: true });
+  const resetMonth = new Date().toISOString().slice(0,7); // e.g. '2026-04'
+  await db.collection('tokenBalance').doc(docId).set({ extra: amount, resetMonth, updatedAt: Date.now() }, { merge: true });
   return { userCode, amount, message: userCode + ' token balance set to ' + amount + '.' };
 }
 
