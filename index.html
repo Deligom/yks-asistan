@@ -13323,12 +13323,12 @@ const TopicAdvisor = (() => {
       const s = c.subject || 'Genel';
       if (!bySubject[s]) bySubject[s] = { due: 0, hard: 0, total: 0, overdue: 0 };
       bySubject[s].total++;
-      if (c.nextReviewDate && c.nextReviewDate <= now) bySubject[s].due++;
+      if (!c.nextReviewDate || c.nextReviewDate <= now) bySubject[s].due++;
       if (c.nextReviewDate && c.nextReviewDate < now - 86400000) bySubject[s].overdue++;
       if ((c.easeFactor || 2.5) <= 1.8 || ((c.lapses || 0) + (c.hardCount || 0)) >= 3) bySubject[s].hard++;
     }
 
-    const totalDue  = cards.filter(c => c.nextReviewDate && c.nextReviewDate <= now).length;
+    const totalDue  = cards.filter(c => !c.nextReviewDate || c.nextReviewDate <= now).length;
     const totalHard = cards.filter(c => (c.easeFactor || 2.5) <= 1.8 || ((c.lapses || 0) + (c.hardCount || 0)) >= 3).length;
 
     // En acil dersleri bul
