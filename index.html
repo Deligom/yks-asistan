@@ -1762,6 +1762,69 @@ select option{background:var(--surface2);color:var(--text)}
   .home-hero h1{font-size:2.2rem}
   .mode-grid{grid-template-columns:1fr 1fr}
 }
+/* ══════════════════════════════════════
+   TOUR — animasyon yok, transition yok (mobil perf)
+══════════════════════════════════════ */
+#tour-overlay{
+  display:none;position:fixed;inset:0;
+  z-index:100001;pointer-events:all;
+}
+#tour-spotlight{
+  display:none;position:fixed;z-index:100002;
+  border-radius:14px;
+  /* box-shadow position animasyonsuz, sadece opacity geçiş yapıyor */
+  box-shadow:0 0 0 9999px rgba(0,0,0,.55);
+  pointer-events:none;
+  outline:2.5px solid rgba(108,99,255,.9);
+  outline-offset:3px;
+  opacity:0;
+  transition:opacity 0.22s ease;
+}
+#tour-tooltip{
+  display:none;position:fixed;z-index:100003;
+  width:min(340px,calc(100vw - 32px));
+  background:var(--surface1,#1a1a2e);
+  border:1.5px solid rgba(108,99,255,.42);
+  border-radius:20px;padding:20px 20px 15px;
+  box-shadow:0 20px 56px rgba(0,0,0,.8);
+  pointer-events:all;
+  opacity:0;
+  transition:opacity 0.22s ease;
+}
+#tour-arrow{
+  position:absolute;width:12px;height:12px;
+  background:var(--surface1,#1a1a2e);
+  transform:rotate(45deg);left:50%;margin-left:-6px;
+}
+#tour-arrow.up{top:-7px;border-top:1.5px solid rgba(108,99,255,.42);border-left:1.5px solid rgba(108,99,255,.42);}
+#tour-arrow.down{bottom:-7px;border-bottom:1.5px solid rgba(108,99,255,.42);border-right:1.5px solid rgba(108,99,255,.42);}
+#tour-tap-hint{
+  position:absolute;bottom:-38px;left:50%;transform:translateX(-50%);
+  background:var(--primary,#6c63ff);color:#fff;
+  font-size:.72rem;font-weight:700;border-radius:20px;
+  padding:5px 14px;white-space:nowrap;pointer-events:none;
+  box-shadow:0 4px 16px rgba(108,99,255,.5);
+}
+#tour-step-lbl{font-size:.67rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--primary2,#a5b4fc);margin-bottom:7px;min-height:1em;}
+#tour-ttl{font-size:1.02rem;font-weight:800;color:var(--text,#e8e8f0);margin-bottom:7px;line-height:1.3;}
+#tour-dsc{font-size:.82rem;color:var(--text2,#a0a0b8);line-height:1.65;margin-bottom:14px;}
+#tour-prog{display:flex;align-items:center;gap:4px;margin-bottom:14px;flex-wrap:wrap;}
+.t-dot{height:5px;width:5px;border-radius:3px;background:rgba(108,99,255,.18);flex-shrink:0;}
+.t-dot.act{background:var(--primary,#6c63ff);width:16px;}
+.t-dot.pst{background:rgba(108,99,255,.4);}
+#tour-acts{display:flex;align-items:center;gap:8px;}
+#t-skip{flex:1;font-size:.78rem;color:var(--text3,#666);background:none;border:none;cursor:pointer;padding:7px 0;text-align:left;}
+#t-back{background:var(--surface2,#252538);border:1.5px solid var(--border,#2e2e48);border-radius:12px;padding:9px 14px;color:var(--text2,#aaa);font-size:.83rem;font-weight:600;cursor:pointer;white-space:nowrap;}
+#t-next{background:linear-gradient(135deg,#6c63ff,#a78bfa);border:none;border-radius:12px;padding:9px 20px;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer;white-space:nowrap;}
+#t-back:active,#t-next:active{opacity:.72;}
+.tour-restart-card{
+  display:flex;align-items:center;gap:14px;width:100%;text-align:left;
+  background:linear-gradient(135deg,rgba(108,99,255,.1),rgba(167,139,250,.05));
+  border:1.5px solid rgba(108,99,255,.28);border-radius:16px;
+  padding:14px 16px;cursor:pointer;margin-bottom:16px;
+  color:var(--text,#e8e8f0);box-sizing:border-box;
+}
+.tour-restart-card:active{border-color:rgba(108,99,255,.6);}
 </style>
 
 <!-- Firebase -->
@@ -2187,49 +2250,6 @@ select option{background:var(--surface2);color:var(--text)}
   <div id="study-content"></div>
 </div>
 
-
-<!-- ══ SPOTLIGHT TOUR OVERLAY ══ -->
-<div id="spt-overlay" style="display:none;position:fixed;inset:0;z-index:9998;pointer-events:none">
-  <!-- dark backdrop -->
-  <div id="spt-backdrop" style="position:absolute;inset:0;background:rgba(0,0,0,.72)"></div>
-  <!-- highlight box -->
-  <div id="spt-highlight" style="position:absolute;border:3px solid #ef4444;border-radius:10px;box-shadow:0 0 0 9999px rgba(0,0,0,.72);transition:all .3s ease;z-index:1;pointer-events:none"></div>
-  <!-- tooltip card -->
-  <div id="spt-tooltip" style="position:absolute;background:#1e2035;border:1.5px solid #ef4444;border-radius:14px;padding:14px 16px;max-width:280px;width:85vw;z-index:2;pointer-events:all;box-shadow:0 8px 32px rgba(0,0,0,.5)">
-    <div style="font-size:.7rem;font-weight:700;color:#ef4444;letter-spacing:.05em;margin-bottom:4px" id="spt-step-label"></div>
-    <div style="font-size:.9rem;font-weight:800;color:#fff;margin-bottom:6px" id="spt-title"></div>
-    <div style="font-size:.8rem;color:#b0b8d0;line-height:1.6" id="spt-body"></div>
-    <div style="display:flex;gap:8px;margin-top:12px">
-      <button id="spt-prev" onclick="SpotlightTour.prev()" style="flex:1;padding:8px;border-radius:8px;border:1px solid #444;background:transparent;color:#aaa;font-size:.8rem;cursor:pointer">← Geri</button>
-      <button id="spt-next" onclick="SpotlightTour.next()" style="flex:2;padding:8px;border-radius:8px;border:none;background:#ef4444;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer">İleri →</button>
-    </div>
-    <div style="text-align:center;margin-top:8px">
-      <span onclick="SpotlightTour.stop()" style="font-size:.72rem;color:#666;cursor:pointer;text-decoration:underline">Turu Bitir</span>
-    </div>
-  </div>
-</div>
-
-<!-- ══ ONBOARDING TOUR OVERLAY ══ -->
-<div id="tour-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center">
-  <div style="background:var(--surface);border-radius:20px;padding:28px 24px;max-width:360px;width:90%;position:relative;box-shadow:0 24px 60px rgba(0,0,0,.5)">
-    <div id="tour-dots" style="display:flex;justify-content:center;gap:6px;margin-bottom:20px"></div>
-    <div style="text-align:center">
-      <div id="tour-emoji" style="font-size:2.8rem;margin-bottom:12px"></div>
-      <div id="tour-title" style="font-size:1.05rem;font-weight:800;color:var(--text);margin-bottom:10px;line-height:1.3"></div>
-      <div id="tour-body" style="font-size:.85rem;color:var(--text2);line-height:1.7"></div>
-    </div>
-    <div style="display:flex;gap:10px;margin-top:22px">
-      <button id="tour-prev" onclick="Tour.prev()" style="flex:1;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text2);font-size:.85rem;font-weight:600;cursor:pointer">← Geri</button>
-      <button id="tour-next" onclick="Tour.next()" style="flex:2;padding:11px;border-radius:12px;border:none;background:var(--primary);color:#fff;font-size:.9rem;font-weight:700;cursor:pointer">İleri →</button>
-    </div>
-    <div style="text-align:center;margin-top:12px">
-      <span onclick="Tour.skip()" style="font-size:.75rem;color:var(--text3);cursor:pointer;text-decoration:underline">Geç</span>
-    </div>
-  </div>
-</div>
-
-
-
 <!-- IMPORT -->
 <div id="view-import" class="view">
   <div class="page-header">
@@ -2237,17 +2257,15 @@ select option{background:var(--surface2);color:var(--text)}
     <p>Abonelik, token ve uygulama yönetimi</p>
   </div>
 
-  <!-- İPUÇLARI -->
-  <div class="section-title" style="margin-top:0">💡 Rehber & Tur</div>
-  <div class="card" style="margin-bottom:16px">
-    <div style="display:flex;align-items:center;justify-content:space-between">
-      <div>
-        <div style="font-size:.9rem;font-weight:700;color:var(--text)">Uygulama Turu</div>
-        <div style="font-size:.75rem;color:var(--text3);margin-top:2px">Butonları görerek öğren, 10 adım</div>
-      </div>
-      <button onclick="SpotlightTour.start()" style="background:var(--primary);border:none;border-radius:10px;padding:8px 16px;color:#fff;font-size:.82rem;font-weight:700;cursor:pointer">▶ Başlat</button>
+  <!-- TOUR RESTART -->
+  <button class="tour-restart-card" onclick="Tour.start()">
+    <span style="font-size:1.5rem;flex-shrink:0">🎓</span>
+    <div style="flex:1">
+      <div style="font-size:.9rem;font-weight:700;margin-bottom:2px">Uygulama Turunu Başlat</div>
+      <div style="font-size:.74rem;color:var(--text3)">Tüm özellikleri adım adım keşfet</div>
     </div>
-  </div>
+    <span style="color:var(--primary2,#a5b4fc);font-size:.95rem;flex-shrink:0">→</span>
+  </button>
 
   <!-- TEMA -->
   <div class="section-title" style="margin-top:0">🎨 Görünüm</div>
@@ -2566,7 +2584,7 @@ select option{background:var(--surface2);color:var(--text)}
         </div>
       </div>
     </div>
-    <button id="routines-add-btn" class="btn btn-teal" onclick="App.saveRoutine()">
+    <button class="btn btn-teal" onclick="App.saveRoutine()">
       <i class="fa-solid fa-plus"></i> Rutin Ekle
     </button>
   </div>
@@ -4986,24 +5004,7 @@ const App = (() => {
     return lapses * 2 + hard + 1 / ef;
   }
 
-  function showTip(tab) {
-    const tips = {
-      home:     { emoji:'🏠', title:'Ana Sayfa',   body:'• <b>AI Öneri:</b> Hangi derse önce çalışman gerektiğini söyler.<br>• <b>Günlük Kart:</b> Bugün vadesi gelen kartları gösterir, dokunarak başlarsın.<br>• <b>Seri &amp; Süre:</b> Kaç gündür çalıştığını ve bugün ne kadar süre harcadığını gösterir.<br>• <b>İstatistikler:</b> Toplam kart, bugün bekleyen, öğrenilmiş kart sayıları.' },
-      add:      { emoji:'➕', title:'Yeni Ekle',    body:'• <b>Hap Bilgi:</b> Kısa, öz bilgi notu kartı. Konu başlığı, renk, ders ve konu seçebilirsin.<br>• <b>Resimli Soru:</b> Sınav sorusu fotoğrafı yükle, AI otomatik çözümü analiz eder.<br>• Kart eklendikten sonra SM-2 algoritması onu doğru zamanda sana gösterir.' },
-      routines: { emoji:'🔄', title:'Rutinler',     body:'• Günlük çalışma hedeflerin için rutin oluşturursun.<br>• Örnek: "Her gün sabah 30 dakika Matematik" veya "Pazartesi-Çarşamba Fizik".<br>• Tamamlananlar yeşil işaretlenir, ana sayfada hatırlatma çıkar.<br>• Uzun dönemde düzenini korumanın en iyi yolu.' },
-      stats:    { emoji:'📊', title:'İstatistik',   body:'• <b>Konu bazlı performans:</b> Hangi konularda iyi, hangilerinde zayıf olduğunu görürsün.<br>• <b>SM-2 grafiği:</b> Kartlarının zorluk dağılımı.<br>• <b>Aktivite geçmişi:</b> Günlük/haftalık çalışma özetlerin.<br>• <b>Zayıf konu butonu:</b> Doğrudan o konunun kartlarına atlar.' },
-      social:   { emoji:'👥', title:'Sosyal',       body:'• <b>Arkadaşlar:</b> Arkadaşlık kodunu paylaşarak ekle.<br>• <b>Sohbet:</b> Birebir veya grup sohbeti, kart paylaşımı.<br>• <b>Gruplar:</b> Ortak çalışma grupları kur.<br>• <b>Sıralama:</b> Bu hafta en çok kart tekrar eden kim?<br>• <b>Kart Havuzu:</b> Topluluktan hazır kartları içe aktar.' },
-      ai:       { emoji:'🤖', title:'AI Sekmesi',   body:'• YKS konularında soru sorabilirsin, sanki özel hocayla çalışıyorsun.<br>• <b>Kart Oluştur</b> butonu: AI sana hazır flashcard üretir, tek tıkla kaydedersin.<br>• <b>Fotoğraf yükle:</b> Soru fotoğrafını çek, AI çözümü açıklar.<br>• <b>Not:</b> Free planda aylık 100K token limiti var.' }
-    };
-    const t = tips[tab];
-    if (!t) return;
-    document.getElementById('tips-modal-emoji').textContent = t.emoji;
-    document.getElementById('tips-modal-title').textContent = t.title;
-    document.getElementById('tips-modal-body').innerHTML = t.body;
-    document.getElementById('tips-modal').style.display = 'flex';
-  }
-
-    async function launchSubjectStudy(subject) {
+  async function launchSubjectStudy(subject) {
     const all = await dbGetAll();
     const now = Date.now();
     const subjectCards = all.filter(c => c.subject === subject);
@@ -7248,7 +7249,7 @@ STRİKT KURALLAR:
     initAutoBackup,
     checkAutoBackup,
     startHardStudy,
-    launchSubjectStudy, launchWeakTopicStudy, showTip,
+    launchSubjectStudy, launchWeakTopicStudy,
     _wtSingleClick, _wtTouchStart,
     renderWeakTopics,
     formatAnswer
@@ -7299,7 +7300,7 @@ STRİKT KURALLAR:
       if (track) track.style.background = '#6c63ff';
       if (thumb) thumb.style.left = '18px';
     } else {
-      if (icon)  icon.textContent = '💤';
+      if (icon)  icon.textContent = '🤖';
       if (text)  text.textContent = 'Kapalı';
       if (track) track.style.background = '';
       if (thumb) thumb.style.left = '2px';
@@ -8260,7 +8261,6 @@ const Social = (() => {
         createdAt: Date.now()
       });
 
-      localStorage.removeItem('yk_onboarded'); // yeni kullanıcı → turu göster
       _finishLogin();
     } catch(e) {
       const msg = e.code === 'auth/email-already-in-use' ? 'Bu e-posta zaten kullanılıyor.'
@@ -8376,7 +8376,6 @@ const Social = (() => {
     } else {
       toast('Giriş yapıldı! 🎉', 'ok');
     }
-    if (window.Tour) Tour.checkAndStart();
     if (window._saveFcmToken && window._pendingFcmToken) {
       window._saveFcmToken(_myCode).catch(()=>{});
       window._pendingFcmToken = null;
@@ -13578,295 +13577,6 @@ Hangi derse öncelik vermeli, neden? Çalışmaya başlamasını teşvik et.`;
 })();
 </script>
 
-<!-- ══════ TOUR & TIPS MODULE ══════ -->
-<script>
-const Tour = (() => {
-  const STEPS = [
-    {
-      emoji: '🎯',
-      title: 'YKS Asistan\'a Hoş Geldin!',
-      body: 'YKS\'ye hazırlanmak zor — ama <b>doğru yöntemle</b> çok daha verimli olur.<br><br>YKS Asistan, bilimsel <b>aralıklı tekrar</b> metoduyla kartlarını doğru zamanda sana göstererek öğrendiklerini kalıcı hale getirir. Ezber değil, gerçek öğrenme.'
-    },
-    {
-      emoji: '⚡',
-      title: 'Hap Bilgi Kartları',
-      body: '<b>Hap Bilgi</b>, kısa ve öz bilgi notları içerir.<br><br>• "Karaciğer hangi pıhtılaşma faktörlerini üretir?"<br>• "ADH eksikliğinde ne olur?"<br><br>Kendin yazarsın → kendi cümlelerinle öğrenirsin.<br>➕ <b>Yeni Ekle</b> sekmesinden ekleyebilirsin.'
-    },
-    {
-      emoji: '📸',
-      title: 'Resimli Soru Kartları',
-      body: '<b>Resimli Soru</b>, gerçek sınav sorularını çalışmak içindir.<br><br>• Soru fotoğrafı çek veya galeriden yükle<br>• Cevabını yaz ya da AI\'ye çözdür<br>• Tekrar zamanı gelince soru gösterilir, cevabını kontrol edersin.<br><br>AYT soruları için çok etkili!'
-    },
-    {
-      emoji: '🔄',
-      title: 'SM-2: Aralıklı Tekrar',
-      body: 'Her kartı gördükten sonra kendini değerlendirirsin:<br><br>• <b>🔴 Bilemedim</b> → 1 gün sonra tekrar gelir<br>• <b>🟡 Zorlandım</b> → birkaç gün sonra<br>• <b>🟢 Kolaydı</b> → giderek uzayan aralıklarla<br><br>Asistan her gün sana <b>sadece tekrar zamanı gelen</b> kartları gösterir. Zaman israfı yok!'
-    },
-    {
-      emoji: '🤖',
-      title: 'AI Özellikleri',
-      body: '<b>Ana Sayfa — AI Öneri:</b> Hangi derse önce çalışman gerektiğini otomatik analiz eder.<br><br><b>AI sekmesi:</b><br>• YKS konularında soru sor<br>• "Kart Oluştur" ile hazır flashcard üret<br>• Fotoğraf yükle, soru çözümü iste<br><br>Sanki özel bir YKS hocan var!'
-    },
-    {
-      emoji: '👥',
-      title: 'Sosyal & Motivasyon',
-      body: '<b>Arkadaş Ekle:</b> Kodunu paylaş, bağlan.<br><b>Sohbet:</b> Kart paylaşın, birlikte çalışın.<br><b>Sıralama:</b> Haftalık kart tekrar yarışması.<br><b>Kart Havuzu:</b> Topluluktan hazır kartları içe aktar.<br><br>Artık hazırsın! ➕ <b>Yeni Ekle\'ye</b> dokun ve ilk kartını ekle! 🚀'
-    }
-  ];
-
-  let _step = 0;
-
-  function _render() {
-    const s = STEPS[_step];
-    document.getElementById('tour-emoji').textContent = s.emoji;
-    document.getElementById('tour-title').textContent = s.title;
-    document.getElementById('tour-body').innerHTML = s.body.replace(/\n/g, '<br>');
-
-    // Dots
-    const dots = document.getElementById('tour-dots');
-    dots.innerHTML = STEPS.map((_, i) =>
-      `<div style="width:8px;height:8px;border-radius:50%;background:${i===_step?'var(--primary)':'var(--border)'}"></div>`
-    ).join('');
-
-    // Buttons
-    const prev = document.getElementById('tour-prev');
-    const next = document.getElementById('tour-next');
-    prev.style.display = _step === 0 ? 'none' : '';
-    const isLast = _step === STEPS.length - 1;
-    next.textContent = isLast ? 'Hadi Başlayalım! 🚀' : 'İleri →';
-  }
-
-  function start() {
-    _step = 0;
-    document.getElementById('tour-overlay').style.display = 'flex';
-    _render();
-  }
-
-  function next() {
-    if (_step < STEPS.length - 1) {
-      _step++;
-      _render();
-    } else {
-      skip();
-    }
-  }
-
-  function prev() {
-    if (_step > 0) { _step--; _render(); }
-  }
-
-  function skip() {
-    document.getElementById('tour-overlay').style.display = 'none';
-    localStorage.setItem('yk_onboarded', '1');
-  }
-
-  function checkAndStart() {
-    if (!localStorage.getItem('yk_onboarded')) {
-      setTimeout(start, 800);
-    }
-  }
-
-  return { start, next, prev, skip, checkAndStart };
-})();
-
-// ── Tab Tips ──
-const TAB_TIPS = {
-  home: {
-    emoji: '🏠',
-    title: 'Ana Sayfa',
-    body: '• <b>AI Öneri:</b> Hangi derse önce çalışman gerektiğini söyler.<br>• <b>Günlük Kart:</b> Bugün vadesi gelen kartları gösterir — dokunarak başlarsın.<br>• <b>Seri & Süre:</b> Kaç gündür çalıştığını ve bugün ne kadar süre harcadığını gösterir.<br>• <b>İstatistikler:</b> Toplam kart, bugün bekleyen, öğrenilmiş kart sayıları.'
-  },
-  add: {
-    emoji: '➕',
-    title: 'Yeni Ekle',
-    body: '• <b>⚡ Hap Bilgi:</b> Soru + cevap formatında metin kartı. Konu başlığı, renk, ders ve konu seçebilirsin.<br>• <b>📸 Resimli Soru:</b> Sınav sorusu fotoğrafı yükle, AI otomatik çözümü analiz eder.<br>• Kart eklendikten sonra SM-2 algoritması onu doğru zamanda sana gösterir.'
-  },
-  routines: {
-    emoji: '🔄',
-    title: 'Rutinler',
-    body: '• Günlük çalışma hedeflerin için rutin oluşturursun.<br>• Örnek: "Her gün sabah 30 dakika Matematik" veya "Pazartesi-Çarşamba Fizik".<br>• Tamamlananlar yeşil işaretlenir, ana sayfada hatırlatma çıkar.<br>• Uzun dönemde düzenini korumanın en iyi yolu.'
-  },
-  stats: {
-    emoji: '📊',
-    title: 'İstatistik',
-    body: '• <b>Konu bazlı performans:</b> Hangi konularda iyi, hangilerinde zayıf olduğunu görürsün.<br>• <b>SM-2 grafiği:</b> Kartlarının zorluk dağılımı.<br>• <b>Aktivite geçmişi:</b> Günlük/haftalık çalışma özetlerin.<br>• <b>Zayıf konu butonu:</b> Doğrudan o konunun kartlarına atlar.'
-  },
-  social: {
-    emoji: '👥',
-    title: 'Sosyal',
-    body: '• <b>Arkadaşlar:</b> Arkadaşlık kodunu paylaşarak ekle.<br>• <b>Sohbet:</b> Birebir veya grup sohbeti, kart paylaşımı.<br>• <b>Gruplar:</b> Ortak çalışma grupları kur.<br>• <b>Sıralama:</b> Bu hafta en çok kart tekrar eden kim? Rekabet motivasyon katar.<br>• <b>Kart Havuzu:</b> Topluluktan hazır kartları içe aktar.'
-  },
-  ai: {
-    emoji: '🤖',
-    title: 'AI Sekmesi',
-    body: '• YKS konularında soru sorabilirsin — sanki özel hocayla çalışıyorsun.<br>• <b>"Kart Oluştur"</b> butonu: AI sana hazır flashcard üretir, tek tıkla kaydedersin.<br>• <b>Fotoğraf yükle:</b> Soru fotoğrafını çek, AI çözümü açıklar.<br>• <b>Not:</b> Token limitin var, Free planda aylık 100K token.'
-  }
-};
-
-
-</script>
-
-<!-- ══════ SPOTLIGHT TOUR MODULE ══════ -->
-<script>
-const SpotlightTour = (() => {
-  // Her adım: hangi sekmeye git, hangi elementi vurgula, ne anlat
-  const STEPS = [
-    {
-      tab: 'home', selector: '#due-alert',
-      title: 'Günlük Tekrar Butonu',
-      body: 'Bugün vadesi gelen kartların burada gösterilir. Dokunursan çalışma moduna geçersin ve SM-2 sırasına göre kartlar önüne gelir.'
-    },
-    {
-      tab: 'home', selector: '#advisor-card',
-      title: 'AI Öneri Kartı',
-      body: 'Yapay zeka kartlarını analiz ederek hangi derse önce çalışman gerektiğini söyler. "Yenile" ile güncel öneri alabilirsin.'
-    },
-    {
-      tab: 'add', selector: '.mode-card.hap',
-      title: '⚡ Hap Bilgi Kartı',
-      body: 'Metin tabanlı soru-cevap kartı oluşturursun. Konu, ders ve renk seçebilirsin. Kendi cümlelerinle yazmak kalıcı öğrenmeyi artırır.'
-    },
-    {
-      tab: 'add', selector: '.mode-card.foto',
-      title: '📸 Resimli Soru Kartı',
-      body: 'Sınav sorusunun fotoğrafını çeker veya galerinden yüklersin. AI cevabı otomatik analiz edebilir. AYT soruları için idealdir.'
-    },
-    {
-      tab: 'routines', selector: '#routines-add-btn',
-      title: 'Rutin Ekle Butonu',
-      body: 'Buradan günlük çalışma rutini oluşturursun. "Her gün Matematik" veya "Haftada 3 gün Biyoloji" gibi. Tamamlananlar ana sayfada yeşil işaretlenir.'
-    },
-    {
-      tab: 'stats', selector: '#weak-topics-card',
-      title: 'Zayıf Konular Kartı',
-      body: 'SM-2 verilerine göre en çok zorlandığın konular burada sıralanır. Konuya dokunursan doğrudan o konunun kartlarıyla çalışma moduna geçersin.'
-    },
-    {
-      tab: 'social', selector: '#add-friend-input',
-      title: 'Arkadaş Kodu Girişi',
-      body: 'Arkadaşının kodunu buraya girerek onu eklersin. Kendi kodunu paylaşmak için yukarıdaki kutucuğa dokun, kopyalanır.'
-    },
-    {
-      tab: 'social', selector: '#stab-leaderboard',
-      title: 'Haftalık Sıralama',
-      body: 'Bu haftaki en çok kart tekrar edenler burada sıralanır. Rekabet motivasyonu artırır ve arkadaşlarınla karşılaştırma yapabilirsin.'
-    },
-    {
-      tab: 'social', selector: '#stab-karthavuzu',
-      title: 'Kart Havuzu',
-      body: 'Diğer kullanıcıların paylaştığı hazır kartları buradan içe aktarabilirsin. Sıfırdan başlamak zorunda değilsin!'
-    },
-    {
-      tab: 'ai', selector: '#ai-user-input',
-      title: 'AI Sohbet Girişi',
-      body: 'YKS konularında soru sorabilir, konu anlatımı isteyebilirsin. "Kart Oluştur" butonu ile AI sana hazır flashcard üretir, tek tıkla kaydedebilirsin.'
-    }
-  ];
-
-  let _step = 0;
-  let _running = false;
-
-  function start() {
-    _step = 0;
-    _running = true;
-    _show();
-  }
-
-  function next() {
-    if (_step < STEPS.length - 1) { _step++; _show(); }
-    else stop();
-  }
-
-  function prev() {
-    if (_step > 0) { _step--; _show(); }
-  }
-
-  function stop() {
-    _running = false;
-    document.getElementById('spt-overlay').style.display = 'none';
-    // Restore pointer events
-    document.getElementById('spt-highlight').style.pointerEvents = 'none';
-  }
-
-  async function _show() {
-    const s = STEPS[_step];
-    const overlay = document.getElementById('spt-overlay');
-    overlay.style.display = 'block';
-
-    // Navigate to the right tab first
-    if (window.App && typeof App.go === 'function') {
-      App.go(s.tab);
-    }
-
-    // Wait for tab render
-    await new Promise(r => setTimeout(r, 350));
-
-    // Find element
-    let el = document.querySelector(s.selector);
-    // advisor-card might be hidden - show it temporarily for positioning
-    if (!el || el.offsetParent === null) {
-      // Element not visible - skip to next
-      _positionFallback();
-      _updateText(s);
-      return;
-    }
-
-    // Position highlight
-    const rect = el.getBoundingClientRect();
-    const pad = 6;
-    const hl = document.getElementById('spt-highlight');
-    hl.style.left   = (rect.left - pad) + 'px';
-    hl.style.top    = (rect.top - pad) + 'px';
-    hl.style.width  = (rect.width + pad * 2) + 'px';
-    hl.style.height = (rect.height + pad * 2) + 'px';
-    hl.style.display = 'block';
-
-    // Position tooltip: below element if space, above if not
-    const tt = document.getElementById('spt-tooltip');
-    const ttH = 180; // estimated tooltip height
-    const spaceBelow = window.innerHeight - rect.bottom - pad;
-    const spaceAbove = rect.top - pad;
-    let ttTop;
-    if (spaceBelow >= ttH + 20) {
-      ttTop = rect.bottom + pad + 12;
-    } else if (spaceAbove >= ttH + 20) {
-      ttTop = rect.top - ttH - 20;
-    } else {
-      ttTop = Math.max(8, window.innerHeight - ttH - 80);
-    }
-    const ttW = Math.min(280, window.innerWidth * 0.85);
-    let ttLeft = rect.left;
-    if (ttLeft + ttW > window.innerWidth - 8) ttLeft = window.innerWidth - ttW - 8;
-    if (ttLeft < 8) ttLeft = 8;
-    tt.style.top  = ttTop + 'px';
-    tt.style.left = ttLeft + 'px';
-
-    _updateText(s);
-  }
-
-  function _positionFallback() {
-    // Center of screen fallback
-    const hl = document.getElementById('spt-highlight');
-    hl.style.display = 'none';
-    const tt = document.getElementById('spt-tooltip');
-    tt.style.top  = '40%';
-    tt.style.left = '7.5vw';
-  }
-
-  function _updateText(s) {
-    document.getElementById('spt-step-label').textContent = `ADIM ${_step + 1} / ${STEPS.length}`;
-    document.getElementById('spt-title').textContent = s.title;
-    document.getElementById('spt-body').textContent = s.body;
-    const prev = document.getElementById('spt-prev');
-    const next = document.getElementById('spt-next');
-    if (prev) prev.style.display = _step === 0 ? 'none' : '';
-    if (next) next.textContent = _step === STEPS.length - 1 ? 'Tamamla ✓' : 'İleri →';
-  }
-
-  return { start, next, prev, stop };
-})();
-</script>
-
 <!-- ══════ SUBPLAN MODULE ══════ -->
 <script>
 window.SubPlan = (() => {
@@ -14711,6 +14421,376 @@ Kullanıcı isteği: "${userMsg}"`;
     <span>✓</span> Ekle
   </button>
 </div>
+<!-- ══════ TOUR ══════ -->
+<div id="tour-overlay"></div>
+<div id="tour-spotlight"><div id="tour-tap-hint" style="display:none">👇 Dokun</div></div>
+<div id="tour-tooltip">
+  <div id="tour-arrow" class="up"></div>
+  <div id="tour-step-lbl"></div>
+  <div id="tour-ttl"></div>
+  <div id="tour-dsc"></div>
+  <div id="tour-prog"></div>
+  <div id="tour-acts">
+    <button id="t-skip" onclick="Tour.skip()">Geç</button>
+    <button id="t-back" onclick="Tour.back()">← Geri</button>
+    <button id="t-next" onclick="Tour.next()">İleri →</button>
+  </div>
+</div>
+
+<script>
+const Tour = (() => {
+  'use strict';
+
+  /* ─────────────────────────────────────
+     ADIMLAR
+     waitForTap:true  → kullanıcı vurgulanan elemana dokunarak ilerler
+     navDest          → waitForTap adımında tıklamanın götüreceği sayfa
+                        (currentNav'ı önceden günceller, delay'i azaltır)
+  ───────────────────────────────────── */
+  const STEPS = [
+    /* 0 – Karşılama */
+    { target:null, nav:null, pos:'center',
+      title:'👋 Hoş Geldin!',
+      desc:'YKS Asistan\'a hoş geldin! Bu kısa tur uygulamanın tüm özelliklerini sana tanıtacak. Yaklaşık 2 dakika sürer.' },
+
+    /* 1 – Günlük Tekrar */
+    { target:'#due-alert', nav:'home', pos:'auto',
+      title:'🔔 Günlük Tekrar',
+      desc:'Bugün vadesi gelen kartların burada görünür. Algoritma her kartı en doğru zamanda sana gösterir — dokunarak hemen başlayabilirsin.' },
+
+    /* 2 – Hap Bilgi */
+    { target:'.mode-card.hap', nav:'home', pos:'auto',
+      title:'⚡ Hap Bilgi Tekrarı',
+      desc:'Metin tabanlı flashcardlarını çalış. "Bildim" / "Bilmedim" diyerek ilerle. SM-2 algoritması tekrar zamanını otomatik hesaplar.' },
+
+    /* 3 – Yanlış Soru */
+    { target:'.mode-card.foto', nav:'home', pos:'auto',
+      title:'📸 Yanlış Soru Bankası',
+      desc:'Yanlış yaptığın soruların fotoğraflarını kaydet ve düzenli aralıklarla tekrar çalış. Sınava kadar hiçbir soruyu unutma!' },
+
+    /* 4 – Zorlanılan */
+    { targetFn:()=>document.querySelector('[onclick="App.startHardStudy()"]'),
+      nav:'home', pos:'auto',
+      title:'🔥 Zorlanılan Kartlar',
+      desc:'En çok hata yaptığın kartlar önce sıralanır. Zayıf noktalarını hızlıca güçlendir!' },
+
+    /* 5 – Seri */
+    { target:'#streak-chip', nav:'home', pos:'auto',
+      title:'🏆 Seri & Süre Takibi',
+      desc:'Her gün çalıştıkça seriniz artar, çalışma süreniz otomatik kaydedilir. Motivasyonunu yüksek tut!' },
+
+    /* 6 – Yeni Ekle nav (kullanıcı bassın) */
+    { target:'#nav-add', nav:'home', pos:'auto', waitForTap:true, navDest:'add',
+      title:'➕ Yeni Ekle Sekmesi',
+      desc:'Yeni kart eklemek için alttaki bu butona dokunsana! 👇' },
+
+    /* 7 – Yeni Kart içeriği */
+    { target:'.add-type-wrap', nav:'add', pos:'auto',
+      title:'➕ Yeni Kart Ekle',
+      desc:'Manuel yazarak veya AI ile otomatik JSON import yaparak yeni kartlar ekle. Hem hap bilgi hem fotoğraflı soru desteği var.' },
+
+    /* 8 – Rutinler nav (kullanıcı bassın) */
+    { target:'#nav-routines', nav:'add', pos:'auto', waitForTap:true, navDest:'routines',
+      title:'🔄 Rutinler Sekmesi',
+      desc:'Rutinler sekmesine buradan ulaşırsın. Düzenli çalışma planları oluşturup AI ile kişiselleştirebilirsin. Şimdi dokunsana! 👇' },
+
+    /* 9 – Rutinler içeriği */
+    { target:'.rai-card', nav:'routines', pos:'auto',
+      title:'🤖 AI Rutin Asistanı',
+      desc:'"Biyolojide zorlanıyorum, her 2 günde bir tekrar yap" yaz — AI otomatik rutin oluşturur ve kartlarınla senkronize çalışır.' },
+
+    /* 10 – İstatistik nav (kullanıcı bassın) */
+    { target:'#nav-stats', nav:'routines', pos:'auto', waitForTap:true, navDest:'stats',
+      title:'📊 İstatistik Sekmesi',
+      desc:'Haftalık performans grafiklerine ulaşmak için dokunsana! 👇' },
+
+    /* 11 – İstatistik içeriği */
+    { target:'.chart-wrap', nav:'stats', pos:'auto',
+      title:'📊 Haftalık Performans',
+      desc:'Son 7 günün çalışma grafiği burada. Günlere tıklayarak detayları görebilir, aktivite loguna not ekleyebilirsin.' },
+
+    /* 12 – Sosyal nav (kullanıcı bassın) */
+    { target:'#nav-social', nav:'stats', pos:'auto', waitForTap:true, navDest:'social',
+      title:'👥 Sosyal Sekmesi',
+      desc:'Arkadaşlarınla bağlanmak ve kartlarını paylaşmak için dokunsana! 👇' },
+
+    /* 13 – Sosyal içeriği */
+    { target:'#view-social .tab-bar', nav:'social', pos:'auto',
+      title:'👥 Sosyal',
+      desc:'Arkadaşlarınla bağlan, kartlarını paylaş, gruplarda birlikte çalış. Liderlik tablosu ile rekabet et!' },
+
+    /* 14 – AI nav (kullanıcı bassın) */
+    { target:'#nav-ai', nav:'social', pos:'auto', waitForTap:true, navDest:'ai',
+      title:'🤖 AI Sekmesi',
+      desc:'Yapay zeka asistanına ulaşmak için dokunsana! 👇' },
+
+    /* 15 – AI içeriği */
+    { target:'#ai-header', nav:'ai', pos:'auto',
+      title:'🤖 Gemini AI Chat',
+      desc:'YKS konularını sor, konu özetleri al, strateji geliştir. Sohbet geçmişin kaydedilir. Aşağıdaki butonlarla sohbetten doğrudan kart oluşturabilirsin!' },
+
+    /* 16 – Hap Bilgi butonu */
+    { target:'#ai-card-btn-hap', nav:'ai', pos:'auto',
+      title:'💡 Hap Bilgi Kartı Oluştur',
+      desc:'Konuyu AI\'a sor, açıklama al — sonra bu butona bas. AI o sohbetten otomatik metin flashcard oluşturur ve kartlarına ekler.' },
+
+    /* 17 – Foto Bilgi butonu */
+    { target:'#ai-card-btn-hap-photo', nav:'ai', pos:'auto',
+      title:'📸 Foto Bilgi Kartı',
+      desc:'Hap bilgi gibi ama fotoğraflı! Soru görselini sohbete ekle, AI analiz etsin — bu butonla fotoğraflı hap bilgi kartı olarak kaydet.' },
+
+    /* 18 – Soru Kartı butonu */
+    { target:'#ai-card-btn-soru', nav:'ai', pos:'auto',
+      title:'❓ Soru Kartı Oluştur',
+      desc:'Yapamadığın soruyu fotoğraflayıp AI\'a gönder, çözümü gör — sonra bu butonla yanlış soru bankana tek tıkla ekle!' },
+
+    /* 19 – Ayarlar nav (kullanıcı bassın) */
+    { target:'#nav-import', nav:'ai', pos:'auto', waitForTap:true, navDest:'import',
+      title:'⚙️ Ayarlar Sekmesi',
+      desc:'Tema, API anahtarı ve yedekleme ayarlarına ulaşmak için dokunsana! 👇' },
+
+    /* 20 – Ayarlar içeriği */
+    { target:'.tour-restart-card', nav:'import', pos:'auto',
+      title:'⚙️ Ayarlar',
+      desc:'Tema, Gemini API anahtarın, abonelik durumun ve Google Drive yedekleme ayarlarını buradan yönet.' },
+
+    /* 21 – Bitiş */
+    { target:null, nav:null, pos:'center',
+      title:'🚀 Her Şey Hazır!',
+      desc:'Tebrikler! Artık YKS Asistan\'ın tüm özelliklerini biliyorsun. İyi çalışmalar! 💪' }
+  ];
+
+  /* waitForTap olmayan adım sayısı (ilk + son hariç) */
+  const TOTAL = STEPS.filter((s,i) => i > 0 && i < STEPS.length - 1 && !s.waitForTap).length;
+
+  let _idx        = 0;
+  let _currentNav = 'home';
+  let _tapCleanup = null;
+  /* Kaçıncı "içerik" adımıyız? (step lbl için) */
+  let _contentIdx = 0;
+
+  /* ── App.go güvenli çağırıcı ── */
+  function _goPage(page) {
+    try { App.go(page); } catch(e) {}
+  }
+
+  function _getActivePage() {
+    const views = ['home','add','routines','stats','social','ai','import'];
+    for (const v of views) {
+      const el = document.getElementById('view-' + v);
+      if (el && el.classList.contains('active')) return v;
+    }
+    return 'home';
+  }
+
+  function _clearTap() {
+    if (_tapCleanup) { _tapCleanup(); _tapCleanup = null; }
+  }
+
+  /* ── Tooltip/spotlight fade yardımcı ── */
+  function _fadeOut() {
+    const t = document.getElementById('tour-tooltip');
+    const s = document.getElementById('tour-spotlight');
+    if (t) t.style.opacity = '0';
+    if (s) s.style.opacity = '0';
+  }
+
+  /* ── Public ── */
+  function start() {
+    _clearTap();
+    _currentNav = _getActivePage();
+    if (_currentNav !== 'home') { _goPage('home'); _currentNav = 'home'; }
+    _idx = 0; _contentIdx = 0;
+    _render();
+  }
+
+  function next() {
+    _clearTap();
+    if (_idx < STEPS.length - 1) { _idx++; _render(); } else { _done(); }
+  }
+
+  function back() {
+    _clearTap();
+    if (_idx > 0) { _idx--; _render(); }
+  }
+
+  function skip() {
+    _clearTap();
+    _done();
+  }
+
+  /* ── Private ── */
+  function _el(id) { return document.getElementById(id); }
+
+  function _done() {
+    _clearTap();
+    localStorage.setItem('tour_done', '1');
+    _fadeOut();
+    setTimeout(() => {
+      ['tour-overlay','tour-spotlight','tour-tooltip'].forEach(id => {
+        const el = _el(id); if (el) el.style.display = 'none';
+      });
+    }, 250);
+    _goPage('home');
+  }
+
+  function _render() {
+    const s = STEPS[_idx];
+
+    /* Mevcut içeriği fade out et */
+    _fadeOut();
+
+    /* Sayfa değişimi var mı?
+       waitForTap adımında navDest ile currentNav güncellendiyse
+       zaten o sayfadayız → isNavChange = false → kısa gecikme */
+    const isNavChange = !!(s.nav && s.nav !== _currentNav);
+    if (s.nav) { _goPage(s.nav); _currentNav = s.nav; }
+
+    /* Gecikme:
+       center      → 50ms
+       aynı sayfa  → 220ms  (fade out için yeterli)
+       yeni sayfa  → 650ms  */
+    const delay = s.pos === 'center' ? 50
+                : isNavChange        ? 650
+                :                      220;
+
+    setTimeout(() => {
+      const tEl = s.targetFn ? s.targetFn()
+                : s.target   ? document.querySelector(s.target)
+                : null;
+      if (tEl) tEl.scrollIntoView({ behavior:'instant', block:'center' });
+      requestAnimationFrame(() => _show(s, tEl));
+    }, delay);
+  }
+
+  function _show(s, tEl) {
+    const overlay   = _el('tour-overlay');
+    const spotlight = _el('tour-spotlight');
+    const tooltip   = _el('tour-tooltip');
+    if (!overlay || !spotlight || !tooltip) return;
+
+    const isFirst = _idx === 0;
+    const isLast  = _idx === STEPS.length - 1;
+
+    /* İçerik adımı sayacını güncelle (nav-tap adımları sayılmaz) */
+    _contentIdx = STEPS.slice(0, _idx + 1).filter(
+      (st,i) => i > 0 && i < STEPS.length - 1 && !st.waitForTap
+    ).length;
+
+    _el('tour-ttl').textContent = s.title;
+    _el('tour-dsc').textContent = s.desc;
+    _el('tour-step-lbl').textContent =
+      (isFirst || isLast || s.waitForTap) ? '' : `ADIM ${_contentIdx} / ${TOTAL}`;
+
+    _el('tour-prog').innerHTML = STEPS.map((_,i) =>
+      `<div class="t-dot${i===_idx?' act':i<_idx?' pst':''}"></div>`
+    ).join('');
+
+    _el('t-skip').style.visibility = isLast  ? 'hidden' : 'visible';
+    _el('t-back').style.visibility = isFirst ? 'hidden' : 'visible';
+
+    if (isLast) {
+      _el('t-next').textContent = '🎉 Başla!';
+    } else if (isFirst) {
+      _el('t-next').textContent = 'Başlayalım →';
+    } else if (s.waitForTap) {
+      _el('t-next').textContent = 'Atla →';
+    } else {
+      _el('t-next').textContent = 'İleri →';
+    }
+
+    /* ── CENTER ── */
+    if (s.pos === 'center' || !tEl) {
+      overlay.style.cssText    = 'display:block;background:rgba(0,0,0,.62);pointer-events:all';
+      spotlight.style.display  = 'none';
+      tooltip.style.cssText    =
+        'display:block;top:50%;left:50%;' +
+        'transform:translate(-50%,-50%);' +
+        'width:min(340px,calc(100vw - 32px));' +
+        'transition:opacity 0.22s ease;';
+      _el('tour-arrow').style.display = 'none';
+      /* Fade in */
+      requestAnimationFrame(() => { tooltip.style.opacity = '1'; });
+      return;
+    }
+
+    /* ── SPOTLIGHT ── */
+    /* waitForTap: overlay pointer-events:none → alttaki nav butonuna tıklanabilir */
+    overlay.style.cssText = s.waitForTap
+      ? 'display:block;background:transparent;pointer-events:none'
+      : 'display:block;background:transparent;pointer-events:all';
+
+    const PAD  = 8;
+    const rect = tEl.getBoundingClientRect();
+    const br   = window.getComputedStyle(tEl).borderRadius || '12px';
+
+    /* Spotlight: önce opacity:0, konumla, sonra fade in */
+    spotlight.style.cssText =
+      `display:block;opacity:0;` +
+      `top:${rect.top    - PAD}px;left:${rect.left  - PAD}px;` +
+      `width:${rect.width  + PAD * 2}px;height:${rect.height + PAD * 2}px;` +
+      `border-radius:${br};transition:opacity 0.22s ease;`;
+
+    /* waitForTap: "Dokun" etiketi + click listener */
+    const tapHint = _el('tour-tap-hint');
+    if (tapHint) tapHint.style.display = s.waitForTap ? '' : 'none';
+
+    if (s.waitForTap && tEl) {
+      const handler = () => {
+        _tapCleanup = null;
+        /* navDest ile _currentNav'ı güncelle → sonraki adım aynı sayfa gibi davranır */
+        if (s.navDest) _currentNav = s.navDest;
+        setTimeout(() => { _idx++; _render(); }, 180);
+      };
+      _tapCleanup = () => tEl.removeEventListener('click', handler);
+      tEl.addEventListener('click', handler, { once: true });
+    }
+
+    /* Tooltip konumlandır */
+    tooltip.style.transform = '';
+    tooltip.style.cssText   = (tooltip.style.cssText || '') +
+      ';display:block;transition:opacity 0.22s ease;';
+    tooltip.style.display   = 'block';
+    _el('tour-arrow').style.display = '';
+
+    const ttW = Math.min(340, window.innerWidth - 32);
+    tooltip.style.width = ttW + 'px';
+    const ttH = tooltip.offsetHeight;
+    const vw  = window.innerWidth;
+    const vh  = window.innerHeight;
+
+    const above = (rect.top + rect.height / 2) > vh * 0.52;
+    let top  = above ? rect.top    - PAD - ttH - 16
+                     : rect.bottom + PAD + 16;
+    let left = rect.left + rect.width / 2 - ttW / 2;
+    left = Math.max(16, Math.min(left, vw - ttW - 16));
+    top  = Math.max(12, Math.min(top,  vh - ttH - 12));
+
+    tooltip.style.top  = top  + 'px';
+    tooltip.style.left = left + 'px';
+
+    const arrow = _el('tour-arrow');
+    arrow.className = above ? 'down' : 'up';
+    const ax = Math.max(20, Math.min(rect.left + rect.width / 2 - left - 6, ttW - 32));
+    arrow.style.left      = ax + 'px';
+    arrow.style.marginLeft = '0';
+
+    /* Fade in — bir frame bekle ki layout hesabı tamamlansın */
+    requestAnimationFrame(() => {
+      tooltip.style.opacity   = '1';
+      spotlight.style.opacity = '1';
+    });
+  }
+
+  function _autoStart() {
+    if (!localStorage.getItem('tour_done')) setTimeout(start, 1500);
+  }
+
+  return { start, next, back, skip, _autoStart };
+})();
+
+window.addEventListener('load', () => Tour._autoStart());
+</script>
 
 </body>
 </html>
