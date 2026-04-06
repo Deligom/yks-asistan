@@ -12539,7 +12539,7 @@ const KartHavuzu = (() => {
           <button onclick="KartHavuzu.vote('${c.id}','like')" id="kh-vote-like-${c.id}" style="flex:1;background:rgba(255,101,132,.1);border:1px solid rgba(255,101,132,.2);border-radius:8px;padding:5px 4px;color:#ff6584;font-size:.72rem;cursor:pointer;font-weight:700">❤ ${c.likes||0}</button>
           <button onclick="KartHavuzu.vote('${c.id}','dislike')" id="kh-vote-dis-${c.id}" style="flex:1;background:rgba(108,99,255,.1);border:1px solid rgba(108,99,255,.2);border-radius:8px;padding:5px 4px;color:var(--primary2);font-size:.72rem;cursor:pointer;font-weight:700">👎 ${c.dislikes||0}</button>
           <button onclick="KartHavuzu.openPreview('${c.id}')" style="flex:1;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.25);border-radius:8px;padding:5px 4px;color:var(--teal2);font-size:.72rem;cursor:pointer;font-weight:700">⬇ ${c.downloads||0}</button>
-          <button onclick="KartHavuzu.openPreview('${c.id}')" style="flex:2;background:linear-gradient(135deg,var(--primary),var(--primary2));border:none;border-radius:8px;padding:5px 6px;color:#fff;font-size:.72rem;cursor:pointer;font-weight:700">👁 Bak / Aktar</button>
+          <button onclick="KartHavuzu.openPreview('${c.id}')" class="kh-bak-aktar-btn" style="flex:2;background:linear-gradient(135deg,var(--primary),var(--primary2));border:none;border-radius:8px;padding:5px 6px;color:#fff;font-size:.72rem;cursor:pointer;font-weight:700">👁 Bak / Aktar</button>
         </div>
       </div>`;
     }).join('');
@@ -13525,6 +13525,12 @@ Hangi derse öncelik vermeli, neden? Çalışmaya başlamasını teşvik et.`;
     const body = document.getElementById('advisor-body');
     const btn  = document.getElementById('advisor-refresh-btn');
     if (!card || !body) return;
+
+    // Öğretici devam ederken advisor'ı gösterme
+    if (!localStorage.getItem('tour_done')) {
+      card.style.display = 'none';
+      return;
+    }
 
     // Kullanıcı kapatmışsa gösterme
     if (localStorage.getItem('yk_advisor_enabled') === 'false') {
@@ -14585,7 +14591,7 @@ const Tour = (() => {
       desc:'Burada diğer kullanıcıların paylaştığı kartlar listelenir. En çok indirilenler, en yeniler ve derse göre filtreleme yapabilirsin.' },
 
     /* 22 – "Bak / Aktar" butonu */
-    { targetFn:()=>document.querySelector('#kh-list-container button:last-child'),
+    { targetFn:()=>document.querySelector('#kh-list-container .kh-bak-aktar-btn'),
       nav:'social', pos:'auto',
       title:'👁 Bak / Aktar',
       desc:'"Bak / Aktar" butonuna basınca kartın içeriğini önizleyebilir, beğenirsen tek tıkla kendi koleksiyonuna aktarabilirsin.' },
@@ -14645,6 +14651,27 @@ const Tour = (() => {
     try { App.go(page); } catch(e) {}
   }
 
+  /* ── Kart yoksa demo kart ekle (async, tour başlamadan önce) ── */
+  async function _seedDemoCard() {
+    try {
+      const cards = await dbGetAll();
+      if (cards && cards.length > 0) return; // zaten kart var, ekleme
+      await dbPut({
+        type:           'hap',
+        hapSubType:     'note',
+        category:       'AYT',
+        subject:        'Biyoloji',
+        topic:          'Sindirim Sistemi',
+        question:       'Bilgi Notu',
+        answer:         '1. [y]Pankreas Özsuyu[/y]: Wirsung kanalı ile ince bağırsağa dökülür; amilaz, lipaz, kimotripsinojen, tripsinojen ve nükleaz içerir.\n2. [y]Sekretin[/y]: Pankreastan bikarbonat iyonlarını salgılatır, karaciğerde safra üretimini uyarır.\n3. [y]Kolesistokinin[/y]: Safra kesesini kasarak safrayı boşaltır, pankreastan sindirim enzimlerini salgılatır.\n4. Kimyasal sindirim [r]ince bağırsakta[/r] tamamlanır; kalın bağırsakta sindirim enzimi bulunmaz.',
+        photo:          null,
+        nextReviewDate: Date.now(),
+        interval:       0,
+        createdAt:      Date.now()
+      });
+    } catch(e) { /* sessiz hata — kritik değil */ }
+  }
+
   function _getActivePage() {
     const views = ['home','add','routines','stats','social','ai','import'];
     for (const v of views) {
@@ -14672,6 +14699,7 @@ const Tour = (() => {
     _currentNav = _getActivePage();
     if (_currentNav !== 'home') { _goPage('home'); _currentNav = 'home'; }
     _idx = 0; _contentIdx = 0;
+    _seedDemoCard(); // kart yoksa Biyoloji demo kartı ekle
     _render();
   }
 
@@ -14758,7 +14786,7 @@ const Tour = (() => {
       `<div class="t-dot${i===_idx?' act':i<_idx?' pst':''}"></div>`
     ).join('');
 
-    _el('t-skip').style.visibility = isLast  ? 'hidden' : 'visible';
+    _el('t-skip').style.visibility = (isLast || s.waitForTap) ? 'hidden' : 'visible';
     _el('t-back').style.visibility = isFirst ? 'hidden' : 'visible';
 
     if (isLast) {
