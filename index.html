@@ -1114,6 +1114,7 @@ select option{background:var(--surface2);color:var(--text)}
   background:var(--surface2);border:1.5px solid var(--border);
   color:var(--text2);padding:8px 14px;border-radius:30px;
   font-family:'DM Sans','Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:.8rem;font-weight:600;cursor:pointer;
+  white-space:nowrap;flex-shrink:0;
   transition:all .15s;-webkit-tap-highlight-color:transparent
 }
 .btn-sel-mode.active{
@@ -2733,18 +2734,16 @@ select option{background:var(--surface2);color:var(--text)}
           <option value="hard">⚠️ Zorlanılan</option>
         </select>
       </div>
-      <!-- Count + per page + sel mode row -->
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;flex-wrap:wrap">
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:.72rem;color:var(--text3)" id="rec-count-label"></span>
-          <button class="btn-sel-mode" id="btn-sel-mode" onclick="App.toggleSelMode()" style="font-size:.72rem;padding:4px 10px">
+      <!-- Count + sel mode row -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:8px">
+        <div style="display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden">
+          <span style="font-size:.72rem;color:var(--text3);white-space:nowrap;flex-shrink:0" id="rec-count-label"></span>
+          <button class="btn-sel-mode" id="btn-sel-mode" onclick="App.toggleSelMode()" style="font-size:.72rem;padding:4px 10px;white-space:nowrap;flex-shrink:0">
             <i class="fa-regular fa-circle-dot"></i> Seçim
           </button>
-          <button class="btn btn-edit-sm" id="btn-select-all" onclick="App.selectAll()" style="display:none;font-size:.72rem;padding:4px 10px">
-            <i class="fa-solid fa-check-double"></i> Tümü
-          </button>
+
         </div>
-        <div style="display:flex;align-items:center;gap:6px">
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
           <span style="font-size:.72rem;color:var(--text3)">Sayfa başı:</span>
           <select id="rec-per-page" class="filter-select" style="padding:4px 8px;font-size:.72rem" onchange="App.renderRecords()">
             <option value="10">10</option>
@@ -4241,8 +4240,6 @@ const App = (() => {
         btnSel.classList.remove('active');
         btnSel.innerHTML = '<i class="fa-regular fa-circle-dot"></i> Seçim Modu';
       }
-      const btnSelAll = document.getElementById('btn-select-all');
-      if (btnSelAll) btnSelAll.style.display = 'none';
     }
     if (page !== 'routines' && rSelMode) {
       rSelMode = false;
@@ -5182,7 +5179,8 @@ const App = (() => {
           : '📷 Fotoğraflı soru';
         return `
           <div class="record-card${isSelected ? ' selected' : ''}" data-id="${c.id}" data-card-id="${c.id}"
-            onclick="App.onRecordCardClick(event,${c.id})">
+            onclick="App.onRecordCardClick(event,${c.id})"
+            ondblclick="App.dblClickSelectCard(event,${c.id})">
             <div class="sel-circle" onclick="event.stopPropagation();App.toggleCardSelect(${c.id})"></div>
             ${thumbHTML}
             <div class="record-body">
@@ -5198,7 +5196,7 @@ const App = (() => {
             <div class="record-actions" style="${selMode ? 'display:none' : ''}">
               <button class="btn btn-edit-sm" onclick="event.stopPropagation();App.openEdit(${c.id})"><i class="fa-solid fa-pen"></i></button>
               <button class="btn btn-edit-sm" style="background:rgba(0,212,170,.12);color:var(--teal2);border-color:rgba(0,212,170,.25)" onclick="event.stopPropagation();App.previewRecordCard(${c.id})" title="Önizle"><i class="fa-solid fa-eye"></i></button>
-              <button class="btn btn-edit-sm" style="background:rgba(108,99,255,.12);color:var(--primary2);border-color:rgba(108,99,255,.25)" onclick="event.stopPropagation();KartHavuzu.uploadCard(${c.id})" title="Kart Havuzu'na yükle"><i class="fa-solid fa-cloud-arrow-up"></i></button>
+              <button class="btn btn-edit-sm" style="background:rgba(108,99,255,.12);color:var(--primary2);border-color:rgba(108,99,255,.25)" onclick="event.stopPropagation();App.openShareModal(${c.id})" title="Paylaş"><i class="fa-solid fa-share-nodes"></i></button>
               <button class="btn btn-danger-sm" onclick="event.stopPropagation();App.deleteCard(${c.id})"><i class="fa-solid fa-trash"></i></button>
             </div>
           </div>`;
@@ -5238,14 +5236,12 @@ const App = (() => {
       selectedIds.clear();
     }
     const btn = document.getElementById('btn-sel-mode');
-    const btnSelAll = document.getElementById('btn-select-all');
     if (btn) {
       btn.classList.toggle('active', selMode);
       btn.innerHTML = selMode
         ? '<i class="fa-solid fa-xmark"></i> Seçimi Kapat'
         : '<i class="fa-regular fa-circle-dot"></i> Seçim Modu';
     }
-    if (btnSelAll) btnSelAll.style.display = selMode ? '' : 'none';
     renderRecords();
   }
 
@@ -5301,6 +5297,108 @@ const App = (() => {
     // In normal mode clicks are handled by individual buttons
   }
 
+  function dblClickSelectCard(event, id) {
+    event.stopPropagation();
+    if (!selMode) {
+      selMode = true;
+      const btn = document.getElementById('btn-sel-mode');
+      if (btn) {
+        btn.classList.add('active');
+        btn.innerHTML = '<i class="fa-solid fa-xmark"></i> Seçimi Kapat';
+      }
+      selectedIds.add(id);
+      renderRecords();
+      updateBulkBar();
+    } else {
+      toggleCardSelect(id);
+    }
+  }
+
+  async function openShareModal(cardId) {
+    const friends = Social?.getFriends?.() || [];
+    const groups  = Social?.getGroups?.() || [];
+
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:flex-end;justify-content:center';
+
+    const friendRows = friends.map(f => {
+      const av = f.photoB
+        ? `<img src="${f.photoB}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0"/>`
+        : `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:.9rem;flex-shrink:0">${f.nameB.slice(0,2).toUpperCase()}</div>`;
+      return `<div class="share-row" onclick="this.classList.toggle('sel');this.style.background=this.classList.contains('sel')?'var(--primary)':'var(--card)'"
+           data-code="${f.userB}" data-name="${f.nameB}" data-type="friend" data-label="${f.nameB}"
+           style="background:var(--card);border-radius:12px;padding:10px 14px;margin-bottom:7px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:background .2s">
+        ${av}
+        <div><div style="font-weight:600;color:var(--text1)">${f.nameB}</div><div style="font-size:.7rem;color:var(--text3)">Arkadaş</div></div>
+      </div>`;
+    }).join('');
+
+    const groupRows = groups.map(g => {
+      const av = g.photo
+        ? `<img src="${g.photo}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0"/>`
+        : `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--teal),var(--primary2));display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0">👥</div>`;
+      return `<div class="share-row" onclick="this.classList.toggle('sel');this.style.background=this.classList.contains('sel')?'var(--primary)':'var(--card)'"
+           data-code="${g.id}" data-name="${g.name}" data-type="group" data-label="${g.name}"
+           style="background:var(--card);border-radius:12px;padding:10px 14px;margin-bottom:7px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:background .2s">
+        ${av}
+        <div><div style="font-weight:600;color:var(--text1)">${g.name}</div><div style="font-size:.7rem;color:var(--text3)">Grup · ${(g.members||[]).length} üye</div></div>
+      </div>`;
+    }).join('');
+
+    const hasSocial = friends.length > 0 || groups.length > 0;
+
+    modal.innerHTML = `
+      <div style="background:var(--surface);border-radius:20px 20px 0 0;padding:22px 20px 28px;width:100%;max-width:480px;max-height:80vh;display:flex;flex-direction:column">
+        <div style="font-weight:700;font-size:1rem;color:var(--text1);margin-bottom:14px">📤 Kartı Paylaş</div>
+        <!-- Kart Havuzu seçeneği -->
+        <div id="share-pool-row"
+          onclick="this.classList.toggle('sel');this.style.background=this.classList.contains('sel')?'rgba(0,212,170,.18)':'var(--card)'"
+          data-type="pool"
+          style="background:var(--card);border:1.5px solid rgba(0,212,170,.3);border-radius:12px;padding:10px 14px;margin-bottom:14px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:background .2s">
+          <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--teal),var(--teal2));display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">🌊</div>
+          <div><div style="font-weight:700;color:var(--teal2)">Kart Havuzu</div><div style="font-size:.7rem;color:var(--text3)">Toplulukla paylaş</div></div>
+        </div>
+        ${hasSocial ? `
+        <div style="font-size:.72rem;color:var(--text3);font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">Arkadaş & Gruplar</div>
+        <input id="share-search-single" placeholder="🔍 Ara…" oninput="const v=this.value.toLowerCase();document.querySelectorAll('#share-list-single .share-row').forEach(r=>{r.style.display=r.dataset.label.toLowerCase().includes(v)?'':'none';})"
+          style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:7px 12px;color:var(--text1);font-size:.85rem;margin-bottom:9px;outline:none;width:100%;box-sizing:border-box"/>
+        <div id="share-list-single" style="overflow-y:auto;flex:1;margin-bottom:12px">
+          ${friends.length ? '<div style="font-size:.7rem;color:var(--text3);font-weight:700;margin-bottom:5px;text-transform:uppercase">Arkadaşlar</div>' : ''}
+          ${friendRows}
+          ${groups.length ? '<div style="font-size:.7rem;color:var(--text3);font-weight:700;margin:8px 0 5px;text-transform:uppercase">Gruplar</div>' : ''}
+          ${groupRows}
+        </div>` : '<div style="font-size:.8rem;color:var(--text3);text-align:center;padding:8px 0 12px">Arkadaş ekleyerek veya gruba katılarak onlarla da paylaşabilirsin.</div>'}
+        <div style="display:flex;gap:10px;margin-top:4px">
+          <button onclick="this.closest('[style*=fixed]').remove()" style="flex:1;background:var(--card2);border:none;border-radius:12px;padding:12px;color:var(--text2);font-weight:700;cursor:pointer">İptal</button>
+          <button id="confirm-single-share-btn" style="flex:2;background:var(--primary);border:none;border-radius:12px;padding:12px;color:#fff;font-weight:700;cursor:pointer"><i class="fa-solid fa-paper-plane"></i> Paylaş</button>
+        </div>
+      </div>`;
+
+    document.body.appendChild(modal);
+
+    modal.querySelector('#confirm-single-share-btn').onclick = async () => {
+      const poolRow    = modal.querySelector('#share-pool-row.sel');
+      const socialSels = [...(modal.querySelectorAll('#share-list-single .share-row.sel') || [])];
+      if (!poolRow && !socialSels.length) { toast('Hedef seç!', 'err'); return; }
+
+      const card = await dbGet(cardId);
+      if (!card) { toast('Kart bulunamadı!', 'err'); return; }
+
+      if (poolRow) {
+        await KartHavuzu.uploadCard(cardId);
+      }
+      for (const row of socialSels) {
+        if (row.dataset.type === 'group') {
+          await Social.sendCardsToGroup(row.dataset.code, row.dataset.name, [card]);
+        } else {
+          await Social.sendCardsToFriend(row.dataset.code, row.dataset.name, [card]);
+        }
+      }
+      modal.remove();
+      if (!poolRow) toast(`📤 Kart ${socialSels.length} hedefe gönderildi!`, 'ok');
+    };
+  }
+
   function updateBulkBar() {
     const bar = document.getElementById('bulk-delete-bar');
     const shareBar = document.getElementById('bulk-share-bar');
@@ -5322,8 +5420,6 @@ const App = (() => {
       selMode = false;
       const btn = document.getElementById('btn-sel-mode');
       if (btn) { btn.classList.remove('active'); btn.innerHTML = '<i class="fa-regular fa-circle-dot"></i> Seçim Modu'; }
-      const btnSelAll = document.getElementById('btn-select-all');
-      if (btnSelAll) btnSelAll.style.display = 'none';
       updateBulkBar();
       toast(`🗑️ ${n} kart silindi.`, 'info');
       renderRecords(); renderHome();
@@ -5333,14 +5429,8 @@ const App = (() => {
   async function bulkShare() {
     const n = selectedIds.size;
     if (!n) { toast('Önce kart seç!', 'err'); return; }
-    if (!Social || !Social._isReady || !Social._isReady()) {
-      toast('Paylaşmak için Sosyal sekmesinde profil oluştur!', 'err'); return;
-    }
-    const friends = Social.getFriends();
-    const groups  = Social.getGroups();
-    if ((!friends || friends.length === 0) && (!groups || groups.length === 0)) {
-      toast('Paylaşmak için arkadaş ekle veya gruba katıl!', 'err'); return;
-    }
+    const friends = Social?._isReady?.() ? (Social.getFriends() || []) : [];
+    const groups  = Social?._isReady?.() ? (Social.getGroups()  || []) : [];
 
     const modal = document.createElement('div');
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:flex-end;justify-content:center';
@@ -5373,7 +5463,16 @@ const App = (() => {
 
     modal.innerHTML = `
       <div style="background:var(--surface);border-radius:20px 20px 0 0;padding:24px 20px;width:100%;max-width:480px;max-height:75vh;display:flex;flex-direction:column">
-        <div style="font-weight:700;font-size:1rem;color:var(--text1);margin-bottom:12px">📤 ${n} kartı kime gönder?</div>
+        <div style="font-weight:700;font-size:1rem;color:var(--text1);margin-bottom:12px">📤 ${n} kartı paylaş</div>
+        <!-- Kart Havuzu seçeneği -->
+        <div id="bulk-share-pool-row"
+          onclick="this.classList.toggle('sel');this.style.background=this.classList.contains('sel')?'rgba(0,212,170,.18)':'var(--card)'"
+          data-type="pool"
+          style="background:var(--card);border:1.5px solid rgba(0,212,170,.3);border-radius:12px;padding:10px 14px;margin-bottom:14px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:background .2s">
+          <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--teal),var(--teal2));display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">🌊</div>
+          <div><div style="font-weight:700;color:var(--teal2)">Kart Havuzu</div><div style="font-size:.7rem;color:var(--text3)">Toplulukla paylaş</div></div>
+        </div>
+        <div style="font-size:.72rem;color:var(--text3);font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">Arkadaş & Gruplar</div>
         <input id="share-search" placeholder="🔍 Ara…" oninput="
           const v=this.value.toLowerCase();
           document.querySelectorAll('#share-list .share-row').forEach(r=>{
@@ -5387,18 +5486,22 @@ const App = (() => {
         </div>
         <div style="display:flex;gap:10px">
           <button onclick="this.closest('[style*=fixed]').remove()" style="flex:1;background:var(--card2);border:none;border-radius:12px;padding:12px;color:var(--text2);font-weight:700;cursor:pointer">İptal</button>
-          <button id="confirm-bulk-share-btn" style="flex:2;background:var(--primary);border:none;border-radius:12px;padding:12px;color:#fff;font-weight:700;cursor:pointer"><i class="fa-solid fa-paper-plane"></i> Gönder</button>
+          <button id="confirm-bulk-share-btn" style="flex:2;background:var(--primary);border:none;border-radius:12px;padding:12px;color:#fff;font-weight:700;cursor:pointer"><i class="fa-solid fa-paper-plane"></i> Paylaş</button>
         </div>
       </div>`;
     document.body.appendChild(modal);
 
     modal.querySelector('#confirm-bulk-share-btn').onclick = async () => {
-      const selected = [...modal.querySelectorAll('.sel')];
-      if (!selected.length) { toast('Hedef seç!', 'err'); return; }
+      const poolRow    = modal.querySelector('#bulk-share-pool-row.sel');
+      const socialSels = [...modal.querySelectorAll('#share-list .share-row.sel')];
+      if (!poolRow && !socialSels.length) { toast('Hedef seç!', 'err'); return; }
       const cards = await dbGetAll();
       const toSend = cards.filter(c => selectedIds.has(c.id));
+      if (poolRow) {
+        for (const c of toSend) { await KartHavuzu.uploadCard(c.id); }
+      }
       let sent = 0;
-      for (const row of selected) {
+      for (const row of socialSels) {
         if (row.dataset.type === 'group') {
           await Social.sendCardsToGroup(row.dataset.code, row.dataset.name, toSend);
         } else {
@@ -5407,7 +5510,10 @@ const App = (() => {
         sent++;
       }
       modal.remove();
-      toast(`📤 ${toSend.length} kart ${sent} hedefe gönderildi!`, 'ok');
+      const parts = [];
+      if (poolRow) parts.push('Kart Havuzu');
+      if (sent > 0) parts.push(`${sent} kişi/grup`);
+      toast(`📤 ${toSend.length} kart ${parts.join(' ve ')} paylaşıldı!`, 'ok');
     };
   }
 
@@ -7160,7 +7266,7 @@ STRİKT KURALLAR:
     openConfig, closeConfig, cfgChip, toggleSubChip, toggleTopicChip, startStudy, startDailyReview,
     showAnswer, rate, studyGoBack, studyGoForward,
     renderRecords, deleteCard, clearAll, toggleRecords, recGoPage, _updateRecTopicFilter,
-    toggleSelMode, toggleCardSelect, onRecordCardClick, bulkDelete, bulkShare, selectAll,
+    toggleSelMode, toggleCardSelect, onRecordCardClick, dblClickSelectCard, openShareModal, bulkDelete, bulkShare, selectAll,
     openEdit, closeEdit, saveEdit, updateEditSubjects,
     previewEditCard, openAIEditFromOverlay, previewRecordCard, _copyPreviewId,
     importJSON, copyPrompt, copyPromptBilgi, copyPromptSoru, switchImportTab, togglePrompt,
@@ -12288,6 +12394,13 @@ const KartHavuzu = (() => {
     return n.length > 10 ? n.slice(0, 10) + '…' : n;
   }
   function _esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function _fmtTs(c) {
+    const ms = c.uploadedAt?.toMillis?.() || (typeof c.uploadedAt === 'number' ? c.uploadedAt : 0);
+    if (!ms) return '';
+    const d = new Date(ms);
+    return d.toLocaleDateString('tr-TR',{day:'2-digit',month:'short',year:'numeric'}) + ' ' +
+           d.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
+  }
 
   function _cardHash(card) {
     const raw = (card.topic||'') + '|' + (card.question||'') + '|' + (card.answer||'').slice(0,120);
@@ -12531,7 +12644,7 @@ const KartHavuzu = (() => {
           <div style="flex:1;min-width:0">
             <div style="font-size:.75rem;color:var(--teal2);font-weight:700;margin-bottom:1px">${_esc(c.cardData?.category||'')} · ${_esc(c.cardData?.subject||'')}</div>
             <div style="font-size:.83rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(title)}</div>
-            <div style="font-size:.65rem;color:var(--text3);margin-top:1px">👤 ${_esc(name)}</div>
+            <div style="font-size:.65rem;color:var(--text3);margin-top:1px">👤 ${_esc(name)}${_fmtTs(c) ? ' · 🕐 ' + _fmtTs(c) : ''}</div>
           </div>
           <button onclick="KartHavuzu.vote('${c.id}','report')" style="background:none;border:none;color:var(--text3);font-size:.75rem;cursor:pointer;padding:4px 6px;flex-shrink:0;opacity:.7">⚑</button>
         </div>
@@ -12556,7 +12669,7 @@ const KartHavuzu = (() => {
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
           <div>
             <div style="font-size:.72rem;color:var(--teal2);font-weight:700">${_esc(c.cardData?.category||'')} · ${_esc(c.cardData?.subject||'')} · ${_esc(c.cardData?.topic||'')}</div>
-            <div style="font-size:.68rem;color:var(--text3);margin-top:1px">👤 ${_esc(name)}</div>
+            <div style="font-size:.68rem;color:var(--text3);margin-top:1px">👤 ${_esc(name)}${_fmtTs(c) ? ' · 🕐 ' + _fmtTs(c) : ''}</div>
           </div>
           <button onclick="KartHavuzu.vote('${c.id}','report')" style="background:none;border:none;color:var(--text3);font-size:.7rem;cursor:pointer;padding:4px">⚑</button>
         </div>
@@ -12792,7 +12905,7 @@ const KartHavuzu = (() => {
             <div style="flex:1;min-width:0">
               <div style="font-size:.72rem;color:var(--teal2);font-weight:700">${_esc(c.cardData?.category||'')} · ${_esc(c.cardData?.subject||'')}</div>
               <div style="font-size:.82rem;font-weight:600;color:${isHidden?'var(--text3)':'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(title)}${isHidden?' <span style="color:rgba(255,101,132,.8);font-size:.65rem">[Gizlendi]</span>':''}</div>
-              <div style="font-size:.65rem;color:var(--text3);margin-top:2px">❤ ${c.likes||0} · ⬇ ${c.downloads||0} · ⚑ ${c.reported||0}</div>
+              <div style="font-size:.65rem;color:var(--text3);margin-top:2px">❤ ${c.likes||0} · ⬇ ${c.downloads||0} · ⚑ ${c.reported||0}${_fmtTs(c) ? ' · 🕐 ' + _fmtTs(c) : ''}</div>
             </div>
             <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
               ${isHidden ? `<button onclick="KartHavuzu.openFlagReason('${c.id}')" style="background:rgba(255,165,0,.12);border:1px solid rgba(255,165,0,.35);border-radius:10px;padding:5px 9px;color:#ffaa00;font-size:.69rem;cursor:pointer;font-weight:700;white-space:nowrap">❓ Neden?</button>` : ''}
@@ -14557,11 +14670,11 @@ const Tour = (() => {
       title:'👁 Kartı Önizle',
       desc:'Göz ikonu ile kartı flashcard modunda önizle — tekrar ekranında nasıl görüneceğini tam olarak görürsün.' },
 
-    /* 16 – Kart Havuzu'na yükle butonu */
-    { targetFn:()=>document.querySelector('#records-list .record-card [title="Kart Havuzu\'na yükle"]'),
+    /* 16 – Paylaş butonu */
+    { targetFn:()=>document.querySelector('#records-list .record-card [title="Paylaş"]'),
       nav:'stats', pos:'auto',
-      title:'☁️ Kart Havuzu\'na Yükle',
-      desc:'Bulut ikonu ile kartını topluluğa açık Kart Havuzu\'na yükle. Diğer kullanıcılar senin kartını indirip kendi koleksiyonuna ekleyebilir.' },
+      title:'📤 Kartı Paylaş',
+      desc:'Paylaş ikonu ile kartını Kart Havuzu\'na yükleyebilir, arkadaşlarına veya grubuna gönderebilirsin. Nereye paylaşacağını sen seçersin.' },
 
     /* 17 – Sil butonu */
     { targetFn:()=>document.querySelector('#records-list .record-card .btn-danger-sm'),
