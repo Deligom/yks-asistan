@@ -14445,13 +14445,14 @@ const Tour = (() => {
      ADIMLAR
      waitForTap:true  → kullanıcı vurgulanan elemana dokunarak ilerler
      navDest          → waitForTap adımında tıklamanın götüreceği sayfa
-                        (currentNav'ı önceden günceller, delay'i azaltır)
+     preAction        → adım render edilmeden önce çalışan fonksiyon
+     delay            → bu adım için özel gecikme (ms)
   ───────────────────────────────────── */
   const STEPS = [
     /* 0 – Karşılama */
     { target:null, nav:null, pos:'center',
       title:'👋 Hoş Geldin!',
-      desc:'YKS Asistan\'a hoş geldin! Bu kısa tur uygulamanın tüm özelliklerini sana tanıtacak. Yaklaşık 2 dakika sürer.' },
+      desc:'YKS Asistan\'a hoş geldin! Bu kısa tur uygulamanın tüm özelliklerini sana tanıtacak. Yaklaşık 3 dakika sürer.' },
 
     /* 1 – Günlük Tekrar */
     { target:'#due-alert', nav:'home', pos:'auto',
@@ -14486,13 +14487,13 @@ const Tour = (() => {
 
     /* 7 – Yeni Kart içeriği */
     { target:'.add-type-wrap', nav:'add', pos:'auto',
-      title:'➕ Yeni Kart Ekle',
-      desc:'Manuel yazarak veya AI ile otomatik JSON import yaparak yeni kartlar ekle. Hem hap bilgi hem fotoğraflı soru desteği var.' },
+      title:'➕ Kart Türünü Seç',
+      desc:'"Hap Bilgi" metin tabanlı flashcard, "Fotoğraflı Soru" ise çözümünü görmek istediğin yanlış sorular için. AI ile JSON olarak toplu da ekleyebilirsin.' },
 
     /* 8 – Rutinler nav (kullanıcı bassın) */
     { target:'#nav-routines', nav:'add', pos:'auto', waitForTap:true, navDest:'routines',
       title:'🔄 Rutinler Sekmesi',
-      desc:'Rutinler sekmesine buradan ulaşırsın. Düzenli çalışma planları oluşturup AI ile kişiselleştirebilirsin. Şimdi dokunsana! 👇' },
+      desc:'Rutinler sekmesine geçmek için dokunsana! 👇' },
 
     /* 9 – Rutinler içeriği */
     { target:'.rai-card', nav:'routines', pos:'auto',
@@ -14502,62 +14503,124 @@ const Tour = (() => {
     /* 10 – İstatistik nav (kullanıcı bassın) */
     { target:'#nav-stats', nav:'routines', pos:'auto', waitForTap:true, navDest:'stats',
       title:'📊 İstatistik Sekmesi',
-      desc:'Haftalık performans grafiklerine ulaşmak için dokunsana! 👇' },
+      desc:'İstatistik sekmesine geçmek için dokunsana! 👇' },
 
-    /* 11 – İstatistik içeriği */
+    /* 11 – Haftalık Grafik */
     { target:'.chart-wrap', nav:'stats', pos:'auto',
-      title:'📊 Haftalık Performans',
-      desc:'Son 7 günün çalışma grafiği burada. Günlere tıklayarak detayları görebilir, aktivite loguna not ekleyebilirsin.' },
+      title:'📊 Haftalık Performans Grafiği',
+      desc:'Son 7 günün çalışma dağılımı burada. Bir güne dokunarak o güne ait tüm detayları görebilirsin.' },
 
-    /* 12 – Sosyal nav (kullanıcı bassın) */
+    /* 12 – Aktivite Logu (otomatik aç) */
+    { target:'#actlog-body', nav:'stats', pos:'auto',
+      preAction:() => {
+        const b = document.getElementById('actlog-body');
+        if (b && b.style.display === 'none') { try { App.toggleActivityLog(); } catch(e){} }
+      },
+      delay: 450,
+      title:'📝 Günlük Aktivite Logu',
+      desc:'Çalışma notlarını buraya ekle — "Deneme analizi yapıldı", "Geometri eksik kaldı" gibi. Derse ve konuya göre filtreleyebilirsin.' },
+
+    /* 13 – Tüm Kartlar bölümü (otomatik aç) */
+    { target:'#records-body',
+      nav:'stats', pos:'auto',
+      preAction:() => {
+        const b = document.getElementById('records-body');
+        if (b && b.style.display === 'none') { try { App.toggleRecords(); } catch(e){} }
+      },
+      delay: 750,
+      title:'🗂️ Tüm Kartlar Listesi',
+      desc:'Eklediğin tüm kartlar burada listelenir. Tür, ders, konu ve durum filtresiyle arama yapabilir; toplu seçim ile birden fazla kartı yönetebilirsin.' },
+
+    /* 14 – Düzenle butonu */
+    { targetFn:()=>document.querySelector('#records-list .record-card .btn-edit-sm'),
+      nav:'stats', pos:'auto',
+      title:'✏️ Kartı Düzenle',
+      desc:'Kalem ikonu ile kartın sorusunu, cevabını, dersini veya konusunu istediğin zaman güncelleyebilirsin.' },
+
+    /* 15 – Önizle butonu */
+    { targetFn:()=>document.querySelector('#records-list .record-card .fa-eye')?.closest('button'),
+      nav:'stats', pos:'auto',
+      title:'👁 Kartı Önizle',
+      desc:'Göz ikonu ile kartı flashcard modunda önizle — tekrar ekranında nasıl görüneceğini tam olarak görürsün.' },
+
+    /* 16 – Kart Havuzu'na yükle butonu */
+    { targetFn:()=>document.querySelector('#records-list .record-card [title="Kart Havuzu\'na yükle"]'),
+      nav:'stats', pos:'auto',
+      title:'☁️ Kart Havuzu\'na Yükle',
+      desc:'Bulut ikonu ile kartını topluluğa açık Kart Havuzu\'na yükle. Diğer kullanıcılar senin kartını indirip kendi koleksiyonuna ekleyebilir.' },
+
+    /* 17 – Sil butonu */
+    { targetFn:()=>document.querySelector('#records-list .record-card .btn-danger-sm'),
+      nav:'stats', pos:'auto',
+      title:'🗑️ Kartı Sil',
+      desc:'Kırmızı çöp ikonu ile kartı kalıcı olarak silebilirsin. Seçim modunda birden fazla kartı aynı anda silmek de mümkün.' },
+
+    /* 18 – Sosyal nav (kullanıcı bassın) */
     { target:'#nav-social', nav:'stats', pos:'auto', waitForTap:true, navDest:'social',
       title:'👥 Sosyal Sekmesi',
-      desc:'Arkadaşlarınla bağlanmak ve kartlarını paylaşmak için dokunsana! 👇' },
+      desc:'Sosyal özelliklere geçmek için dokunsana! 👇' },
 
-    /* 13 – Sosyal içeriği */
+    /* 19 – Sosyal tab bar genel */
     { target:'#view-social .tab-bar', nav:'social', pos:'auto',
-      title:'👥 Sosyal',
-      desc:'Arkadaşlarınla bağlan, kartlarını paylaş, gruplarda birlikte çalış. Liderlik tablosu ile rekabet et!' },
+      title:'👥 Sosyal Özellikler',
+      desc:'Arkadaşlarınla bağlan, grup kur, liderlik tablosunda yarış. Birlikte çalışmak motivasyonu ikiye katlar!' },
 
-    /* 14 – AI nav (kullanıcı bassın) */
+    /* 20 – Kart Havuzu tab (kullanıcı bassın) */
+    { target:'#stab-karthavuzu', nav:'social', pos:'auto', waitForTap:true,
+      title:'🌊 Kart Havuzu',
+      desc:'Topluluk tarafından paylaşılan kartları görmek için Kart Havuzu\'na dokunsana! 👇' },
+
+    /* 21 – Kart Havuzu liste (Firestore yüklenmesi için uzun bekleme) */
+    { target:'#kh-list-container', nav:'social', pos:'auto',
+      delay: 1500,
+      title:'🌊 Topluluk Kart Havuzu',
+      desc:'Burada diğer kullanıcıların paylaştığı kartlar listelenir. En çok indirilenler, en yeniler ve derse göre filtreleme yapabilirsin.' },
+
+    /* 22 – "Bak / Aktar" butonu */
+    { targetFn:()=>document.querySelector('#kh-list-container button:last-child'),
+      nav:'social', pos:'auto',
+      title:'👁 Bak / Aktar',
+      desc:'"Bak / Aktar" butonuna basınca kartın içeriğini önizleyebilir, beğenirsen tek tıkla kendi koleksiyonuna aktarabilirsin.' },
+
+    /* 23 – AI nav (kullanıcı bassın) */
     { target:'#nav-ai', nav:'social', pos:'auto', waitForTap:true, navDest:'ai',
       title:'🤖 AI Sekmesi',
-      desc:'Yapay zeka asistanına ulaşmak için dokunsana! 👇' },
+      desc:'Yapay zeka asistanına geçmek için dokunsana! 👇' },
 
-    /* 15 – AI içeriği */
+    /* 24 – AI içeriği */
     { target:'#ai-header', nav:'ai', pos:'auto',
       title:'🤖 Gemini AI Chat',
-      desc:'YKS konularını sor, konu özetleri al, strateji geliştir. Sohbet geçmişin kaydedilir. Aşağıdaki butonlarla sohbetten doğrudan kart oluşturabilirsin!' },
+      desc:'YKS konularını sor, konu özetleri al, sınav stratejisi geliştir. Sohbet geçmişin kaydedilir, fotoğraf da gönderebilirsin!' },
 
-    /* 16 – Hap Bilgi butonu */
+    /* 25 – Hap Bilgi butonu */
     { target:'#ai-card-btn-hap', nav:'ai', pos:'auto',
       title:'💡 Hap Bilgi Kartı Oluştur',
-      desc:'Konuyu AI\'a sor, açıklama al — sonra bu butona bas. AI o sohbetten otomatik metin flashcard oluşturur ve kartlarına ekler.' },
+      desc:'Konuyu AI\'a sor, açıklama al — sonra bu butona bas. AI o sohbetten otomatik metin flashcard oluşturur ve koleksiyonuna ekler.' },
 
-    /* 17 – Foto Bilgi butonu */
+    /* 26 – Foto Bilgi butonu */
     { target:'#ai-card-btn-hap-photo', nav:'ai', pos:'auto',
       title:'📸 Foto Bilgi Kartı',
-      desc:'Hap bilgi gibi ama fotoğraflı! Soru görselini sohbete ekle, AI analiz etsin — bu butonla fotoğraflı hap bilgi kartı olarak kaydet.' },
+      desc:'Soru görselini sohbete ekle, AI analiz etsin — bu butonla fotoğraflı hap bilgi kartı olarak kaydet.' },
 
-    /* 18 – Soru Kartı butonu */
+    /* 27 – Soru Kartı butonu */
     { target:'#ai-card-btn-soru', nav:'ai', pos:'auto',
       title:'❓ Soru Kartı Oluştur',
-      desc:'Yapamadığın soruyu fotoğraflayıp AI\'a gönder, çözümü gör — sonra bu butonla yanlış soru bankana tek tıkla ekle!' },
+      desc:'Yapamadığın soruyu fotoğraflayıp AI\'a gönder, çözümü gör — bu butonla yanlış soru bankana tek tıkla ekle!' },
 
-    /* 19 – Ayarlar nav (kullanıcı bassın) */
+    /* 28 – Ayarlar nav (kullanıcı bassın) */
     { target:'#nav-import', nav:'ai', pos:'auto', waitForTap:true, navDest:'import',
       title:'⚙️ Ayarlar Sekmesi',
-      desc:'Tema, API anahtarı ve yedekleme ayarlarına ulaşmak için dokunsana! 👇' },
+      desc:'Ayarlar sekmesine geçmek için dokunsana! 👇' },
 
-    /* 20 – Ayarlar içeriği */
+    /* 29 – Ayarlar içeriği */
     { target:'.tour-restart-card', nav:'import', pos:'auto',
       title:'⚙️ Ayarlar',
-      desc:'Tema, Gemini API anahtarın, abonelik durumun ve Google Drive yedekleme ayarlarını buradan yönet.' },
+      desc:'Tema, Gemini API anahtarın, abonelik durumun ve Google Drive yedekleme ayarlarını buradan yönet. Bu karttan turu tekrar başlatabilirsin.' },
 
-    /* 21 – Bitiş */
+    /* 30 – Bitiş */
     { target:null, nav:null, pos:'center',
       title:'🚀 Her Şey Hazır!',
-      desc:'Tebrikler! Artık YKS Asistan\'ın tüm özelliklerini biliyorsun. İyi çalışmalar! 💪' }
+      desc:'Tebrikler! YKS Asistan\'ın tüm özelliklerini tanıdın. Kartlarını ekle, her gün tekrar et, başarı sana gelsin! 💪' }
   ];
 
   /* waitForTap olmayan adım sayısı (ilk + son hariç) */
@@ -14646,11 +14709,12 @@ const Tour = (() => {
     const isNavChange = !!(s.nav && s.nav !== _currentNav);
     if (s.nav) { _goPage(s.nav); _currentNav = s.nav; }
 
-    /* Gecikme:
-       center      → 50ms
-       aynı sayfa  → 220ms  (fade out için yeterli)
-       yeni sayfa  → 650ms  */
-    const delay = s.pos === 'center' ? 50
+    /* preAction: sayfa geçişinden hemen sonra, spotlight'tan önce çalışır */
+    if (s.preAction) { try { s.preAction(); } catch(e){} }
+
+    /* Gecikme: s.delay varsa onu kullan, yoksa hesapla */
+    const delay = s.delay != null ? s.delay
+                : s.pos === 'center' ? 50
                 : isNavChange        ? 650
                 :                      220;
 
