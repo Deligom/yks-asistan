@@ -8261,7 +8261,7 @@ const Social = (() => {
         createdAt: Date.now()
       });
 
-      _finishLogin();
+      _finishLogin(true); // yeni hesap → öğreticiyi başlat
     } catch(e) {
       const msg = e.code === 'auth/email-already-in-use' ? 'Bu e-posta zaten kullanılıyor.'
                 : e.code === 'auth/invalid-email'        ? 'Geçersiz e-posta adresi.'
@@ -8363,7 +8363,7 @@ const Social = (() => {
   }
 
   // Ortak giriş tamamlama
-  function _finishLogin() {
+  function _finishLogin(isNewUser = false) {
     document.getElementById('onboard-overlay').style.display = 'none';
     _updateProfileUI();
     _updateAuthStatusInfo();
@@ -8380,6 +8380,13 @@ const Social = (() => {
       window._saveFcmToken(_myCode).catch(()=>{});
       window._pendingFcmToken = null;
     }
+    // Tour: sadece yeni hesaplarda göster, eski kullanıcılarda kapat
+    if (isNewUser) {
+      localStorage.removeItem('tour_done');
+      setTimeout(() => { if (window.Tour) Tour.start(); }, 1500);
+    } else {
+      localStorage.setItem('tour_done', '1');
+    }
   }
 
   async function signInWithGoogle() {
@@ -8391,12 +8398,13 @@ const Social = (() => {
       // Firestore'da profil var mı kontrol et
       const q = query(collection(db, 'users'), where('firebaseUid', '==', user.uid));
       let snap = await getDocs(q);
+      const isNewGoogleUser = snap.empty;
       if (snap.empty) {
         // İlk Google girişi — profil oluştur
         _myCode = _genCode();
         _myName = user.displayName || user.email.split('@')[0];
         localStorage.setItem('social_code', _myCode);
-        localStorage.setItem('social_name',  _myName);
+        localStorage.setItem('social_photo',  _myPhoto);
         await setDoc(doc(db, 'users', _myCode), {
           name: _myName, code: _myCode,
           firebaseUid: user.uid, email: user.email,
@@ -8411,7 +8419,7 @@ const Social = (() => {
         localStorage.setItem('social_name',  _myName);
         if (_myPhoto) localStorage.setItem('social_photo', _myPhoto);
       }
-      _finishLogin();
+      _finishLogin(isNewGoogleUser);
     } catch(e) {
       if (e.code !== 'auth/popup-closed-by-user') {
         toast('Google girişi başarısız: ' + e.message, 'err');
@@ -14850,10 +14858,8 @@ const Tour = (() => {
     if (!localStorage.getItem('tour_done')) setTimeout(start, 1500);
   }
 
-  return { start, next, back, skip, _autoStart };
+  return { start, next, back, skip };
 })();
-
-window.addEventListener('load', () => Tour._autoStart());
 </script>
 
 </body>
