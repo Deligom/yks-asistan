@@ -14586,6 +14586,7 @@ const Tour = (() => {
 
     /* 21 – Kart Havuzu liste (Firestore yüklenmesi için uzun bekleme) */
     { target:'#kh-list-container', nav:'social', pos:'auto',
+      preAction: () => { try { App.socialTab('karthavuzu'); } catch(e){} },
       delay: 1500,
       title:'🌊 Topluluk Kart Havuzu',
       desc:'Burada diğer kullanıcıların paylaştığı kartlar listelenir. En çok indirilenler, en yeniler ve derse göre filtreleme yapabilirsin.' },
