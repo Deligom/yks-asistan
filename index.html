@@ -5642,9 +5642,9 @@ const App = (() => {
     content.innerHTML = `
       ${card.topic ? `<div style="font-size:.7rem;color:var(--teal2);font-weight:700;margin-bottom:6px">${esc(card.topic)}</div>` : ''}
       ${card.question ? `<div style="font-size:.92rem;font-weight:700;color:var(--text);margin-bottom:12px;line-height:1.45">${esc(card.question)}</div>` : ''}
+      ${card.photo ? `<div style="margin-bottom:12px;border-radius:12px;overflow:hidden;border:1px solid var(--border)"><img src="${card.photo}" style="width:100%;max-height:280px;object-fit:contain;display:block;background:var(--surface2)" alt="Kart Görseli"/></div>` : ''}
       <div class="fc-answer-label"><i class="fa-solid fa-check-circle"></i> Çözüm / Not</div>
-      <div class="fc-answer">${formatAnswer(card.answer || '')}</div>
-      ${card.photo ? `<div style="margin-top:14px;border-radius:12px;overflow:hidden;border:1px solid var(--border)"><img src="${card.photo}" style="width:100%;max-height:280px;object-fit:contain;display:block;background:var(--surface2)" alt="Kart Görseli"/></div>` : ''}`;
+      <div class="fc-answer">${formatAnswer(card.answer || '')}</div>`;
     modal.style.display = 'flex';
   }
 
@@ -12505,6 +12505,25 @@ const KartHavuzu = (() => {
     }
 
     const { db, collection, addDoc, serverTimestamp } = fb;
+
+    // Fotoğraf varsa ImgBB'ye yükle
+    let photoUrl = null;
+    if (card.photo && card.photo.startsWith('data:')) {
+      try {
+        const imgbbKey = window._FB?.IMGBB_KEY;
+        if (imgbbKey) {
+          const base64 = card.photo.split(',')[1];
+          const fd = new FormData();
+          fd.append('image', base64);
+          const res = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, { method: 'POST', body: fd });
+          const data = await res.json();
+          photoUrl = data?.data?.url || null;
+        }
+      } catch(e) { console.warn('ImgBB yükleme hatası:', e); }
+    } else if (card.photo && card.photo.startsWith('http')) {
+      photoUrl = card.photo; // zaten URL ise direkt kullan
+    }
+
     const cardData = {
       type: card.type || 'hap',
       hapSubType: card.hapSubType || 'note',
@@ -12513,7 +12532,8 @@ const KartHavuzu = (() => {
       topic: card.topic || '',
       question: card.question || '',
       answer: card.answer || '',
-      hasPhoto: !!(card.photo)
+      hasPhoto: !!(card.photo),
+      ...(photoUrl ? { photoUrl } : {})
     };
 
     try {
@@ -12653,9 +12673,12 @@ const KartHavuzu = (() => {
       const name = (c.uploaderName || '?').slice(0,10) + ((c.uploaderName||'').length > 10 ? '…' : '');
       const typeIcon = c.cardData?.type === 'foto' ? '📷' : c.cardData?.type === 'soru' ? '❓' : '⚡';
       const typeColor = c.cardData?.type === 'foto' ? 'linear-gradient(135deg,#f093fb,#f5576c)' : c.cardData?.type === 'soru' ? 'linear-gradient(135deg,#4facfe,#00f2fe)' : 'linear-gradient(135deg,var(--primary),var(--primary2))';
+      const thumbHtml = c.cardData?.photoUrl
+        ? `<div style="flex-shrink:0;width:34px;height:34px;border-radius:9px;overflow:hidden;border:1px solid var(--border)"><img src="${c.cardData.photoUrl}" style="width:100%;height:100%;object-fit:cover" alt=""/></div>`
+        : `<div style="flex-shrink:0;width:34px;height:34px;border-radius:9px;background:${typeColor};display:flex;align-items:center;justify-content:center;font-size:.85rem">${typeIcon}</div>`;
       return `<div ondblclick="if(localStorage.getItem('kh_dblclick_preview')==='1')KartHavuzu.openPreview('${c.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:10px 12px;margin-bottom:8px">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-          <div style="flex-shrink:0;width:34px;height:34px;border-radius:9px;background:${typeColor};display:flex;align-items:center;justify-content:center;font-size:.85rem">${typeIcon}</div>
+          ${thumbHtml}
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:5px;margin-bottom:1px">
               <span style="font-size:.75rem;color:var(--teal2);font-weight:700">${_esc(c.cardData?.category||'')} · ${_esc(c.cardData?.subject||'')}</span>
@@ -12695,6 +12718,7 @@ const KartHavuzu = (() => {
           <button onclick="KartHavuzu.vote('${c.id}','report')" style="background:none;border:none;color:var(--text3);font-size:.7rem;cursor:pointer;padding:4px">⚑</button>
         </div>
         <div style="font-size:.9rem;font-weight:700;color:var(--text);margin-bottom:10px;line-height:1.4">${_esc(title)}</div>
+        ${c.cardData?.photoUrl ? `<div style="margin-bottom:10px;border-radius:10px;overflow:hidden;border:1px solid var(--border);max-height:200px"><img src="${c.cardData.photoUrl}" style="width:100%;max-height:200px;object-fit:cover;display:block" alt=""/></div>` : ''}
         <div class="fc-answer" style="max-height:180px;overflow:hidden;position:relative;margin-bottom:10px;background:var(--surface2);border-radius:10px;padding:10px 12px;border:1px solid var(--border)">
           ${ansFormatted}
           <div style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent,var(--surface2));border-radius:0 0 10px 10px"></div>
@@ -12922,8 +12946,11 @@ const KartHavuzu = (() => {
             ? c.cardData.question.slice(0,55) + (c.cardData.question.length>55?'…':'')
             : (c.cardData?.topic?.slice(0,55)||'Bilgi Notu');
           const isHidden = c.hidden;
+          const mineThumb = c.cardData?.photoUrl
+            ? `<div style="flex-shrink:0;width:36px;height:36px;border-radius:10px;overflow:hidden;border:1px solid var(--border)"><img src="${c.cardData.photoUrl}" style="width:100%;height:100%;object-fit:cover" alt=""/></div>`
+            : `<div style="flex-shrink:0;width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--primary),var(--primary2));display:flex;align-items:center;justify-content:center;font-size:.9rem">⚡</div>`;
           return `<div style="background:var(--surface);border:1px solid ${isHidden?'rgba(255,101,132,.35)':'var(--border)'};border-radius:14px;padding:11px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px">
-            <div style="flex-shrink:0;width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--primary),var(--primary2));display:flex;align-items:center;justify-content:center;font-size:.9rem">⚡</div>
+            ${mineThumb}
             <div style="flex:1;min-width:0">
               <div style="font-size:.72rem;color:var(--teal2);font-weight:700">${_esc(c.cardData?.category||'')} · ${_esc(c.cardData?.subject||'')}</div>
               <div style="font-size:.82rem;font-weight:600;color:${isHidden?'var(--text3)':'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(title)}${isHidden?' <span style="color:rgba(255,101,132,.8);font-size:.65rem">[Gizlendi]</span>':''}</div>
