@@ -12838,9 +12838,9 @@ const KartHavuzu = (() => {
         <div style="font-size:.7rem;color:var(--text3);margin-bottom:4px">👤 ${_esc(name)} · ❤ ${c.likes||0} · ⬇ ${c.downloads||0}</div>
         <div style="font-size:.72rem;color:var(--teal2);font-weight:700;margin-bottom:6px">${_esc(cd.category||'')} · ${_esc(cd.subject||'')} · ${_esc(cd.topic||'')}</div>
         ${cd.question && cd.question !== 'Bilgi Notu' ? `<div style="font-size:.95rem;font-weight:700;color:var(--text);margin-bottom:12px;line-height:1.45">${_esc(cd.question)}</div>` : ''}
+        ${cd.photoUrl ? `<div style="margin-bottom:12px;border-radius:12px;overflow:hidden;border:1px solid var(--border)"><img src="${cd.photoUrl}" style="width:100%;max-height:300px;object-fit:contain;display:block;background:var(--surface2)" alt="Kart Görseli"/></div>` : ''}
         <div class="fc-answer-label"><i class="fa-solid fa-check-circle"></i> Çözüm / Not</div>
-        <div class="fc-answer">${App.formatAnswer(cd.answer||'')}</div>
-        ${cd.hasPhoto ? '<div style="margin-top:12px;padding:9px 12px;background:rgba(240,147,251,.1);border:1px solid rgba(240,147,251,.35);border-radius:10px;font-size:.76rem;color:#f093fb;font-weight:600">📷 Bu kart orijinalde fotoğraf içeriyor — görsel indirilemez, sadece metin aktarılır.</div>' : ''}`;
+        <div class="fc-answer">${App.formatAnswer(cd.answer||'')}</div>`;
     }
     const m = document.getElementById('kh-preview-modal');
     if (m) m.style.display = 'flex';
@@ -12866,7 +12866,7 @@ const KartHavuzu = (() => {
         topic:          cd.topic || '',
         question:       cd.question || '',
         answer:         cd.answer || '',
-        photo:          null,
+        photo:          cd.photoUrl || null,
         nextReviewDate: Date.now(),
         interval:       0,
         createdAt:      Date.now()
