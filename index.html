@@ -3249,8 +3249,13 @@ select option{background:var(--surface2);color:var(--text)}
 
         <!-- Ders / Konu filtre paneli (açılır) -->
         <div id="kh-filter-panel" style="display:none;background:var(--surface2);border:1.5px solid var(--border);border-radius:14px;overflow:hidden">
-          <!-- Ders seçimi -->
+          <!-- Kart Tipi seçimi -->
           <div style="padding:12px 12px 8px">
+            <div style="font-size:.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">🃏 Kart Tipi</div>
+            <div id="kh-cardtype-chips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+          </div>
+          <!-- Ders seçimi -->
+          <div style="padding:0 12px 8px">
             <div style="font-size:.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">📚 Ders</div>
             <div id="kh-subject-chips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
           </div>
@@ -5638,7 +5643,8 @@ const App = (() => {
       ${card.topic ? `<div style="font-size:.7rem;color:var(--teal2);font-weight:700;margin-bottom:6px">${esc(card.topic)}</div>` : ''}
       ${card.question ? `<div style="font-size:.92rem;font-weight:700;color:var(--text);margin-bottom:12px;line-height:1.45">${esc(card.question)}</div>` : ''}
       <div class="fc-answer-label"><i class="fa-solid fa-check-circle"></i> Çözüm / Not</div>
-      <div class="fc-answer">${formatAnswer(card.answer || '')}</div>`;
+      <div class="fc-answer">${formatAnswer(card.answer || '')}</div>
+      ${card.photo ? `<div style="margin-top:14px;border-radius:12px;overflow:hidden;border:1px solid var(--border)"><img src="${card.photo}" style="width:100%;max-height:280px;object-fit:contain;display:block;background:var(--surface2)" alt="Kart Görseli"/></div>` : ''}`;
     modal.style.display = 'flex';
   }
 
@@ -12382,6 +12388,7 @@ const KartHavuzu = (() => {
 
   // ── Filter state ──
   let _filterSubjects = [];   // seçili dersler (boş = hepsi)
+  let _filterCardType = 'all'; // 'all' | 'soru' | 'foto' | 'hap'
   let _filterTopics   = [];   // seçili konular (boş = hepsi)
   let _allKhTopics    = [];   // mevcut konular listesi (ders seçimine göre)
 
@@ -12505,7 +12512,8 @@ const KartHavuzu = (() => {
       subject: card.subject || '',
       topic: card.topic || '',
       question: card.question || '',
-      answer: card.answer || ''
+      answer: card.answer || '',
+      hasPhoto: !!(card.photo)
     };
 
     try {
@@ -12621,6 +12629,11 @@ const KartHavuzu = (() => {
     let visible = _cards;
     if (_filterSubjects.length > 0) visible = visible.filter(c => _filterSubjects.includes(c.cardData?.subject));
     if (_filterTopics.length > 0)   visible = visible.filter(c => _filterTopics.includes(c.cardData?.topic));
+    if (_filterCardType !== 'all') {
+      if (_filterCardType === 'foto') visible = visible.filter(c => c.cardData?.type === 'foto');
+      else if (_filterCardType === 'soru') visible = visible.filter(c => c.cardData?.type === 'soru');
+      else if (_filterCardType === 'hap')  visible = visible.filter(c => c.cardData?.type === 'hap' || !c.cardData?.type);
+    }
 
     if (!visible.length) {
       el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text3);font-size:.85rem">${_cards.length > 0 ? '🔍 Bu filtreye uygun kart bulunamadı.' : '🌊 Henüz kart yok. İlk yükleyen sen ol!'}</div>`;
@@ -12638,11 +12651,16 @@ const KartHavuzu = (() => {
         ? c.cardData.question.slice(0,55) + (c.cardData.question.length > 55 ? '…' : '')
         : (c.cardData?.topic || 'Bilgi Notu');
       const name = (c.uploaderName || '?').slice(0,10) + ((c.uploaderName||'').length > 10 ? '…' : '');
+      const typeIcon = c.cardData?.type === 'foto' ? '📷' : c.cardData?.type === 'soru' ? '❓' : '⚡';
+      const typeColor = c.cardData?.type === 'foto' ? 'linear-gradient(135deg,#f093fb,#f5576c)' : c.cardData?.type === 'soru' ? 'linear-gradient(135deg,#4facfe,#00f2fe)' : 'linear-gradient(135deg,var(--primary),var(--primary2))';
       return `<div ondblclick="if(localStorage.getItem('kh_dblclick_preview')==='1')KartHavuzu.openPreview('${c.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:10px 12px;margin-bottom:8px">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-          <div style="flex-shrink:0;width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--primary),var(--primary2));display:flex;align-items:center;justify-content:center;font-size:.85rem">⚡</div>
+          <div style="flex-shrink:0;width:34px;height:34px;border-radius:9px;background:${typeColor};display:flex;align-items:center;justify-content:center;font-size:.85rem">${typeIcon}</div>
           <div style="flex:1;min-width:0">
-            <div style="font-size:.75rem;color:var(--teal2);font-weight:700;margin-bottom:1px">${_esc(c.cardData?.category||'')} · ${_esc(c.cardData?.subject||'')}</div>
+            <div style="display:flex;align-items:center;gap:5px;margin-bottom:1px">
+              <span style="font-size:.75rem;color:var(--teal2);font-weight:700">${_esc(c.cardData?.category||'')} · ${_esc(c.cardData?.subject||'')}</span>
+              ${c.cardData?.hasPhoto ? '<span style="font-size:.6rem;background:rgba(240,147,251,.2);color:#f093fb;border:1px solid rgba(240,147,251,.4);border-radius:6px;padding:1px 5px;font-weight:700;flex-shrink:0">📷 Fotoğraflı</span>' : ''}
+            </div>
             <div style="font-size:.83rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(title)}</div>
             <div style="font-size:.65rem;color:var(--text3);margin-top:1px">👤 ${_esc(name)}${_fmtTs(c) ? ' · 🕐 ' + _fmtTs(c) : ''}</div>
           </div>
@@ -12668,7 +12686,10 @@ const KartHavuzu = (() => {
       return `<div ondblclick="if(localStorage.getItem('kh_dblclick_preview')==='1')KartHavuzu.openPreview('${c.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:15px;margin-bottom:12px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
           <div>
-            <div style="font-size:.72rem;color:var(--teal2);font-weight:700">${_esc(c.cardData?.category||'')} · ${_esc(c.cardData?.subject||'')} · ${_esc(c.cardData?.topic||'')}</div>
+            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+              <span style="font-size:.72rem;color:var(--teal2);font-weight:700">${_esc(c.cardData?.category||'')} · ${_esc(c.cardData?.subject||'')} · ${_esc(c.cardData?.topic||'')}</span>
+              ${c.cardData?.hasPhoto ? '<span style="font-size:.6rem;background:rgba(240,147,251,.2);color:#f093fb;border:1px solid rgba(240,147,251,.4);border-radius:6px;padding:1px 5px;font-weight:700">📷 Fotoğraflı</span>' : ''}
+            </div>
             <div style="font-size:.68rem;color:var(--text3);margin-top:1px">👤 ${_esc(name)}${_fmtTs(c) ? ' · 🕐 ' + _fmtTs(c) : ''}</div>
           </div>
           <button onclick="KartHavuzu.vote('${c.id}','report')" style="background:none;border:none;color:var(--text3);font-size:.7rem;cursor:pointer;padding:4px">⚑</button>
@@ -12794,7 +12815,8 @@ const KartHavuzu = (() => {
         <div style="font-size:.72rem;color:var(--teal2);font-weight:700;margin-bottom:6px">${_esc(cd.category||'')} · ${_esc(cd.subject||'')} · ${_esc(cd.topic||'')}</div>
         ${cd.question && cd.question !== 'Bilgi Notu' ? `<div style="font-size:.95rem;font-weight:700;color:var(--text);margin-bottom:12px;line-height:1.45">${_esc(cd.question)}</div>` : ''}
         <div class="fc-answer-label"><i class="fa-solid fa-check-circle"></i> Çözüm / Not</div>
-        <div class="fc-answer">${App.formatAnswer(cd.answer||'')}</div>`;
+        <div class="fc-answer">${App.formatAnswer(cd.answer||'')}</div>
+        ${cd.hasPhoto ? '<div style="margin-top:12px;padding:9px 12px;background:rgba(240,147,251,.1);border:1px solid rgba(240,147,251,.35);border-radius:10px;font-size:.76rem;color:#f093fb;font-weight:600">📷 Bu kart orijinalde fotoğraf içeriyor — görsel indirilemez, sadece metin aktarılır.</div>' : ''}`;
     }
     const m = document.getElementById('kh-preview-modal');
     if (m) m.style.display = 'flex';
@@ -12991,10 +13013,33 @@ const KartHavuzu = (() => {
     if (btn) { btn.style.borderColor = open ? 'var(--primary)' : 'var(--border)'; btn.style.color = open ? 'var(--primary2)' : 'var(--text2)'; }
     if (icon) icon.textContent = open ? '🔍' : '🔍';
     if (lbl) {
-      const n = _filterSubjects.length + _filterTopics.length;
+      const n = _filterSubjects.length + _filterTopics.length + (_filterCardType !== 'all' ? 1 : 0);
       lbl.textContent = n > 0 ? `Filtre (${n})` : 'Filtre';
     }
-    if (open) _buildSubjectChips();
+    if (open) { _buildCardTypeChips(); _buildSubjectChips(); }
+  }
+
+  function _buildCardTypeChips() {
+    const cont = document.getElementById('kh-cardtype-chips');
+    if (!cont) return;
+    const types = [
+      { val: 'all',  label: '🔀 Tümü' },
+      { val: 'soru', label: '❓ Soru Kartı' },
+      { val: 'foto', label: '📷 Fotoğraflı Bilgi' },
+      { val: 'hap',  label: '⚡ Hap Bilgi' }
+    ];
+    cont.innerHTML = types.map(t => {
+      const sel = _filterCardType === t.val;
+      return `<div onclick="KartHavuzu.toggleCardType('${t.val}')" data-ctype="${t.val}"
+        style="padding:6px 12px;border-radius:20px;border:1.5px solid ${sel ? 'var(--teal)' : 'var(--border)'};background:${sel ? 'rgba(0,212,170,.15)' : 'var(--surface)'};color:${sel ? 'var(--teal2)' : 'var(--text2)'};font-size:.76rem;font-weight:${sel ? '700' : '500'};cursor:pointer;transition:all .15s;user-select:none">
+        ${t.label}
+      </div>`;
+    }).join('');
+  }
+
+  function toggleCardType(val) {
+    _filterCardType = val;
+    _buildCardTypeChips();
   }
 
   function _buildSubjectChips() {
@@ -13129,7 +13174,9 @@ const KartHavuzu = (() => {
   function clearAllFilters() {
     _filterSubjects = [];
     _filterTopics = [];
+    _filterCardType = 'all';
     _buildSubjectChips();
+    _buildCardTypeChips();
     _buildTopicList();
     _updateTopicSummary();
     _updateFilterBadge();
@@ -13489,7 +13536,7 @@ Cevap: ${cd.answer || cd.notes || ''}`;
     }
   }
 
-  return { onEnter, reload, loadMore, setView, uploadCard, acceptConsent, vote, openPreview, closePreview, importPreviewCard, withdrawCard,
+  return { onEnter, reload, loadMore, setView, uploadCard, acceptConsent, vote, openPreview, closePreview, importPreviewCard, withdrawCard, toggleCardType,
     toggleFilterPanel, toggleSubject, toggleTopicPanel, toggleTopic, filterTopicSearch, selectAllTopics, clearTopics, applyFilters, clearAllFilters,
     openSortSheet, closeSortSheet, pickSort, openTimeSheet, closeTimeSheet, pickTime,
     openFlagReason, closeFlagReason, geminiFixContent, applyGeminifix, autoUnhide };
