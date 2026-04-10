@@ -3725,6 +3725,23 @@ select option{background:var(--surface2);color:var(--text)}
           </div>
         </label>
       </div>
+      <div style="margin-top:8px">
+        <label id="ai-merge-dynamic-lbl" style="display:flex;align-items:flex-start;gap:9px;background:var(--card);border:2px solid var(--border);border-radius:var(--radius-sm);padding:11px 12px;cursor:pointer">
+          <input type="radio" name="ai-merge" value="dynamic" style="margin-top:2px;accent-color:var(--accent)">
+          <div style="flex:1">
+            <div style="font-weight:700;color:var(--accent);font-size:.84rem;display:flex;align-items:center;gap:6px">
+              🔄 Dinamik
+              <span onclick="event.preventDefault();event.stopPropagation();var t=document.getElementById('merge-dynamic-tooltip');t.style.display=t.style.display==='block'?'none':'block'"
+                style="width:17px;height:17px;border-radius:50%;background:var(--surface2);color:var(--text2);font-size:.65rem;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-weight:900;flex-shrink:0">?</span>
+            </div>
+            <div id="merge-dynamic-tooltip" style="display:none;margin-top:5px;font-size:.71rem;color:var(--text2);background:var(--surface2);border-radius:9px;padding:8px 10px;line-height:1.55">
+              Her birleştirme öncesinde yöntemi seçmen için bir pencere açar: <b>Sıralı</b> (anında, API yok) veya <b>Harmanlama</b> (Gemini ile akıcı kart).
+            </div>
+            <div style="font-size:.72rem;color:var(--text3);margin-top:2px">Her seferinde yöntemi kendin seç.</div>
+          </div>
+        </label>
+      </div>
+    </div>
     </div>
 
   </div>
@@ -10980,10 +10997,10 @@ const GeminiAI = (() => {
   }
 
   function _updateMergeborders() {
-    ['direct','blend'].forEach(m => {
+    const cols = { direct:'var(--primary)', blend:'var(--teal)', dynamic:'var(--accent)' };
+    ['direct','blend','dynamic'].forEach(m => {
       const el = document.getElementById('ai-merge-' + m + '-lbl');
-      const color = m === 'direct' ? 'var(--primary)' : 'var(--teal)';
-      if (el) el.style.borderColor = m === _mergeMode ? color : 'var(--border)';
+      if (el) el.style.borderColor = m === _mergeMode ? cols[m] : 'var(--border)';
     });
   }
 
@@ -11638,30 +11655,22 @@ ANSWER FORMATI - ZORUNLU:
               style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer">
             <span style="font-size:.7rem;color:var(--text3)">Birleştirmeye dahil et</span>
           </label>` : '';
-        const ansFormatted = (typeof App !== 'undefined' && App.formatAnswer) ? App.formatAnswer(c.answer || '') : _escHtml(c.answer || '');
         return `<div id="ai-card-wrap-${idx}" style="background:var(--surface2);border:1.5px solid var(--border);border-radius:14px;padding:13px;margin-bottom:10px;transition:opacity .2s,border-color .2s">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;cursor:pointer" onclick="GeminiAI.toggleCardCollapse(${idx})">
             <div style="display:flex;align-items:center;gap:6px">
               <span id="ai-card-icon-${idx}" style="font-size:.85rem;color:var(--text3)">▾</span>
               <div style="font-size:.7rem;color:${typeColor};font-weight:700">${typeIcon} ${_escHtml(c.category||'')} · ${_escHtml(c.subject||'')}</div>
             </div>
-            <div style="display:flex;gap:5px;align-items:center">
-              <button onclick="event.stopPropagation();GeminiAI.openPendingPreview(${idx})"
-                style="font-size:.68rem;color:var(--teal2);font-weight:700;background:rgba(0,212,170,.1);
-                  border:1px solid rgba(0,212,170,.25);border-radius:6px;padding:2px 7px;cursor:pointer">
-                👁 Önizle
-              </button>
-              <span style="font-size:.68rem;color:rgba(255,77,109,.8);font-weight:700;background:rgba(255,77,109,.1);border:1px solid rgba(255,77,109,.25);border-radius:6px;padding:2px 7px">
-                kapat
-              </span>
-            </div>
+            <span style="font-size:.68rem;color:rgba(255,77,109,.8);font-weight:700;background:rgba(255,77,109,.1);border:1px solid rgba(255,77,109,.25);border-radius:6px;padding:2px 7px">
+              kapat
+            </span>
           </div>
           <div id="ai-card-body-${idx}">
             ${photoThumb}
             ${checkboxHTML}
-            <div style="font-size:.7rem;color:var(--teal2);font-weight:700;margin-bottom:4px">${_escHtml(c.topic||'')}</div>
-            ${!isNote && c.question ? `<div style="font-size:.88rem;font-weight:700;color:var(--text);margin-bottom:10px;line-height:1.4">${_escHtml(c.question.slice(0,120)+(c.question.length>120?'…':''))}</div>` : `<div style="font-size:.88rem;font-weight:700;color:var(--text);margin-bottom:8px;line-height:1.4">📝 Bilgi Notu</div>`}
-            <div style="border-top:1px solid var(--border);padding-top:8px;max-height:200px;overflow-y:auto">${ansFormatted}</div>
+            <div style="font-size:.7rem;color:var(--text3);margin-bottom:6px">${_escHtml(c.topic||'')}</div>
+            <div style="font-size:.84rem;font-weight:700;color:var(--text);margin-bottom:6px;line-height:1.35">${_escHtml(title)}</div>
+            <div style="font-size:.74rem;color:var(--text2);line-height:1.6;border-top:1px solid var(--border);padding-top:7px;max-height:180px;overflow-y:auto">${ansHTML}</div>
             <button onclick="GeminiAI.openEditCard(${idx})"
               style="margin-top:9px;background:none;border:1px solid var(--border);border-radius:8px;
                 padding:5px 12px;color:var(--text3);font-size:.73rem;cursor:pointer;width:100%;
@@ -11677,38 +11686,6 @@ ANSWER FORMATI - ZORUNLU:
     _updateSaveBtn();
     const modal = document.getElementById('ai-card-modal');
     if (modal) modal.classList.add('open');
-  }
-
-  // ── Pending card full preview ─────────────────────────────────
-  function openPendingPreview(idx) {
-    if (!_pendingCards || !_pendingCards[idx]) return;
-    const c = _pendingCards[idx];
-    let modal = document.getElementById('ai-pending-preview-modal');
-    if (!modal) {
-      modal = document.createElement('div');
-      modal.id = 'ai-pending-preview-modal';
-      modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
-      modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:10600;align-items:center;justify-content:center;padding:16px';
-      modal.innerHTML = `<div style="background:var(--surface1,#12122a);border:1px solid var(--border);border-radius:20px;padding:20px 16px;width:100%;max-width:440px;max-height:82vh;overflow-y:auto">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-          <div style="font-weight:800;font-size:.95rem;color:var(--text)">👁 Tam Önizleme</div>
-          <button onclick="document.getElementById('ai-pending-preview-modal').style.display='none'"
-            style="background:none;border:none;color:var(--text3);font-size:1.1rem;cursor:pointer">✕</button>
-        </div>
-        <div id="ai-pending-preview-content"></div>
-      </div>`;
-      document.body.appendChild(modal);
-    }
-    const content = document.getElementById('ai-pending-preview-content');
-    const isNote = !c.question || c.question === 'Bilgi Notu';
-    const ansFormatted = (typeof App !== 'undefined' && App.formatAnswer) ? App.formatAnswer(c.answer || '') : _escHtml(c.answer || '');
-    content.innerHTML = `
-      <div style="font-size:.7rem;color:var(--teal2);font-weight:700;margin-bottom:6px">${_escHtml((c.category||'') + ' · ' + (c.subject||'') + (c.topic ? ' · ' + c.topic : ''))}</div>
-      ${!isNote && c.question ? `<div style="font-size:.95rem;font-weight:800;color:var(--text);margin-bottom:14px;line-height:1.45">${_escHtml(c.question)}</div>` : ''}
-      ${c.photo ? `<div style="margin-bottom:14px;border-radius:12px;overflow:hidden;border:1px solid var(--border)"><img src="${c.photo}" style="width:100%;max-height:280px;object-fit:contain;display:block;background:var(--surface2)"/></div>` : ''}
-      <div class="fc-answer-label"><i class="fa-solid fa-check-circle"></i> Çözüm / Not</div>
-      <div class="fc-answer">${ansFormatted}</div>`;
-    modal.style.display = 'flex';
   }
 
   function closeCardModal() {
@@ -11850,11 +11827,41 @@ KURALLAR:
     }
     const cardsToMerge = selectedIndices.map(i => _pendingCards[i]);
     const remaining    = _pendingCards.filter((_, i) => !_mergeSelected.has(i));
-    if (_mergeMode === 'blend') {
+    if (_mergeMode === 'dynamic') {
+      _showMergeChoiceDialog(cardsToMerge, remaining);
+    } else if (_mergeMode === 'blend') {
       await _mergeBlend(cardsToMerge, remaining);
     } else {
       _mergeDirect(cardsToMerge, remaining);
     }
+  }
+
+  function _showMergeChoiceDialog(cardsToMerge, remaining) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;display:flex;align-items:flex-end;justify-content:center';
+    overlay.innerHTML = `
+      <div style="background:var(--surface);border-radius:20px 20px 0 0;padding:20px 16px 36px;width:100%;max-width:520px;box-shadow:0 -4px 30px rgba(0,0,0,.4)">
+        <div style="width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 18px"></div>
+        <div style="font-weight:700;font-size:.95rem;color:var(--text1);margin-bottom:5px">🔀 Birleştirme Yöntemi</div>
+        <div style="font-size:.77rem;color:var(--text3);margin-bottom:16px">Bu birleştirme için hangi yöntemi kullanayım?</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button id="mcd-direct" style="padding:13px 14px;border-radius:13px;border:1.5px solid var(--primary);background:rgba(108,99,255,.08);color:var(--primary2);font-weight:700;font-size:.85rem;cursor:pointer;text-align:left">
+            ⚡ Sıralı Birleştirme
+            <div style="font-size:.71rem;font-weight:400;color:var(--text3);margin-top:3px">Kartları anında sıralar, API çağrısı yok.</div>
+          </button>
+          <button id="mcd-blend" style="padding:13px 14px;border-radius:13px;border:1.5px solid var(--teal);background:rgba(0,210,180,.06);color:var(--teal2);font-weight:700;font-size:.85rem;cursor:pointer;text-align:left">
+            ✨ Harmanlama
+            <div style="font-size:.71rem;font-weight:400;color:var(--text3);margin-top:3px">Gemini ile akıcı, tutarlı tek kart üretir.</div>
+          </button>
+          <button id="mcd-cancel" style="padding:11px;border-radius:13px;border:1.5px solid var(--border);background:transparent;color:var(--text2);font-size:.82rem;cursor:pointer">İptal</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const remove = () => { if (overlay.parentNode) document.body.removeChild(overlay); };
+    overlay.querySelector('#mcd-direct').onclick = () => { remove(); _mergeDirect(cardsToMerge, remaining); };
+    overlay.querySelector('#mcd-blend').onclick  = async () => { remove(); await _mergeBlend(cardsToMerge, remaining); };
+    overlay.querySelector('#mcd-cancel').onclick = remove;
+    overlay.onclick = e => { if (e.target === overlay) remove(); };
   }
 
   function _mergeDirect(cardsToMerge, remaining) {
@@ -12048,7 +12055,7 @@ STRİKT KURALLAR:
     openAIEditRecord,
     toggleMergeSelect, toggleCardCollapse,
     toggleHistSelMode, selectAllSessions, deleteSelectedSessions, toggleHistItemSelect,
-    mergeCards, openPendingPreview, getKeyPublic: getKey };
+    mergeCards, getKeyPublic: getKey };
 })();
 </script>
 
