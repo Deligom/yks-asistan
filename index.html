@@ -11450,9 +11450,8 @@ const GeminiAI = (() => {
       if (window.toast) toast('Kart için önce sohbet et!', 'err');
       return;
     }
-    const _activeModel = window.SubPlan?.getActiveModelId?.() || MODEL;
     try {
-      const res = await fetch(`${API_BASE}${_activeModel}:generateContent?key=${key}`, {
+      const res = await fetch(`${API_BASE}${MODEL}:generateContent?key=${key}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -11540,9 +11539,8 @@ ANSWER FORMATI - ZORUNLU:
       .map(m => ({ role: m.role, parts: m.parts.filter(p => p.text).map(p => ({ text: p.text })) }))
       .filter(m => m.parts.length > 0);
 
-    const _activeModelSoru = window.SubPlan?.getActiveModelId?.() || MODEL;
     try {
-      const res = await fetch(`${API_BASE}${_activeModelSoru}:generateContent?key=${key}`, {
+      const res = await fetch(`${API_BASE}${MODEL}:generateContent?key=${key}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -11802,9 +11800,8 @@ KURALLAR:
 4. Satır aralarında sadece \n kullan.
 5. Ters eğik çizgi (\\) ve çift tırnak (") kullanma.`;
 
-    const _activeModelEdit = window.SubPlan?.getActiveModelId?.() || MODEL;
     try {
-      const res = await fetch(`${API_BASE}${_activeModelEdit}:generateContent?key=${key}`, {
+      const res = await fetch(`${API_BASE}${MODEL}:generateContent?key=${key}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -11938,9 +11935,8 @@ KURALLAR:
 4. Biçimlendirme etiketlerini kullan: [f][/f] [r][/r] [y][/y] [g][/g] [c][/c] [b][/b]
 5. Satır aralarında sadece \n kullan, ters eğik çizgi (\\) ve çift tırnak (") kullanma.`;
 
-    const _activeModelMerge = window.SubPlan?.getActiveModelId?.() || MODEL;
     try {
-      const res = await fetch(`${API_BASE}${_activeModelMerge}:generateContent?key=${key}`, {
+      const res = await fetch(`${API_BASE}${MODEL}:generateContent?key=${key}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -13750,7 +13746,7 @@ Hangi derse öncelik vermeli, neden? Çalışmaya başlamasını teşvik et.`;
       return msg;
     }
 
-    const MODEL = window.SubPlan?.getActiveModelId?.() || 'gemini-3.1-flash-lite-preview';
+    const MODEL = 'gemini-3.1-flash-lite-preview';
     const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
     try {
       const res = await fetch(`${API_BASE}${MODEL}:generateContent?key=${key}`, {
@@ -13885,7 +13881,7 @@ window.SubPlan = (() => {
     lite:  'gemini-3.1-flash-lite-preview',
     flash: 'gemini-3-flash-preview',
   };
-  const FREE_FLASH_DAILY = 3;
+  const FREE_FLASH_DAILY = 100;
 
   let _plan = 'free', _uid = null, _usageDoc = null, _extraTokens = 0;
   let _selectedModel = localStorage.getItem('sub_selected_model') || 'lite';
@@ -14407,8 +14403,7 @@ const RoutineAI = (() => {
       const cardDetails  = mentionedIds.length ? _buildCardDetails(mentionedIds, cards) : null;
       const prompt      = _buildPrompt(userMsg, routines, topicStats, cardDetails);
 
-      const _activeModelRoutine = window.SubPlan?.getActiveModelId?.() || MODEL;
-      const res = await fetch(`${API_BASE}${_activeModelRoutine}:generateContent?key=${key}`, {
+      const res = await fetch(`${API_BASE}${MODEL}:generateContent?key=${key}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
