@@ -11546,7 +11546,7 @@ ANSWER FORMATI - ZORUNLU:
         body: JSON.stringify({
           system_instruction: { parts: [{ text: 'Sen bir YKS hazırlık asistanısın. Sadece istenilen JSON formatını döndür, başka hiçbir şey yazma.' }] },
           contents: [...textContents, { role: 'user', parts: [{ text: soruPrompt }] }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 3000 }
+          generationConfig: { temperature: 0.1, maxOutputTokens: 1024 }
         })
       });
       if (!res.ok) {
@@ -11960,22 +11960,16 @@ KURALLAR:
 
   function _safeParseJSON(raw) {
     let s = raw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
-    // Gerçek newline'ları JSON string içinde escape et
-    function _fixNewlines(str) {
-      return str.replace(/"(?:[^"\\]|\\.)*"/g, m => m.replace(/\n/g, '\\n').replace(/\r/g, '\\r'));
-    }
     try { return JSON.parse(s); } catch(_) {}
-    try { return JSON.parse(_fixNewlines(s)); } catch(_) {}
     const arrM = s.match(/\[[\s\S]*\]/);
-    if (arrM) { try { return JSON.parse(arrM[0]); } catch(_) { try { return JSON.parse(_fixNewlines(arrM[0])); } catch(_) {} } }
+    if (arrM) { try { return JSON.parse(arrM[0]); } catch(_) {} }
     const objM = s.match(/\{[\s\S]*\}/);
-    if (objM) { try { return JSON.parse(objM[0]); } catch(_) { try { return JSON.parse(_fixNewlines(objM[0])); } catch(_) {} } }
+    if (objM) { try { return JSON.parse(objM[0]); } catch(_) {} }
     const lines = s.split('\n');
     for (let i = 0; i < lines.length; i++) {
       const chunk = lines.slice(i).join('\n').trim();
       if (chunk.startsWith('[') || chunk.startsWith('{')) {
         try { return JSON.parse(chunk); } catch(_) {}
-        try { return JSON.parse(_fixNewlines(chunk)); } catch(_) {}
       }
     }
     throw new Error('Gemini geçerli JSON döndürmedi. Lütfen tekrar dene.');
@@ -13887,7 +13881,7 @@ window.SubPlan = (() => {
     lite:  'gemini-3.1-flash-lite-preview',
     flash: 'gemini-3-flash-preview',
   };
-  const FREE_FLASH_DAILY = 3;
+  const FREE_FLASH_DAILY = 100;
 
   let _plan = 'free', _uid = null, _usageDoc = null, _extraTokens = 0;
   let _selectedModel = localStorage.getItem('sub_selected_model') || 'lite';
